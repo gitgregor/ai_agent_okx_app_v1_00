@@ -288,11 +288,13 @@
   const DEFAULT_STANDALONE_MARKETS = [
     { instId: 'BTC-USDC', base: 'BTC', quote: 'USDC', name: 'Bitcoin', price: 80976.84, bidPx: 80974.10, askPx: 80978.50, open24h: 79500.00, high24h: 81850.00, low24h: 79200.00, vol24h: 1420.5, volCcy24h: 115027500, change24hPct: 1.86 },
     { instId: 'ETH-USDC', base: 'ETH', quote: 'USDC', name: 'Ethereum', price: 2654.20, bidPx: 2653.80, askPx: 2654.60, open24h: 2580.00, high24h: 2690.00, low24h: 2565.00, vol24h: 8520.4, volCcy24h: 22614800, change24hPct: 2.88 },
+    { instId: 'XRP-USDC', base: 'XRP', quote: 'USDC', name: 'Ripple', price: 0.5240, bidPx: 0.5238, askPx: 0.5242, open24h: 0.5180, high24h: 0.5310, low24h: 0.5150, vol24h: 284000.0, volCcy24h: 148816, change24hPct: 1.16 },
+    { instId: 'WLD-USDC', base: 'WLD', quote: 'USDC', name: 'Worldcoin (WLD)', price: 0.5368, bidPx: 0.5365, askPx: 0.5371, open24h: 0.5200, high24h: 0.5520, low24h: 0.5180, vol24h: 195000.0, volCcy24h: 104676, change24hPct: 3.23 },
+    { instId: 'ETC-USDC', base: 'ETC', quote: 'USDC', name: 'Ethereum Classic', price: 20.40, bidPx: 20.35, askPx: 20.45, open24h: 19.80, high24h: 21.00, low24h: 19.60, vol24h: 48000.0, volCcy24h: 979200, change24hPct: 3.03 },
+    { instId: 'USDG-USDC', base: 'USDG', quote: 'USDC', name: 'Global Dollar (USDG)', price: 1.00, bidPx: 0.9999, askPx: 1.0001, open24h: 1.00, high24h: 1.001, low24h: 0.999, vol24h: 500000.0, volCcy24h: 500000, change24hPct: 0.00 },
     { instId: 'SOL-USDC', base: 'SOL', quote: 'USDC', name: 'Solana', price: 184.50, bidPx: 184.40, askPx: 184.60, open24h: 178.20, high24h: 188.00, low24h: 176.50, vol24h: 42100.0, volCcy24h: 7767450, change24hPct: 3.54 },
     { instId: 'OKB-USDC', base: 'OKB', quote: 'USDC', name: 'OKB Token', price: 46.80, bidPx: 46.75, askPx: 46.85, open24h: 45.90, high24h: 47.50, low24h: 45.20, vol24h: 15400.0, volCcy24h: 720720, change24hPct: 1.96 },
-    { instId: 'XRP-USDC', base: 'XRP', quote: 'USDC', name: 'Ripple', price: 0.5240, bidPx: 0.5238, askPx: 0.5242, open24h: 0.5180, high24h: 0.5310, low24h: 0.5150, vol24h: 284000.0, volCcy24h: 148816, change24hPct: 1.16 },
     { instId: 'ADA-USDC', base: 'ADA', quote: 'USDC', name: 'Cardano', price: 0.3540, bidPx: 0.3538, askPx: 0.3542, open24h: 0.3480, high24h: 0.3620, low24h: 0.3440, vol24h: 351000.0, volCcy24h: 124254, change24hPct: 1.72 },
-    { instId: 'WLD-USDC', base: 'WLD', quote: 'USDC', name: 'Worldcoin (WLD)', price: 0.5368, bidPx: 0.5365, askPx: 0.5371, open24h: 0.5200, high24h: 0.5520, low24h: 0.5180, vol24h: 195000.0, volCcy24h: 104676, change24hPct: 3.23 },
     { instId: 'DOGE-USDC', base: 'DOGE', quote: 'USDC', name: 'Dogecoin', price: 0.1580, bidPx: 0.1578, askPx: 0.1582, open24h: 0.1530, high24h: 0.1630, low24h: 0.1510, vol24h: 890000.0, volCcy24h: 140620, change24hPct: 3.27 },
     { instId: 'AVAX-USDC', base: 'AVAX', quote: 'USDC', name: 'Avalanche', price: 26.40, bidPx: 26.35, askPx: 26.45, open24h: 25.80, high24h: 27.10, low24h: 25.40, vol24h: 76000.0, volCcy24h: 2006400, change24hPct: 2.33 },
     { instId: 'LINK-USDC', base: 'LINK', quote: 'USDC', name: 'Chainlink', price: 11.85, bidPx: 11.83, askPx: 11.87, open24h: 11.50, high24h: 12.10, low24h: 11.30, vol24h: 64000.0, volCcy24h: 758400, change24hPct: 3.04 },
@@ -305,14 +307,15 @@
   function initStandaloneState() {
     try {
       localStorage.removeItem('okx_standalone_state_v1');
-      const saved = localStorage.getItem('okx_standalone_state_v2');
+      localStorage.removeItem('okx_standalone_state_v2');
+      const saved = localStorage.getItem('okx_standalone_state_v3');
       if (saved) {
         _standaloneState = JSON.parse(saved);
         if (
           _standaloneState &&
           _standaloneState.portfolio &&
           Array.isArray(_standaloneState.portfolio.holdings) &&
-          _standaloneState.portfolio.holdings.length > 0 &&
+          _standaloneState.portfolio.holdings.length >= 8 &&
           Array.isArray(_standaloneState.portfolio.portfolioHistory) &&
           _standaloneState.portfolio.portfolioHistory.length >= 2 &&
           Array.isArray(_standaloneState.markets) &&
@@ -391,24 +394,52 @@
         mode: 'demo',
         site: 'eea.okx.com',
         syncedFromOkx: true,
-        accountSourceLabel: 'Konto OKX DEMO API (eea.okx.com — GitHub Pages)',
-        totalValueUsdc: 99845.20,
-        cashUsdc: 20287.74,
-        cryptoValueUsdc: 79557.46,
+        accountSourceLabel: 'Konto OKX DEMO API (eea.okx.com — 7 aktywów oraz USD)',
+        totalValueUsdc: 432301.46,
+        cashUsdc: 99900.00,
+        cryptoValueUsdc: 332401.46,
         holdings: [
           {
             asset: 'USDC',
             name: 'USD Coin (EEA MiCA)',
-            amount: 20287.74,
-            availAmount: 20287.74,
-            tradingAmount: 20287.74,
+            amount: 99900.00,
+            availAmount: 99900.00,
+            tradingAmount: 99900.00,
             fundingAmount: 0,
             priceUsdc: 1.0,
-            usdcValue: 20287.74,
+            usdcValue: 99900.00,
             avgBuyPrice: 1.0,
             change24hPct: 0,
             pnlPct: 0,
-            allocationPct: 20.32
+            allocationPct: 23.11
+          },
+          {
+            asset: 'USD',
+            name: 'US Dollar (OKX Demo Gotówka)',
+            amount: 100000.00,
+            availAmount: 100000.00,
+            tradingAmount: 100000.00,
+            fundingAmount: 0,
+            priceUsdc: 1.0,
+            usdcValue: 100000.00,
+            avgBuyPrice: 1.0,
+            change24hPct: 0,
+            pnlPct: 0,
+            allocationPct: 23.13
+          },
+          {
+            asset: 'USDG',
+            name: 'Global Dollar (USDG)',
+            amount: 100000.00,
+            availAmount: 100000.00,
+            tradingAmount: 100000.00,
+            fundingAmount: 0,
+            priceUsdc: 1.0,
+            usdcValue: 100000.00,
+            avgBuyPrice: 1.0,
+            change24hPct: 0,
+            pnlPct: 0,
+            allocationPct: 23.13
           },
           {
             asset: 'BTC',
@@ -422,7 +453,35 @@
             avgBuyPrice: 80976.84,
             change24hPct: 1.86,
             pnlPct: 0,
-            allocationPct: 79.58
+            allocationPct: 18.38
+          },
+          {
+            asset: 'ETH',
+            name: 'Ethereum',
+            amount: 10.00,
+            availAmount: 10.00,
+            tradingAmount: 10.00,
+            fundingAmount: 0,
+            priceUsdc: 2654.20,
+            usdcValue: 26542.00,
+            avgBuyPrice: 2654.20,
+            change24hPct: 2.88,
+            pnlPct: 0,
+            allocationPct: 6.14
+          },
+          {
+            asset: 'XRP',
+            name: 'Ripple',
+            amount: 50000.00,
+            availAmount: 50000.00,
+            tradingAmount: 50000.00,
+            fundingAmount: 0,
+            priceUsdc: 0.5240,
+            usdcValue: 26200.00,
+            avgBuyPrice: 0.5240,
+            change24hPct: 1.16,
+            pnlPct: 0,
+            allocationPct: 6.06
           },
           {
             asset: 'WLD',
@@ -436,7 +495,21 @@
             avgBuyPrice: 0.5368,
             change24hPct: 3.23,
             pnlPct: 0,
-            allocationPct: 0.10
+            allocationPct: 0.02
+          },
+          {
+            asset: 'ETC',
+            name: 'Ethereum Classic (ETC)',
+            amount: 5.00,
+            availAmount: 5.00,
+            tradingAmount: 5.00,
+            fundingAmount: 0,
+            priceUsdc: 20.40,
+            usdcValue: 102.00,
+            avgBuyPrice: 20.40,
+            change24hPct: 3.03,
+            pnlPct: 0,
+            allocationPct: 0.02
           }
         ],
         ledger: {
@@ -466,9 +539,74 @@
               sellCount: 0,
               netAmount: 186.27,
               netUsdcFlow: -100.0
+            },
+            {
+              asset: 'ETH',
+              instId: 'ETH-USDC',
+              currentPriceUsdc: 2654.20,
+              boughtAmount: 10.0,
+              boughtUsdc: 26542.00,
+              buyCount: 1,
+              soldAmount: 0,
+              soldUsdc: 0,
+              sellCount: 0,
+              netAmount: 10.0,
+              netUsdcFlow: -26542.00
+            },
+            {
+              asset: 'XRP',
+              instId: 'XRP-USDC',
+              currentPriceUsdc: 0.5240,
+              boughtAmount: 50000.0,
+              boughtUsdc: 26200.00,
+              buyCount: 1,
+              soldAmount: 0,
+              soldUsdc: 0,
+              sellCount: 0,
+              netAmount: 50000.0,
+              netUsdcFlow: -26200.00
+            },
+            {
+              asset: 'ETC',
+              instId: 'ETC-USDC',
+              currentPriceUsdc: 20.40,
+              boughtAmount: 5.0,
+              boughtUsdc: 102.00,
+              buyCount: 1,
+              soldAmount: 0,
+              soldUsdc: 0,
+              sellCount: 0,
+              netAmount: 5.0,
+              netUsdcFlow: -102.00
+            },
+            {
+              asset: 'USDG',
+              instId: 'USDG-USDC',
+              currentPriceUsdc: 1.00,
+              boughtAmount: 100000.0,
+              boughtUsdc: 100000.00,
+              buyCount: 1,
+              soldAmount: 0,
+              soldUsdc: 0,
+              sellCount: 0,
+              netAmount: 100000.0,
+              netUsdcFlow: -100000.00
+            },
+            {
+              asset: 'USD',
+              instId: 'USD-USDC',
+              currentPriceUsdc: 1.00,
+              boughtAmount: 100000.0,
+              boughtUsdc: 100000.00,
+              buyCount: 1,
+              soldAmount: 0,
+              soldUsdc: 0,
+              sellCount: 0,
+              netAmount: 100000.0,
+              netUsdcFlow: -100000.00
             }
           ],
-          totalBoughtUsdc: 79557.46,
+          totalBoughtUsdc: 332401.46,
           totalSoldUsdc: 0
         },
         orders: [
@@ -520,7 +658,7 @@
             side: 'BUY',
             usdcValue: 79457.46,
             diffUsdc: 79457.46,
-            totalValueUsdc: 99845.20,
+            totalValueUsdc: 432301.46,
             asset: 'BTC',
             amount: 0.981237,
             price: 80976.84
@@ -535,7 +673,7 @@
             side: 'BUY',
             usdcValue: 100.0,
             diffUsdc: 100.0,
-            totalValueUsdc: 100100.00,
+            totalValueUsdc: 352844.00,
             asset: 'WLD',
             amount: 186.27,
             price: 0.5368
@@ -550,7 +688,7 @@
   function saveStandaloneState() {
     try {
       if (_standaloneState) {
-        localStorage.setItem('okx_standalone_state_v2', JSON.stringify(_standaloneState));
+        localStorage.setItem('okx_standalone_state_v3', JSON.stringify(_standaloneState));
       }
     } catch (e) {}
   }
@@ -1746,21 +1884,21 @@
 
     el.portfolioHoldingsTbody.innerHTML = portfolio.holdings
       .map((h) => {
-        const isCash = h.asset === 'USDC' || h.asset === 'USDT';
+        const isCash = h.asset === 'USDC' || h.asset === 'USDT' || h.asset === 'USD' || h.asset === 'USDG';
         const pair = isCash ? 'BTC-USDC' : `${h.asset}-USDC`;
         if (!isCash) ensurePairOptionExists(pair, `${pair} (${h.name})`);
         return `
           <tr>
             <td><strong>${h.asset}</strong> <span class="small-muted">${h.name}</span></td>
             <td><strong>${formatQty(h.amount)} ${h.asset}</strong></td>
-            <td>${isCash ? formatUsdc(h.priceUsdc) : formatUnitPrice(h.priceUsdc)}</td>
+            <td>${isCash ? (h.asset === 'USD' ? '1,00 USD' : formatUsdc(h.priceUsdc)) : formatUnitPrice(h.priceUsdc)}</td>
             <td><strong>${formatUsdc(h.usdcValue)}</strong></td>
-            <td>${isCash ? '1,00 USDC' : formatUnitPrice(h.avgBuyPrice)}</td>
+            <td>${isCash ? (h.asset === 'USD' ? '1,00 USD' : '1,00 USDC') : formatUnitPrice(h.avgBuyPrice)}</td>
             <td>${h.allocationPct}%</td>
             <td>
               ${
                 isCash
-                  ? '<span class="small-muted">Waluta rozliczeniowa</span>'
+                  ? '<span class="small-muted">Gotówka / Rozliczeniowa</span>'
                   : `<button type="button" class="btn btn-outline-sm open-asset-chart-btn" data-instid="${pair}">📈 Wykres ${h.asset}</button>`
               }
             </td>
