@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "okx-eea-trade-mcp": {
+      "command": "node",
+      "args": [
+        "server/mcp-server.js",
+        "--site",
+        "eea",
+        "--demo"
+      ],
+      "env": {
+        "OKX_SITE": "eea",
+        "OKX_BASE_URL": "https://eea.okx.com",
+        "OKX_TRADING_MODE": "demo",
+        "OKX_API_KEY": "",
+        "OKX_SECRET_KEY": "",
+        "OKX_PASSPHRASE": ""
+      }
+    },
+    "okx-official-agent-trade-kit": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@okx_ai/okx-trade-mcp",
+        "--site",
+        "eea",
+        "--demo"
+      ],
+      "env": {
+        "OKX_SITE": "eea"
+      }
+    }
+  }
+}

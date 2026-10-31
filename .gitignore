@@ -1,0 +1,7 @@
+node_modules/
+.okx-keys.json
+server/.okx-keys.json
+.~lock.*
+*.log
+.DS_Store
+Thumbs.db

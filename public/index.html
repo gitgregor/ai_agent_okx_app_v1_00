@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>OKX Europe — AI Agent Crypto Trading</title>
+  <link rel="stylesheet" href="/styles.css?v=20261031v5" />
+</head>
+<body>
+  <!-- KOMPAKTOWY JEDNOLINIOWY GÓRNY PASEK NAWIGACJI (BEZ LOGO I TYTUŁU DLA MAKSYMALNEGO MIEJSCA NA EKRANIE) -->
+  <header class="app-header" id="appHeader">
+    <div class="brand-row">
+      <button type="button" id="toggleLeftSidebarBtn" class="btn-sidebar-toggle" title="Pokaż / Ukryj lewy Sidebar Okien">
+        ☰ Sidebar <span id="sidebarDockedBadge" class="dock-count-badge">0</span>
+      </button>
+      <div class="header-quick-badges">
+        <span id="headerModeBadge" class="status-pill mode-demo">TRYB: DEMO (DOMYŚLNY)</span>
+        <span id="headerApiConnBadge" class="status-pill api-connected" title="Kliknij, aby otworzyć okno Kluczy API">
+          🔑 KLUCZE API: PODŁĄCZONE
+        </span>
+        <!-- Pkt 1 & 2: AGENT AI + informacja 'Dezaktywowany (Domyślnie)' + przełącznik Dezaktywowany/Aktywny -->
+        <div class="header-ai-status-group" id="headerAiStatusGroup">
+          <span class="header-ai-label">AGENT AI</span>
+          <span id="headerAiBadge" class="status-pill ai-off" title="Stan Agenta AI">
+            <span id="headerAiStatusDot" class="indicator-dot dot-off"></span>
+            <span id="headerAiStatusText">Dezaktywowany (Domyślnie)</span>
+          </span>
+          <div class="segmented-switch header-ai-switch" role="group" aria-label="Status Agenta AI w górnej linii">
+            <button type="button" id="headerBtnAiDeactivated" class="seg-btn active-danger" title="Dezaktywuj Agenta AI">Dezaktywowany</button>
+            <button type="button" id="headerBtnAiActive" class="seg-btn" title="Aktywuj Agenta AI">Aktywny</button>
+          </div>
+        </div>
+        <div class="top-menu-dropdown-wrap">
+          <button
+            type="button"
+            id="toggleTopWindowMenuBtn"
+            class="btn-top-window-menu"
+            aria-expanded="false"
+            title="Kliknij, aby otworzyć lub zamknąć okno Menu Górne Okien"
+          >
+            🗔 Menu Górne Okien <span id="topMenuDockedCount" class="dock-count-badge">10</span> <span class="chevron">▼</span>
+          </button>
+
+          <!-- PRZESUWNE OKNO: WYWOŁAJ LUB SCHOWAJ OKNA Z MENU GÓRNEGO (WERSJA MINIMALNA, MEDIUM, FULL + ZAMKNIĘCIE) -->
+          <nav class="top-window-menu-bar top-menu-size-medium" id="topWindowMenuBar" aria-label="Górne menu zarządzania oknami" hidden>
+            <div class="top-menu-dropdown-header" id="topMenuDragHeader" title="Przeciągnij myszką, aby przesunąć okno w dowolne miejsce">
+              <span class="top-menu-title">⠿ 🗔 Wywołaj lub schowaj okna z Menu Górnego</span>
+              <div class="top-menu-win-controls" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
+                <button type="button" class="win-ctrl-btn topmenu-size-btn" data-topmenu-size="min" title="Wersja minimalna (kompaktowa przesuwna)">🗕 Min</button>
+                <button type="button" class="win-ctrl-btn topmenu-size-btn active" data-topmenu-size="medium" title="Wersja średnia (Medium przesuwna)">🗗 Medium</button>
+                <button type="button" class="win-ctrl-btn topmenu-size-btn" data-topmenu-size="full" title="Wersja na cały ekran (Full)">⛶ Full</button>
+                <button type="button" id="closeTopWindowMenuBtn" class="win-ctrl-btn close-win-btn" title="Zamknij okno Menu Górnego">✕</button>
+              </div>
+            </div>
+            <div class="top-menu-body" id="topMenuBody">
+              <div id="topWindowPillsContainer" class="top-window-pills">
+                <!-- Renderowane dynamicznie przez menedżer okien w app.js -->
+              </div>
+              <div class="top-menu-actions">
+                <button type="button" id="btnToggleTopControls" class="btn btn-outline-sm" title="Zwiń lub pokaż okna sterowania 1-3, aby odsłonić cały ekran">
+                  👁️ Ukryj/Pokaż okna 1–3
+                </button>
+                <button type="button" id="btnResetAllWindowsGrid" class="btn btn-outline-sm" title="Przywróć wszystkie okna do domyślnego układu siatki">
+                  ⊞ Wszystkie w siatce
+                </button>
+                <button type="button" id="btnDockAllTop" class="btn btn-outline-sm" title="Zwróć wszystkie okna do menu na górze">
+                  🔼 Zwiń wszystkie na górę
+                </button>
+                <button type="button" id="btnDockAllSidebar" class="btn btn-outline-sm" title="Zwróć wszystkie okna do sidebaru z lewej">
+                  ◀ Zwiń wszystkie do Sidebaru
+                </button>
+              </div>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PASEK NOTOWAŃ NA ŻYWO (TICKER BAR) - DOMYŚLNIE UKRYTY DLA JEDNEJ GÓRNEJ LINII -->
+  <section class="market-ticker-strip" id="marketTickerStrip" aria-label="Kursy kryptowalut na żywo w USDC" hidden style="display: none !important;">
+    <!-- Renderowane dynamicznie przez app.js -->
+  </section>
+
+  <!-- UKŁAD Z LEWYM SIDEBAREM OKIEN I GŁÓWNĄ PRZESTRZENIĄ ROBOCZĄ -->
+  <div class="app-shell" id="appShell">
+    
+    <!-- LEWY SIDEBAR OKIEN (DOMYŚLNIE ZWINIĘTY/ZAMKNIĘTY NA START) -->
+    <aside class="left-window-sidebar collapsed" id="leftWindowSidebar" aria-label="Lewy panel boczny okien">
+      <div class="sidebar-header">
+        <div>
+          <h3>◀ Sidebar Okien</h3>
+          <p class="small-muted">Kliknij okno, aby je otworzyć w siatce, zmniejszyć (przesuwne) lub otworzyć na cały ekran</p>
+        </div>
+        <button type="button" id="closeLeftSidebarMobileBtn" class="chart-ctrl-btn" title="Ukryj sidebar">✕</button>
+      </div>
+
+      <!-- Status kluczy API w lewym sidebarze -->
+      <div class="sidebar-api-box" id="sidebarApiBox">
+        <div class="sidebar-section-label">STATUS KLUCZY API</div>
+        <div id="sidebarApiStatusBadge" class="sidebar-api-badge ok">🟢 DEMO API: PODŁĄCZONE</div>
+        <p id="sidebarApiReason" class="sidebar-api-reason">Połączono prawidłowo (x-simulated-trading: 1)</p>
+      </div>
+
+      <!-- Lista okien zwróconych / zamkniętych do Sidebaru z lewej -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">
+          ZWRÓCONE DO SIDEBARU (<span id="sidebarDockedCountText">0</span>)
+        </div>
+        <div id="sidebarDockedList" class="sidebar-docked-list">
+          <!-- Renderowane dynamicznie -->
+        </div>
+      </div>
+
+      <!-- Pełna lista wszystkich 10 okien ze sterowaniem -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">WSZYSTKIE OKNA APLIKACJI (10)</div>
+        <div id="sidebarAllWindowsList" class="sidebar-windows-list">
+          <!-- Renderowane dynamicznie -->
+        </div>
+      </div>
+    </aside>
+
+    <!-- GŁÓWNA PRZESTRZEŃ ROBOCZA -->
+    <main class="main-container" id="mainWorkspace">
+
+      <!-- ================================================================================= -->
+      <!-- GÓRNE OKNA STEROWANIA 1, 2, 3 (ZMINIMALIZOWALNE, ZAMYKANE, PRZESUWNE, CAŁY EKRAN) -->
+      <!-- ================================================================================= -->
+      <section class="top-controls-grid" id="topControlsGrid" aria-label="Główne okna sterowania 1-3">
+        
+        <!-- OKNO STEROWANIA 1: TRYB GIEŁDY I STATUS KLUCZY API -->
+        <div
+          class="control-card app-window win-mode-docked"
+          id="win-ctrl-api"
+          data-window-id="win-ctrl-api"
+          data-window-title="1. Tryb i Klucze API"
+          data-window-icon="🔑"
+        >
+          <div class="window-titlebar" data-drag-window="win-ctrl-api" title="Przeciągnij myszką lub palcem, aby przesunąć okno">
+            <div class="window-titlebar-left">
+              <span class="window-drag-grip">⠿</span>
+              <span class="window-titlebar-name">1. Tryb Giełdy i Status Kluczy API (eea.okx.com)</span>
+              <span class="window-mode-badge" data-mode-badge="win-ctrl-api">W Menu Górnym</span>
+            </div>
+            <div class="window-titlebar-controls">
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-api" data-win-action="grid" title="Osadź w siatce">⊞ Siatka</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-api" data-win-action="minimized-inline" title="Minimalizuj okno w miejscu">—</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-api" data-win-action="floating-small" title="Zmniejsz do małego okna przesuwnego">🗗 Małe</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-api" data-win-action="floating-medium" title="Zmniejsz do średniego okna przesuwnego">🗗 Średnie</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-api" data-win-action="fullscreen" title="Otwórz na cały ekran">⛶ Cały ekran</button>
+              <button type="button" class="win-ctrl-btn dock-btn active" data-win-id="win-ctrl-api" data-win-action="docked-top" title="Zwróć do Menu Górnego">🔼 Menu</button>
+              <button type="button" class="win-ctrl-btn dock-btn" data-win-id="win-ctrl-api" data-win-action="docked-sidebar" title="Zwróć do Sidebaru z lewej">◀ Sidebar</button>
+              <button type="button" class="win-ctrl-btn close-win-btn" data-win-id="win-ctrl-api" data-win-action="docked-top" title="Zamknij okno">✕</button>
+            </div>
+          </div>
+
+          <div class="window-content-body">
+            <div class="control-card-top">
+              <div class="control-info">
+                <div class="control-value-row">
+                  <span id="apiModeIndicator" class="indicator-dot dot-demo"></span>
+                  <strong id="apiModeText">Handel DEMO (Symulowany)</strong>
+                </div>
+              </div>
+              <div class="control-actions">
+                <div class="segmented-switch" role="group" aria-label="Przełącznik Demo lub Live">
+                  <button type="button" id="btnModeDemo" class="seg-btn active">DEMO</button>
+                  <button type="button" id="btnModeLive" class="seg-btn">LIVE</button>
+                </div>
+                <button type="button" class="accordion-toggle" id="apiAccordionToggleBtn" data-target="accordionApiBody" aria-expanded="false">
+                  <span>Klucze API</span>
+                  <span class="chevron">▼</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- STATUS PODŁĄCZENIA KLUCZY API + POWÓD GDY NIEPODŁĄCZONE -->
+            <div id="apiConnStatusBanner" class="api-conn-banner conn-ok">
+              <div class="api-conn-main-row">
+                <span id="apiConnStateIcon" class="api-conn-icon">🟢</span>
+                <div class="api-conn-texts">
+                  <div class="api-conn-title-line">
+                    <strong id="apiConnStatusLabel">PODŁĄCZONE (OKX EEA DEMO)</strong>
+                    <span id="apiConnCheckedTime" class="api-conn-time">Sprawdzono: —</span>
+                  </div>
+                  <p id="apiConnReasonText" class="api-conn-reason">
+                    Połączono prawidłowo z serwerem symulacyjnym OKX Europe.
+                  </p>
+                </div>
+              </div>
+              <div class="api-dual-pills-row">
+                <span id="pillStatusDemoKey" class="mini-conn-pill ok">DEMO API: 🟢 Podłączone</span>
+                <span id="pillStatusLiveKey" class="mini-conn-pill err">LIVE API: 🔴 Niepodłączone (Brak kluczy)</span>
+              </div>
+            </div>
+
+            <div id="accordionApiBody" class="accordion-body" hidden>
+              <div class="api-diagnostics-grid">
+                <div id="diagBoxDemo" class="api-diag-box diag-ok">
+                  <div class="diag-header">
+                    <strong>Profil DEMO (x-simulated-trading: 1)</strong>
+                    <span id="diagBadgeDemo" class="diag-badge ok">PODŁĄCZONE</span>
+                  </div>
+                  <p id="diagReasonDemo" class="diag-reason">Klucz symulacyjny aktywny.</p>
+                </div>
+                <div id="diagBoxLive" class="api-diag-box diag-err">
+                  <div class="diag-header">
+                    <strong>Profil LIVE (eea.okx.com Production)</strong>
+                    <span id="diagBadgeLive" class="diag-badge err">NIEPODŁĄCZONE</span>
+                  </div>
+                  <p id="diagReasonLive" class="diag-reason">Powód: Nie wprowadzono kluczy API dla konta LIVE (pola API Key, Secret Key i Passphrase są puste).</p>
+                </div>
+              </div>
+
+              <form id="apiKeyForm" class="accordion-form">
+                <div class="form-row-inline">
+                  <label>
+                    <span>Wybierz profil klucza do edycji / testu:</span>
+                    <select id="apiKeyProfileSelect">
+                      <option value="demo" selected>Klucz API Demo (x-simulated-trading: 1)</option>
+                      <option value="live">Klucz API Live (eea.okx.com Production)</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Endpoint regionalny:</span>
+                    <input type="text" value="https://eea.okx.com" readonly />
+                  </label>
+                </div>
+                <div class="form-row-3">
+                  <label>
+                    <span>OKX API Key (min. 8 zn.):</span>
+                    <input type="text" id="inputApiKey" placeholder="Wklej klucz API..." />
+                  </label>
+                  <label>
+                    <span>OKX Secret Key (min. 8 zn.):</span>
+                    <input type="password" id="inputSecretKey" placeholder="Wklej Secret Key..." />
+                  </label>
+                  <label>
+                    <span>Passphrase (min. 4 zn.):</span>
+                    <input type="password" id="inputPassphrase" placeholder="Hasło API..." />
+                  </label>
+                </div>
+                <div class="accordion-footer api-actions-footer">
+                  <span class="hint-text" id="apiSavedStatus">Wprowadź klucze API z konta Demo OKX, aby pobrać swój portfel</span>
+                  <div class="api-btn-group">
+                    <button type="button" id="btnSyncOkxPortfolio" class="btn btn-outline-sm" title="Pobierz aktualne saldo i zlecenia ze swojego konta OKX">🔄 Pobierz Portfel z OKX</button>
+                    <button type="button" id="btnDisconnectApiKeys" class="btn btn-outline-sm" title="Rozłącz bieżący profil API">🔌 Rozłącz API</button>
+                    <button type="button" id="btnClearApiKeys" class="btn btn-outline-sm" title="Wyczyść klucze w wybranym profilu">🗑️ Wyczyść</button>
+                    <button type="submit" class="btn btn-primary-sm">🔗 Zapisz i Pobierz Portfel z OKX</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- OKNO STEROWANIA 2: STEROWANIE HANDLEM I AUTORYZACJA ZLECEŃ -->
+        <div
+          class="control-card control-card-trade app-window win-mode-docked"
+          id="win-ctrl-trade"
+          data-window-id="win-ctrl-trade"
+          data-window-title="2. Sterowanie Handlem"
+          data-window-icon="▶️"
+        >
+          <div class="window-titlebar" data-drag-window="win-ctrl-trade" title="Przeciągnij myszką lub palcem, aby przesunąć okno">
+            <div class="window-titlebar-left">
+              <span class="window-drag-grip">⠿</span>
+              <span class="window-titlebar-name">2. Sterowanie Handlem i Autoryzacja Zleceń</span>
+              <span class="window-mode-badge" data-mode-badge="win-ctrl-trade">W Menu Górnym</span>
+            </div>
+            <div class="window-titlebar-controls">
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-trade" data-win-action="grid" title="Osadź w siatce">⊞ Siatka</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-trade" data-win-action="minimized-inline" title="Minimalizuj okno w miejscu">—</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-trade" data-win-action="floating-small" title="Zmniejsz do małego okna przesuwnego">🗗 Małe</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-trade" data-win-action="floating-medium" title="Zmniejsz do średniego okna przesuwnego">🗗 Średnie</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-trade" data-win-action="fullscreen" title="Otwórz na cały ekran">⛶ Cały ekran</button>
+              <button type="button" class="win-ctrl-btn dock-btn active" data-win-id="win-ctrl-trade" data-win-action="docked-top" title="Zwróć do Menu Górnego">🔼 Menu</button>
+              <button type="button" class="win-ctrl-btn dock-btn" data-win-id="win-ctrl-trade" data-win-action="docked-sidebar" title="Zwróć do Sidebaru z lewej">◀ Sidebar</button>
+              <button type="button" class="win-ctrl-btn close-win-btn" data-win-id="win-ctrl-trade" data-win-action="docked-top" title="Zamknij okno">✕</button>
+            </div>
+          </div>
+
+          <div class="window-content-body">
+            <div class="control-card-top">
+              <div class="control-info">
+                <div class="control-value-row">
+                  <span id="tradeStatusDot" class="indicator-dot dot-idle"></span>
+                  <strong id="topTradeStatusText">Status: Gotowy (Brak zlecenia w kolejce)</strong>
+                </div>
+              </div>
+              <div class="control-actions">
+                <button type="button" class="accordion-toggle" data-target="accordionTradeBody" aria-expanded="false">
+                  <span>Szczegóły</span>
+                  <span class="chevron">▼</span>
+                </button>
+              </div>
+            </div>
+            <div class="trade-buttons-bar">
+              <!-- Główny przycisk Start Handlu z wbudowaną informacją o statusie - każde kliknięcie otwiera pop-up! -->
+              <button type="button" id="mainStartTradingBtn" class="btn-start-trading">
+                <span class="btn-start-title">▶ START HANDLU (Autoryzacja Pop-up)</span>
+                <span class="btn-start-status" id="mainStartBtnSubtext">Status: Czekam na utworzenie / start zlecenia</span>
+              </button>
+              <button type="button" id="mainStopTradingBtn" class="btn-stop-trading" title="Zatrzymaj handel i anuluj oczekujące zlecenie">
+                ⏹ STOP HANDLU
+              </button>
+            </div>
+            <div id="accordionTradeBody" class="accordion-body" hidden>
+              <div class="accordion-info-box">
+                <p><strong>Autoryzacja zleceń:</strong> Każda transakcja utworzona przez Agenta AI lub formularz trafia do stanu <em>„Czekam na start zlecenia”</em>. Dopiero wciśnięcie przycisku <strong>START</strong> wewnątrz otwieranego pop-upa rozpoczyna i realizuje handel.</p>
+                <div class="accordion-footer">
+                  <button type="button" id="openPopupFromAccordionBtn" class="btn btn-outline-sm">Otwórz Pop-up Statusu i Autoryzacji</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- OKNO STEROWANIA 3: STATUS AGENTA AI -->
+        <div
+          class="control-card app-window win-mode-docked"
+          id="win-ctrl-ai"
+          data-window-id="win-ctrl-ai"
+          data-window-title="3. Status Agenta AI"
+          data-window-icon="🤖"
+        >
+          <div class="window-titlebar" data-drag-window="win-ctrl-ai" title="Przeciągnij myszką lub palcem, aby przesunąć okno">
+            <div class="window-titlebar-left">
+              <span class="window-drag-grip">⠿</span>
+              <span class="window-titlebar-name">3. Status Agenta AI (okx/agent-trade-kit)</span>
+              <span class="window-mode-badge" data-mode-badge="win-ctrl-ai">W Menu Górnym</span>
+            </div>
+            <div class="window-titlebar-controls">
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-ai" data-win-action="grid" title="Osadź w siatce">⊞ Siatka</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-ai" data-win-action="minimized-inline" title="Minimalizuj okno w miejscu">—</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-ai" data-win-action="floating-small" title="Zmniejsz do małego okna przesuwnego">🗗 Małe</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-ai" data-win-action="floating-medium" title="Zmniejsz do średniego okna przesuwnego">🗗 Średnie</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ctrl-ai" data-win-action="fullscreen" title="Otwórz na cały ekran">⛶ Cały ekran</button>
+              <button type="button" class="win-ctrl-btn dock-btn active" data-win-id="win-ctrl-ai" data-win-action="docked-top" title="Zwróć do Menu Górnego">🔼 Menu</button>
+              <button type="button" class="win-ctrl-btn dock-btn" data-win-id="win-ctrl-ai" data-win-action="docked-sidebar" title="Zwróć do Sidebaru z lewej">◀ Sidebar</button>
+              <button type="button" class="win-ctrl-btn close-win-btn" data-win-id="win-ctrl-ai" data-win-action="docked-top" title="Zamknij okno">✕</button>
+            </div>
+          </div>
+
+          <div class="window-content-body">
+            <div class="control-card-top">
+              <div class="control-info">
+                <div class="control-value-row">
+                  <span class="indicator-dot dot-demo"></span>
+                  <strong>Silnik Agenta AI: @okx_ai/okx-trade-mcp (v5 EEA)</strong>
+                </div>
+                <p class="small-muted" style="margin-top: 4px;">Narzędzia MCP: rynek spot, zlecenia, portfel handlowy i boty OKX. Sterowanie statusem i przełącznik Agenta AI znajdują się w pierwszej górnej linii.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================================================================================= -->
+      <!-- GŁÓWNE OKNA ROBOCZE: AGENT AI + KREATOR ZLECEŃ                                    -->
+      <!-- ================================================================================= -->
+      <section class="workspace-row row-agent-and-order">
+        
+        <!-- OKNO 4: PANEL AGENTA AI & CZAT HANDLOWY -->
+        <div
+          class="panel-card panel-ai-chat app-window win-mode-docked"
+          id="win-ai-chat"
+          data-window-id="win-ai-chat"
+          data-window-title="🤖 Agent AI Handlu"
+          data-window-icon="🤖"
+        >
+          <div class="window-titlebar" data-drag-window="win-ai-chat" title="Przeciągnij myszką lub palcem, aby przesunąć okno">
+            <div class="window-titlebar-left">
+              <span class="window-drag-grip">⠿</span>
+              <span class="window-titlebar-name">🤖 Agent AI Handlu OKX Europe</span>
+              <span class="window-mode-badge" data-mode-badge="win-ai-chat">W Menu Górnym</span>
+            </div>
+            <div class="window-titlebar-controls">
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ai-chat" data-win-action="grid" title="Osadź w siatce głównej">⊞ Siatka</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ai-chat" data-win-action="minimized-inline" title="Minimalizuj okno">—</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ai-chat" data-win-action="floating-small" title="Zmniejsz do małego okna przesuwnego">🗗 Małe</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ai-chat" data-win-action="floating-medium" title="Zmniejsz do średniego okna przesuwnego">🗗 Średnie</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ai-chat" data-win-action="fullscreen" title="Otwórz okno na cały ekran">⛶ Cały ekran</button>
+              <button type="button" class="win-ctrl-btn dock-btn active" data-win-id="win-ai-chat" data-win-action="docked-top" title="Zwróć okno do menu na górze">🔼 Menu</button>
+              <button type="button" class="win-ctrl-btn dock-btn" data-win-id="win-ai-chat" data-win-action="docked-sidebar" title="Zwróć okno do sidebaru z lewej">◀ Sidebar</button>
+              <button type="button" class="win-ctrl-btn close-win-btn" data-win-id="win-ai-chat" data-win-action="docked-top" title="Zamknij okno">✕</button>
+            </div>
+          </div>
+
+          <div class="window-content-body">
+            <div class="panel-header">
+              <div>
+                <h2>🤖 Agent AI Handlu OKX Europe</h2>
+                <p class="panel-subtitle">Napisz czego chcesz — AI stworzy strategię i przygotuje transakcję do autoryzacji</p>
+              </div>
+            </div>
+
+            <!-- Pasek ostrzeżenia gdy Agent AI jest dezaktywowany (domyślnie) -->
+            <div id="aiDeactivatedBanner" class="ai-deactivated-banner">
+              <div>
+                <strong>🔒 Agent AI jest domyślnie DEZAKTYWOWANY.</strong>
+                <span>Aktywuj Agenta AI, aby generować strategie i wystawiać zlecenia.</span>
+              </div>
+              <button type="button" id="quickActivateAiBtn" class="btn btn-accent-sm">⚡ Aktywuj Agenta AI teraz</button>
+            </div>
+
+            <!-- Szybkie podpowiedzi poleceń (Quick Prompts) -->
+            <div class="quick-prompts-bar">
+              <span class="quick-prompts-label">Przykładowe polecenia:</span>
+              <button type="button" class="prompt-chip" data-prompt="Kup 0.05 BTC po cenie rynkowej w strategii akumulacji">Kup 0.05 BTC (Market)</button>
+              <button type="button" class="prompt-chip" data-prompt="Stwórz strategię DCA na ETH za 1500 USDC">Strategia DCA ETH za 1500 USDC</button>
+              <button type="button" class="prompt-chip" data-prompt="Kup SOL za 950 USDC pod wybicie momentum">Momentum SOL za 950 USDC</button>
+              <button type="button" class="prompt-chip" data-prompt="Sprzedaj 0.03 BTC i zrealizuj zysk do USDC">Sprzedaj 0.03 BTC do USDC</button>
+              <button type="button" class="prompt-chip" data-prompt="Sprzedaj 1.0 ETH po cenie rynkowej">Sprzedaj 1.0 ETH</button>
+            </div>
+
+            <!-- Historia rozmowy z Agentem AI -->
+            <div class="chat-messages" id="chatMessages">
+              <div class="chat-bubble assistant">
+                <div class="bubble-meta">OKX EEA AI Agent</div>
+                <div class="bubble-text">
+                  Witaj! Domyślnie pracujemy w trybie <strong>DEMO</strong>, a Agent AI jest <strong>dezaktywowany</strong>.<br/>
+                  Każde okno (w tym górne okna 1–3) możesz <strong>zminimalizować (—)</strong>, <strong>zamknąć (✕)</strong>, <strong>otworzyć na cały ekran (⛶)</strong> lub <strong>zmniejszyć do okna przesuwnego (🗗 Przesuwne)</strong> i dowolnie przeciągać myszką za pasek tytułowy!
+                </div>
+              </div>
+            </div>
+
+            <!-- Pole wprowadzania wiadomości do Agenta AI -->
+            <form id="aiChatForm" class="chat-input-row">
+              <input
+                type="text"
+                id="aiChatInput"
+                placeholder="Powiedz AI czego chcesz, np. 'Kup 0.05 BTC za USDC' lub 'Stwórz strategię sprzedaży 5 SOL'..."
+                autocomplete="off"
+              />
+              <button type="submit" class="btn btn-primary">Wyślij do AI ➤</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- OKNO 5: KREATOR ZLECENIA / SZYBKI FORMULARZ Z AUTORYZACJĄ POP-UP -->
+        <div
+          class="panel-card panel-quick-trade app-window win-mode-docked"
+          id="win-quick-trade"
+          data-window-id="win-quick-trade"
+          data-window-title="⚡ Kreator Zlecenia"
+          data-window-icon="⚡"
+        >
+          <div class="window-titlebar" data-drag-window="win-quick-trade" title="Przeciągnij myszką lub palcem, aby przesunąć okno">
+            <div class="window-titlebar-left">
+              <span class="window-drag-grip">⠿</span>
+              <span class="window-titlebar-name">⚡ Kreator Zlecenia OKX EEA</span>
+              <span class="window-mode-badge" data-mode-badge="win-quick-trade">W Menu Górnym</span>
+            </div>
+            <div class="window-titlebar-controls">
+              <button type="button" class="win-ctrl-btn" data-win-id="win-quick-trade" data-win-action="grid" title="Osadź w siatce głównej">⊞ Siatka</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-quick-trade" data-win-action="minimized-inline" title="Minimalizuj okno">—</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-quick-trade" data-win-action="floating-small" title="Zmniejsz do małego okna przesuwnego">🗗 Małe</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-quick-trade" data-win-action="floating-medium" title="Zmniejsz do średniego okna przesuwnego">🗗 Średnie</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-quick-trade" data-win-action="fullscreen" title="Otwórz okno na cały ekran">⛶ Cały ekran</button>
+              <button type="button" class="win-ctrl-btn dock-btn active" data-win-id="win-quick-trade" data-win-action="docked-top" title="Zwróć okno do menu na górze">🔼 Menu</button>
+              <button type="button" class="win-ctrl-btn dock-btn" data-win-id="win-quick-trade" data-win-action="docked-sidebar" title="Zwróć okno do sidebaru z lewej">◀ Sidebar</button>
+              <button type="button" class="win-ctrl-btn close-win-btn" data-win-id="win-quick-trade" data-win-action="docked-top" title="Zamknij okno">✕</button>
+            </div>
+          </div>
+
+          <div class="window-content-body">
+            <div class="panel-header">
+              <div>
+                <h2>⚡ Kreator Zlecenia (USDC)</h2>
+                <p class="panel-subtitle">Przygotuj zlecenie Kupna lub Sprzedaży — realizacja nastąpi po autoryzacji w Pop-upie Start Handlu</p>
+              </div>
+              <button type="button" id="openChartFromFormBtn" class="btn btn-outline-sm">📈 Wykres pary</button>
+            </div>
+
+            <form id="manualTradeForm" class="trade-form">
+              <div class="side-tabs">
+                <button type="button" id="tabSideBuy" class="side-tab active-buy" data-side="BUY">KUPNO (BUY)</button>
+                <button type="button" id="tabSideSell" class="side-tab" data-side="SELL">SPRZEDAŻ (SELL)</button>
+              </div>
+
+              <div class="form-group">
+                <label for="tradePairSelect">Para kryptowalutowa (Kursy na żywo z OKX):</label>
+                <select id="tradePairSelect">
+                  <option value="BTC-USDC">BTC-USDC (Bitcoin / USD Coin)</option>
+                  <option value="ETH-USDC">ETH-USDC (Ethereum / USD Coin)</option>
+                  <option value="SOL-USDC">SOL-USDC (Solana / USD Coin)</option>
+                  <option value="OKB-USDC">OKB-USDC (OKB / USD Coin)</option>
+                  <option value="XRP-USDC">XRP-USDC (Ripple / USD Coin)</option>
+                  <option value="ADA-USDC">ADA-USDC (Cardano / USD Coin)</option>
+                  <option value="DOGE-USDC">DOGE-USDC (Dogecoin / USD Coin)</option>
+                  <option value="AVAX-USDC">AVAX-USDC (Avalanche / USD Coin)</option>
+                  <option value="LINK-USDC">LINK-USDC (Chainlink / USD Coin)</option>
+                  <option value="SUI-USDC">SUI-USDC (Sui / USD Coin)</option>
+                </select>
+              </div>
+
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label for="tradeOrderType">Typ zlecenia:</label>
+                  <select id="tradeOrderType">
+                    <option value="MARKET" selected>Rynkowe (Market)</option>
+                    <option value="LIMIT">Limit (Cena docelowa)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="tradePriceInput">Cena wykonania (USDC):</label>
+                  <input type="number" id="tradePriceInput" step="any" readonly />
+                </div>
+              </div>
+
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label for="tradeAmountInput">Ilość aktywa (<span id="tradeAssetUnit">BTC</span>):</label>
+                  <input type="number" id="tradeAmountInput" step="any" min="0.0001" value="0.02" required />
+                </div>
+                <div class="form-group">
+                  <label for="tradeUsdcInput">Wartość w przeliczeniu na USDC:</label>
+                  <input type="number" id="tradeUsdcInput" step="any" min="1" value="1885.00" required />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="tradeStrategyInput">Opis / Nazwa strategii:</label>
+                <input type="text" id="tradeStrategyInput" value="Zlecenie autoryzowane Spot EEA" />
+              </div>
+
+              <div class="available-balance-row">
+                <span>Dostępne USDC: <strong id="formAvailUsdc">0.00 USDC</strong></span>
+                <span>Posiadane <span id="formAvailAssetName">BTC</span>: <strong id="formAvailAssetAmt">0.0000</strong></span>
+              </div>
+
+              <button type="submit" id="submitTradeProposalBtn" class="btn btn-authorize-order">
+                🔒 Przygotuj zlecenie i otwórz Pop-up Start Handlu
+              </button>
+            </form>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- PUNKT 6: DWA PANELE PORTFELA OBOK SIEBIE (LUB POD SPODEM NA MOBILE) -->
+      <section class="workspace-row row-portfolios" aria-label="Portfel Handlowy oraz Bilans Kupiono i Sprzedano">
+        
+        <!-- OKNO 6: PANEL 1: PORTFEL HANDLOWY (DEMO / LIVE) -->
+        <div
+          class="panel-card panel-portfolio app-window win-mode-docked"
+          id="win-portfolio"
+          data-window-id="win-portfolio"
+          data-window-title="💼 Portfel Handlowy"
+          data-window-icon="💼"
+        >
+          <div class="window-titlebar" data-drag-window="win-portfolio" title="Przeciągnij myszką lub palcem, aby przesunąć okno">
+            <div class="window-titlebar-left">
+              <span class="window-drag-grip">⠿</span>
+              <span class="window-titlebar-name">💼 Panel 1: Portfel Handlowy</span>
+              <span class="window-mode-badge" data-mode-badge="win-portfolio">W Menu Górnym</span>
+            </div>
+            <div class="window-titlebar-controls">
+              <button type="button" class="win-ctrl-btn" data-win-id="win-portfolio" data-win-action="grid" title="Osadź w siatce głównej">⊞ Siatka</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-portfolio" data-win-action="minimized-inline" title="Minimalizuj okno">—</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-portfolio" data-win-action="floating-small" title="Zmniejsz do małego okna przesuwnego">🗗 Małe</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-portfolio" data-win-action="floating-medium" title="Zmniejsz do średniego okna przesuwnego">🗗 Średnie</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-portfolio" data-win-action="fullscreen" title="Otwórz okno na cały ekran">⛶ Cały ekran</button>
+              <button type="button" class="win-ctrl-btn dock-btn active" data-win-id="win-portfolio" data-win-action="docked-top" title="Zwróć okno do menu na górze">🔼 Menu</button>
+              <button type="button" class="win-ctrl-btn dock-btn" data-win-id="win-portfolio" data-win-action="docked-sidebar" title="Zwróć okno do sidebaru z lewej">◀ Sidebar</button>
+              <button type="button" class="win-ctrl-btn close-win-btn" data-win-id="win-portfolio" data-win-action="docked-top" title="Zamknij okno">✕</button>
+            </div>
+          </div>
+
+          <div class="window-content-body">
+            <div class="panel-header">
+              <div>
+                <h2>💼 Panel 1: Portfel Handlowy (<span id="portfolioModeTitle">DEMO</span>)</h2>
+                <p class="panel-subtitle" id="portfolioSourceSubtitle">Aktualny stan posiadanych aktywów i gotówki z Twojego konta OKX (aktualizowany na żywo)</p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <button type="button" id="btnSyncPortfolioPanel" class="btn btn-outline-sm" title="Pobierz najnowsze saldo bezpośrednio z konta OKX">
+                  🔄 Synchronizuj z OKX
+                </button>
+                <div class="portfolio-total-box">
+                  <span class="total-label">Wartość całkowita portfela:</span>
+                  <strong class="total-value" id="portfolioTotalUsdc">0.00 USDC</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="portfolio-kpi-row">
+              <div class="kpi-item">
+                <span>Gotówka rozliczeniowa (USDC):</span>
+                <strong id="portfolioCashUsdc">0.00 USDC</strong>
+              </div>
+              <div class="kpi-item">
+                <span>Wartość kryptowalut w USDC:</span>
+                <strong id="portfolioCryptoUsdc">0.00 USDC</strong>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Aktywo</th>
+                    <th>Ilość w portfelu</th>
+                    <th>Kurs bieżący (USDC)</th>
+                    <th>Wartość w USDC</th>
+                    <th>Śr. cena zakupu</th>
+                    <th>Udział %</th>
+                    <th>Wykres</th>
+                  </tr>
+                </thead>
+                <tbody id="portfolioHoldingsTbody">
+                  <!-- Wypełniane dynamicznie -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- OKNO 7: PANEL 2: ILE KUPIONO, ILE SPRZEDANO, CZEGO, W ILOŚCI AKTYWA I W PRZELICZENIU NA USDC (Pkt 6) -->
+        <div
+          class="panel-card panel-bought-sold app-window win-mode-docked"
+          id="win-bought-sold"
+          data-window-id="win-bought-sold"
+          data-window-title="📊 Kupiono / Sprzedano"
+          data-window-icon="📊"
+        >
+          <div class="window-titlebar" data-drag-window="win-bought-sold" title="Przeciągnij myszką lub palcem, aby przesunąć okno">
+            <div class="window-titlebar-left">
+              <span class="window-drag-grip">⠿</span>
+              <span class="window-titlebar-name">📊 Panel 2: Bilans Kupiono / Sprzedano</span>
+              <span class="window-mode-badge" data-mode-badge="win-bought-sold">W Menu Górnym</span>
+            </div>
+            <div class="window-titlebar-controls">
+              <button type="button" class="win-ctrl-btn" data-win-id="win-bought-sold" data-win-action="grid" title="Osadź w siatce głównej">⊞ Siatka</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-bought-sold" data-win-action="minimized-inline" title="Minimalizuj okno">—</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-bought-sold" data-win-action="floating-small" title="Zmniejsz do małego okna przesuwnego">🗗 Małe</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-bought-sold" data-win-action="floating-medium" title="Zmniejsz do średniego okna przesuwnego">🗗 Średnie</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-bought-sold" data-win-action="fullscreen" title="Otwórz okno na cały ekran">⛶ Cały ekran</button>
+              <button type="button" class="win-ctrl-btn dock-btn active" data-win-id="win-bought-sold" data-win-action="docked-top" title="Zwróć okno do menu na górze">🔼 Menu</button>
+              <button type="button" class="win-ctrl-btn dock-btn" data-win-id="win-bought-sold" data-win-action="docked-sidebar" title="Zwróć okno do sidebaru z lewej">◀ Sidebar</button>
+              <button type="button" class="win-ctrl-btn close-win-btn" data-win-id="win-bought-sold" data-win-action="docked-top" title="Zamknij okno">✕</button>
+            </div>
+          </div>
+
+          <div class="window-content-body">
+            <div class="panel-header">
+              <div>
+                <h2>📊 Panel 2: Bilans Operacji — Ile Kupiono i Ile Sprzedano (w ilości aktywa i w USDC)</h2>
+                <p class="panel-subtitle">Szczegółowe zestawienie czego, w jakiej ilości aktywa oraz za ile USDC kupiono i sprzedano</p>
+              </div>
+            </div>
+
+            <div class="ledger-summary-cards">
+              <div class="ledger-kpi buy-kpi">
+                <span>Łącznie KUPIONO (w przeliczeniu na USDC):</span>
+                <strong id="totalBoughtUsdcVal">0.00 USDC</strong>
+              </div>
+              <div class="ledger-kpi sell-kpi">
+                <span>Łącznie SPRZEDANO (w przeliczeniu na USDC):</span>
+                <strong id="totalSoldUsdcVal">0.00 USDC</strong>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Czego (Aktywo)</th>
+                    <th>Ile KUPIONO (Ilość aktywa)</th>
+                    <th>Kupiono w przeliczeniu na USDC</th>
+                    <th>Ile SPRZEDANO (Ilość aktywa)</th>
+                    <th>Sprzedano w przeliczeniu na USDC</th>
+                    <th>Bilans netto aktywa</th>
+                    <th>Wykres</th>
+                  </tr>
+                </thead>
+                <tbody id="boughtSoldLedgerTbody">
+                  <!-- Wypełniane dynamicznie -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- OKNO 8: PUNKT 8: HISTORIA PORTFELA (AKTUALIZOWANA PO KAŻDEJ TRANSAKCJI KUPNA LUB SPRZEDAŻY) -->
+      <section
+        class="panel-card panel-portfolio-history app-window win-mode-docked"
+        id="win-portfolio-history"
+        data-window-id="win-portfolio-history"
+        data-window-title="📈 Historia Portfela"
+        data-window-icon="📈"
+      >
+        <div class="window-titlebar" data-drag-window="win-portfolio-history" title="Przeciągnij myszką lub palcem, aby przesunąć okno">
+          <div class="window-titlebar-left">
+            <span class="window-drag-grip">⠿</span>
+            <span class="window-titlebar-name">📈 Historia Portfela Handlowego</span>
+            <span class="window-mode-badge" data-mode-badge="win-portfolio-history">W Menu Górnym</span>
+          </div>
+          <div class="window-titlebar-controls">
+            <button type="button" class="win-ctrl-btn" data-win-id="win-portfolio-history" data-win-action="grid" title="Osadź w siatce głównej">⊞ Siatka</button>
+            <button type="button" class="win-ctrl-btn" data-win-id="win-portfolio-history" data-win-action="minimized-inline" title="Minimalizuj okno">—</button>
+            <button type="button" class="win-ctrl-btn" data-win-id="win-portfolio-history" data-win-action="floating-small" title="Zmniejsz do małego okna przesuwnego">🗗 Małe</button>
+            <button type="button" class="win-ctrl-btn" data-win-id="win-portfolio-history" data-win-action="floating-medium" title="Zmniejsz do średniego okna przesuwnego">🗗 Średnie</button>
+            <button type="button" class="win-ctrl-btn" data-win-id="win-portfolio-history" data-win-action="fullscreen" title="Otwórz okno na cały ekran">⛶ Cały ekran</button>
+            <button type="button" class="win-ctrl-btn dock-btn active" data-win-id="win-portfolio-history" data-win-action="docked-top" title="Zwróć okno do menu na górze">🔼 Menu</button>
+            <button type="button" class="win-ctrl-btn dock-btn" data-win-id="win-portfolio-history" data-win-action="docked-sidebar" title="Zwróć okno do sidebaru z lewej">◀ Sidebar</button>
+            <button type="button" class="win-ctrl-btn close-win-btn" data-win-id="win-portfolio-history" data-win-action="docked-top" title="Zamknij okno">✕</button>
+          </div>
+        </div>
+
+        <div class="window-content-body">
+          <div class="panel-header">
+            <div>
+              <h2>📈 Historia Portfela Handlowego (Snapshoty po każdej transakcji kupna lub sprzedaży)</h2>
+              <p class="panel-subtitle">Każda autoryzowana transakcja zapisuje stan portfela w czasie wraz z wykresem zmiany wartości w USDC</p>
+            </div>
+          </div>
+
+          <div class="portfolio-history-layout">
+            <div class="portfolio-curve-box">
+              <canvas id="portfolioEquityCanvas" width="500" height="190"></canvas>
+            </div>
+            <div class="table-responsive history-snapshots-table">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Data i Czas</th>
+                    <th>Wykonana operacja</th>
+                    <th>Typ</th>
+                    <th>Ilość aktywa</th>
+                    <th>Kwota operacji (USDC)</th>
+                    <th>Wartość Portfela po transakcji (USDC)</th>
+                  </tr>
+                </thead>
+                <tbody id="portfolioHistoryTbody">
+                  <!-- Wypełniane dynamicznie -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- OKNO 9: PUNKT 9: HISTORIA TRANSAKCJI, OTWARTE ZLECENIA, ZAMKNIĘTE ZLECENIA, CZAS, DATA I PRZYCISK WYKRESU -->
+      <section
+        class="panel-card panel-orders-history app-window win-mode-docked"
+        id="win-orders-history"
+        data-window-id="win-orders-history"
+        data-window-title="📜 Historia Transakcji"
+        data-window-icon="📜"
+      >
+        <div class="window-titlebar" data-drag-window="win-orders-history" title="Przeciągnij myszką lub palcem, aby przesunąć okno">
+          <div class="window-titlebar-left">
+            <span class="window-drag-grip">⠿</span>
+            <span class="window-titlebar-name">📜 Historia Transakcji — Otwarte i Zamknięte Zlecenia</span>
+            <span class="window-mode-badge" data-mode-badge="win-orders-history">W Menu Górnym</span>
+          </div>
+          <div class="window-titlebar-controls">
+            <button type="button" class="win-ctrl-btn" data-win-id="win-orders-history" data-win-action="grid" title="Osadź w siatce głównej">⊞ Siatka</button>
+            <button type="button" class="win-ctrl-btn" data-win-id="win-orders-history" data-win-action="minimized-inline" title="Minimalizuj okno">—</button>
+            <button type="button" class="win-ctrl-btn" data-win-id="win-orders-history" data-win-action="floating-small" title="Zmniejsz do małego okna przesuwnego">🗗 Małe</button>
+            <button type="button" class="win-ctrl-btn" data-win-id="win-orders-history" data-win-action="floating-medium" title="Zmniejsz do średniego okna przesuwnego">🗗 Średnie</button>
+            <button type="button" class="win-ctrl-btn" data-win-id="win-orders-history" data-win-action="fullscreen" title="Otwórz okno na cały ekran">⛶ Cały ekran</button>
+            <button type="button" class="win-ctrl-btn dock-btn active" data-win-id="win-orders-history" data-win-action="docked-top" title="Zwróć okno do menu na górze">🔼 Menu</button>
+            <button type="button" class="win-ctrl-btn dock-btn" data-win-id="win-orders-history" data-win-action="docked-sidebar" title="Zwróć okno do sidebaru z lewej">◀ Sidebar</button>
+            <button type="button" class="win-ctrl-btn close-win-btn" data-win-id="win-orders-history" data-win-action="docked-top" title="Zamknij okno">✕</button>
+          </div>
+        </div>
+
+        <div class="window-content-body">
+          <div class="panel-header">
+            <div>
+              <h2>📜 Historia Transakcji — Otwarte Zlecenia i Zamknięte Zlecenia</h2>
+              <p class="panel-subtitle">Pełna lista zleceń z datą, czasem oraz przyciskiem otwierającym przesuwny wykres danego aktywa (Mały / Średni / Full)</p>
+            </div>
+            <div class="orders-filter-tabs" role="tablist">
+              <button type="button" class="filter-tab active" data-filter="ALL">Wszystkie (<span id="countAllOrders">0</span>)</button>
+              <button type="button" class="filter-tab" data-filter="OPEN">Otwarte zlecenia (<span id="countOpenOrders">0</span>)</button>
+              <button type="button" class="filter-tab" data-filter="CLOSED">Zamknięte zlecenia (<span id="countClosedOrders">0</span>)</button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID Zlecenia</th>
+                  <th>Data</th>
+                  <th>Czas</th>
+                  <th>Para / Aktywo</th>
+                  <th>Kierunek</th>
+                  <th>Ilość aktywa</th>
+                  <th>Cena (USDC)</th>
+                  <th>Wartość (USDC)</th>
+                  <th>Strategia / Źródło</th>
+                  <th>Status zlecenia</th>
+                  <th>Wykres aktywa &amp; Akcje</th>
+                </tr>
+              </thead>
+              <tbody id="ordersHistoryTbody">
+                <!-- Wypełniane dynamicznie -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ======================================================================================== -->
+  <!-- PUNKT 4: POP-UP AUTORYZACJI I STATUSU HANDLU (ZAMYKANY KRZYŻYKIEM ✕ + CAŁY EKRAN/PRZESUWNY) -->
+  <!-- ======================================================================================== -->
+  <div id="tradeAuthModalOverlay" class="modal-overlay" hidden>
+    <div id="authPopupDialog" class="modal-dialog auth-popup-dialog" role="dialog" aria-modal="true" aria-labelledby="authPopupTitle">
+      <!-- Pasek sterowania oknem pop-upa (Przesuwne / Cały ekran / Zamknij ✕) -->
+      <div id="authPopupDragHeader" class="popup-window-bar" title="Przeciągnij okno pop-up">
+        <span class="window-drag-grip">⠿ Pop-up Autoryzacji (Przeciągnij, aby przesunąć)</span>
+        <div class="popup-win-btns">
+          <button type="button" id="btnPopupToggleFullscreen" class="win-ctrl-btn" title="Przełącz cały ekran / zmniejszone okno przesuwne">⛶ Cały ekran</button>
+          <button type="button" id="closeAuthPopupBtn" class="modal-close-x-inline" aria-label="Zamknij okno pop-up" title="Zamknij pop-up">✕</button>
+        </div>
+      </div>
+
+      <div class="auth-popup-header">
+        <span class="auth-popup-badge" id="popupModeBadge">OKX EUROPE • DEMO</span>
+        <h3 id="authPopupTitle">Autoryzacja i Status Zlecenia Handlowego</h3>
+      </div>
+
+      <!-- Pasek statusu zlecenia wewnątrz pop-upa -->
+      <div id="popupStatusBanner" class="popup-status-banner status-waiting">
+        <div class="status-icon" id="popupStatusIcon">⏳</div>
+        <div class="status-texts">
+          <span class="status-caption">AKTUALNY STATUS HANDLU:</span>
+          <strong id="popupStatusMainText">Czekam na start zlecenia</strong>
+        </div>
+      </div>
+
+      <!-- Szczegóły zlecenia oczekującego lub realizowanego -->
+      <div id="popupOrderDetailsBox" class="popup-order-details">
+        <div class="detail-row">
+          <span>ID Zlecenia:</span>
+          <strong id="popupOrderId">—</strong>
+        </div>
+        <div class="detail-row">
+          <span>Strategia / Źródło:</span>
+          <strong id="popupOrderStrategy">—</strong>
+        </div>
+        <div class="detail-row">
+          <span>Para handlowa:</span>
+          <strong id="popupOrderPair">BTC-USDC</strong>
+        </div>
+        <div class="detail-row">
+          <span>Kierunek operacji:</span>
+          <strong id="popupOrderSide">KUPNO (BUY)</strong>
+        </div>
+        <div class="detail-row">
+          <span>Ilość aktywa:</span>
+          <strong id="popupOrderAmount">0.0000 BTC</strong>
+        </div>
+        <div class="detail-row">
+          <span>Cena jednostkowa:</span>
+          <strong id="popupOrderPrice">0.00 USDC</strong>
+        </div>
+        <div class="detail-row highlight-row">
+          <span>Wartość całkowita w przeliczeniu na USDC:</span>
+          <strong id="popupOrderUsdc">0.00 USDC</strong>
+        </div>
+      </div>
+
+      <p id="popupInstructionText" class="popup-instruction">
+        Zlecenie oczekuje na Twoją autoryzację. Wciśnij poniższy przycisk <strong>START</strong>, aby rozpocząć handel i zrealizować transakcję.
+      </p>
+
+      <!-- Przyciski akcji wewnątrz Pop-upa -->
+      <div class="popup-actions">
+        <button type="button" id="popupConfirmStartBtn" class="btn-popup-start">
+          🚀 START — Potwierdź i Uruchom Realizację Zlecenia
+        </button>
+        <button type="button" id="popupStopCancelBtn" class="btn btn-danger-outline">
+          ⏹ Stop / Anuluj zlecenie
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================================== -->
+  <!-- OKNO 10 (PUNKT 9): WYKRES TRADINGVIEW PRO (MAŁY / ŚREDNI / FULL + MENU GÓRNE / SIDEBAR)   -->
+  <!-- ======================================================================================== -->
+  <div
+    id="floatingChartWindow"
+    class="chart-window size-medium tv-superchart-window"
+    data-window-id="win-chart"
+    data-window-title="🕯️ Wykres TradingView"
+    data-window-icon="🕯️"
+    style="left: 90px; top: 90px;"
+    hidden
+  >
+    <!-- Pasek tytułowy służący do przeciągania (Drag Handle) w wersji Małej i Średniej -->
+    <div id="chartWindowHeader" class="chart-window-header" title="Przeciągnij myszką lub palcem, aby przesunąć okno wykresu">
+      <div class="chart-title-group">
+        <span class="drag-grip">⠿</span>
+        <span class="tv-brand-pill">TradingView PRO</span>
+        <strong id="chartPairTitle">BTC-USDC</strong>
+        <span id="chartLivePriceBadge" class="chart-price-badge">— USDC</span>
+        <span id="chartChangeBadge" class="chart-change-badge pos">0.00%</span>
+        <span class="tv-live-dot-badge" title="Notowania na żywo z giełdy OKX">● OKX LIVE</span>
+      </div>
+
+      <div class="chart-window-controls">
+        <!-- Przełącznik silnika wykresu: Natywny TradingView Pro (OKX API + Zlecenia) vs Oficjalny Widget TradingView -->
+        <div class="chart-size-group tv-engine-switch" role="group" aria-label="Silnik wykresu">
+          <button type="button" class="tv-engine-btn active" data-engine="pro" title="Interaktywny wykres TradingView Pro z Twoimi zleceniami, średnią ceną zakupu i narzędziami rysowania">⚡ TV Pro</button>
+          <button type="button" class="tv-engine-btn" data-engine="widget" title="Oficjalny wbudowany widget TradingView.com (OKX)">🌐 TV Widget</button>
+        </div>
+        <!-- Przełączniki rozmiaru: Mały, Średni, Full -->
+        <div class="chart-size-group" role="group" aria-label="Rozmiar wykresu">
+          <button type="button" class="chart-size-btn" data-size="small" title="Wersja mała (przesuwna)">Mały</button>
+          <button type="button" class="chart-size-btn active" data-size="medium" title="Wersja średnia (przesuwna)">Średni</button>
+          <button type="button" class="chart-size-btn" data-size="full" title="Wersja pełnoekranowa (Full)">Full</button>
+        </div>
+        <!-- Przyciski zwrotu do Menu Górnego, Sidebaru, minimalizacji oraz zamknięcia -->
+        <button type="button" id="dockChartTopBtn" class="win-ctrl-btn dock-btn" title="Zwróć wykres do menu na górze">🔼 Menu</button>
+        <button type="button" id="dockChartSidebarBtn" class="win-ctrl-btn dock-btn" title="Zwróć wykres do sidebaru z lewej">◀ Sidebar</button>
+        <button type="button" id="minimizeChartBtn" class="chart-ctrl-btn" title="Minimalizuj wykres">—</button>
+        <button type="button" id="closeChartBtn" class="chart-ctrl-btn close" title="Zamknij wykres">✕</button>
+      </div>
+    </div>
+
+    <!-- Pasek narzędzi wykresu w stylu TradingView: Aktywo, Interwały, Typ świec, Wskaźniki, Zoom -->
+    <div class="chart-toolbar tv-top-toolbar" id="tvTopToolbar">
+      <div class="tv-toolbar-group">
+        <select id="chartAssetSelect" aria-label="Wybierz parę walutową">
+          <option value="BTC-USDC">BTC-USDC</option>
+          <option value="ETH-USDC">ETH-USDC</option>
+          <option value="SOL-USDC">SOL-USDC</option>
+          <option value="OKB-USDC">OKB-USDC</option>
+          <option value="XRP-USDC">XRP-USDC</option>
+          <option value="ADA-USDC">ADA-USDC</option>
+          <option value="DOGE-USDC">DOGE-USDC</option>
+          <option value="AVAX-USDC">AVAX-USDC</option>
+          <option value="LINK-USDC">LINK-USDC</option>
+          <option value="SUI-USDC">SUI-USDC</option>
+        </select>
+
+        <div class="chart-intervals" role="group" aria-label="Interwał świec">
+          <button type="button" class="interval-btn" data-bar="1m">1m</button>
+          <button type="button" class="interval-btn" data-bar="5m">5m</button>
+          <button type="button" class="interval-btn active" data-bar="15m">15m</button>
+          <button type="button" class="interval-btn" data-bar="30m">30m</button>
+          <button type="button" class="interval-btn" data-bar="1H">1H</button>
+          <button type="button" class="interval-btn" data-bar="4H">4H</button>
+          <button type="button" class="interval-btn" data-bar="1D">1D</button>
+          <button type="button" class="interval-btn" data-bar="1W">1W</button>
+        </div>
+
+        <select id="tvChartTypeSelect" class="tv-select-compact" title="Typ wykresu TradingView">
+          <option value="candles" selected>🕯️ Świece</option>
+          <option value="hollow">🮙 Puste świece</option>
+          <option value="heikin">📈 Heikin Ashi</option>
+          <option value="area">🌊 Obszar (Area)</option>
+          <option value="line">📉 Linia (Line)</option>
+          <option value="bars">📊 Słupki (OHLC)</option>
+        </select>
+      </div>
+
+      <!-- Pasek wskaźników technicznych TradingView -->
+      <div class="tv-indicators-bar" role="group" aria-label="Wskaźniki techniczne">
+        <button type="button" class="tv-ind-btn active" data-ind="ema" title="Średnie kroczące EMA 9, EMA 21, EMA 50">EMA 9/21/50</button>
+        <button type="button" class="tv-ind-btn" data-ind="bb" title="Wstęgi Bollingera (BB 20, 2)">BB (20,2)</button>
+        <button type="button" class="tv-ind-btn" data-ind="vwap" title="VWAP (Średnia cena ważona wolumenem)">VWAP</button>
+        <button type="button" class="tv-ind-btn active" data-ind="sr" title="Automatyczne poziomy wsparcia i oporu + Śr. cena zakupu">Poziomy S/R</button>
+        <button type="button" class="tv-ind-btn active" data-ind="vol" title="Histogram wolumenu + MA20">Wolumen</button>
+        <button type="button" class="tv-ind-btn" data-ind="rsi" title="Oscylator RSI (14) w dolnym panelu">RSI (14)</button>
+        <button type="button" class="tv-ind-btn" data-ind="macd" title="Oscylator MACD (12, 26, 9) w dolnym panelu">MACD</button>
+      </div>
+
+      <!-- Zoom & statystyki 24h -->
+      <div class="tv-zoom-and-stats">
+        <div class="tv-zoom-btns">
+          <button type="button" id="tvZoomInBtn" class="tv-mini-icon-btn" title="Przybliż wykres (lub użyj rolki myszy)">🔍+</button>
+          <button type="button" id="tvZoomOutBtn" class="tv-mini-icon-btn" title="Oddal wykres (lub użyj rolki myszy)">🔍−</button>
+          <button type="button" id="tvResetViewBtn" class="tv-mini-icon-btn" title="Resetuj widok i dopasuj do najnowszych świec">⟲ Auto</button>
+        </div>
+        <div class="chart-stats-mini">
+          <span>24h Max: <strong id="chartHigh24h">—</strong></span>
+          <span>24h Min: <strong id="chartLow24h">—</strong></span>
+          <span>Wol 24h: <strong id="chartVol24h">—</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Główny obszar roboczy wykresu TradingView (Lewy pasek rysowania + Scena wykresu) -->
+    <div class="tv-workspace">
+      <!-- Lewy pasek narzędzi rysowania jak w TradingView -->
+      <aside class="tv-drawing-toolbar" id="tvDrawingToolbar" aria-label="Narzędzia rysowania TradingView">
+        <button type="button" class="tv-tool-btn active" data-tool="crosshair" title="Celownik (Crosshair) + Przesuwanie wykresu myszką">✥</button>
+        <button type="button" class="tv-tool-btn" data-tool="trendline" title="Linia trendu (Kliknij punkt początkowy i końcowy na wykresie)">╱</button>
+        <button type="button" class="tv-tool-btn" data-tool="hline" title="Poziom wsparcia / oporu (Kliknij na wykresie, aby dodać poziom cenowy)">━</button>
+        <button type="button" class="tv-tool-btn" data-tool="fib" title="Zniesienia Fibonacciego (Kliknij szczyt i dołek na wykresie)">📐</button>
+        <button type="button" class="tv-tool-btn" data-tool="measure" title="Linijka / Pomiar zmiany ceny % i liczby świec">📏</button>
+        <button type="button" class="tv-tool-btn danger" id="tvClearDrawingsBtn" title="Wyczyść wszystkie rysunki z wykresu">🗑️</button>
+      </aside>
+
+      <!-- Scena wykresu -->
+      <div class="chart-canvas-wrapper tv-chart-stage" id="tvChartStage">
+        <!-- Legenda OHLCV oraz aktywnych wskaźników w lewym górnym rogu (jak w TradingView) -->
+        <div class="tv-ohlc-legend" id="tvOhlcLegend">
+          <div class="tv-legend-row-main" id="tvLegendMainRow">
+            <strong class="tv-leg-sym">BTC/USDC</strong>
+            <span class="tv-leg-sep">•</span>
+            <span class="tv-leg-tf">15m</span>
+            <span class="tv-leg-sep">•</span>
+            <span class="tv-leg-exch">OKX Spot</span>
+            <span class="tv-leg-ohlc" id="tvLegendOhlcValues">O: — H: — L: — C: —</span>
+          </div>
+          <div class="tv-legend-row-inds" id="tvLegendIndicatorsRow">
+            <!-- Wypełniane dynamicznie (EMA 9, EMA 21, EMA 50, BB, VWAP, Śr. cena zakupu) -->
+          </div>
+        </div>
+
+        <!-- Natywny interaktywny Canvas TradingView Pro -->
+        <canvas id="assetChartCanvas"></canvas>
+
+        <!-- Kontener na oficjalny Widget TradingView (gdy przełączono na 🌐 TV Widget) -->
+        <div id="tvOfficialWidgetContainer" class="tv-official-widget-box" hidden></div>
+      </div>
+    </div>
+
+    <div class="chart-window-footer">
+      <span>💡 <strong>TradingView Pro:</strong> Rolka myszy = Zoom • Przeciągnij wykres = Historia • Lewy pasek = Rysowanie Fibo / Linii trendu</span>
+      <button type="button" id="quickTradeFromChartBtn" class="btn btn-primary-sm">⚡ Handluj tym aktywem</button>
+    </div>
+  </div>
+
+  <!-- ZMINIMALIZOWANY PASEK WYKRESU (DOK NA DOLE EKRANU) -->
+  <div id="minimizedChartBar" class="minimized-chart-bar" hidden>
+    <div class="min-bar-info">
+      <span>📈 Wykres zminimalizowany:</span>
+      <strong id="minBarPair">BTC-USDC</strong>
+      <span id="minBarPrice" class="chart-price-badge">— USDC</span>
+    </div>
+    <div class="min-bar-actions">
+      <button type="button" class="btn btn-outline-sm restore-chart-btn" data-size="small">Mały</button>
+      <button type="button" class="btn btn-outline-sm restore-chart-btn" data-size="medium">Średni</button>
+      <button type="button" class="btn btn-outline-sm restore-chart-btn" data-size="full">Full</button>
+      <button type="button" id="closeMinimizedChartBtn" class="chart-ctrl-btn close" title="Zamknij">✕</button>
+    </div>
+  </div>
+
+  <!-- POWIADOMIENIE TOAST -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="/app.js?v=20261031v5"></script>
+</body>
+</html>

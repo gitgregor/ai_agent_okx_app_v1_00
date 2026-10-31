@@ -1,0 +1,31 @@
+{
+  "name": "okx-eea-ai-agent-trading-app",
+  "version": "1.0.0",
+  "description": "Aplikacja do handlu kryptowalutami z giełdą OKX Europe (eea.okx.com) oparta na okx/agent-trade-kit, okx/agent-skills oraz serwerze MCP",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "mcp": "node server/mcp-server.js --site eea --demo",
+    "skills:add": "npx skills add okx/agent-skills"
+  },
+  "keywords": [
+    "okx",
+    "eea.okx.com",
+    "agent-trade-kit",
+    "okx-trade-mcp",
+    "agent-skills",
+    "mcp",
+    "crypto-trading",
+    "usdc"
+  ],
+  "okxAgentConfig": {
+    "site": "eea",
+    "baseUrl": "https://eea.okx.com",
+    "defaultMode": "demo",
+    "defaultAiStatus": "deactivated",
+    "quoteCurrency": "USDC",
+    "mcpPackage": "@okx_ai/okx-trade-mcp",
+    "skillsRepo": "okx/agent-skills",
+    "tradeKitRepo": "https://github.com/okx/agent-trade-kit"
+  }
+}
