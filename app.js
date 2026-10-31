@@ -286,11 +286,11 @@
   }
 
   const DEFAULT_STANDALONE_MARKETS = [
-    { instId: 'BTC-USDC', base: 'BTC', quote: 'USDC', name: 'Bitcoin', price: 80976.84, bidPx: 80974.10, askPx: 80978.50, open24h: 79500.00, high24h: 81850.00, low24h: 79200.00, vol24h: 1420.5, volCcy24h: 115027500, change24hPct: 1.86 },
-    { instId: 'ETH-USDC', base: 'ETH', quote: 'USDC', name: 'Ethereum', price: 2654.20, bidPx: 2653.80, askPx: 2654.60, open24h: 2580.00, high24h: 2690.00, low24h: 2565.00, vol24h: 8520.4, volCcy24h: 22614800, change24hPct: 2.88 },
-    { instId: 'XRP-USDC', base: 'XRP', quote: 'USDC', name: 'Ripple', price: 0.5240, bidPx: 0.5238, askPx: 0.5242, open24h: 0.5180, high24h: 0.5310, low24h: 0.5150, vol24h: 284000.0, volCcy24h: 148816, change24hPct: 1.16 },
-    { instId: 'WLD-USDC', base: 'WLD', quote: 'USDC', name: 'Worldcoin (WLD)', price: 0.5368, bidPx: 0.5365, askPx: 0.5371, open24h: 0.5200, high24h: 0.5520, low24h: 0.5180, vol24h: 195000.0, volCcy24h: 104676, change24hPct: 3.23 },
-    { instId: 'ETC-USDC', base: 'ETC', quote: 'USDC', name: 'Ethereum Classic', price: 20.40, bidPx: 20.35, askPx: 20.45, open24h: 19.80, high24h: 21.00, low24h: 19.60, vol24h: 48000.0, volCcy24h: 979200, change24hPct: 3.03 },
+    { instId: 'BTC-USDC', base: 'BTC', quote: 'USDC', name: 'Bitcoin', price: 80753.90, bidPx: 80750.00, askPx: 80756.00, open24h: 79800.00, high24h: 81500.00, low24h: 79500.00, vol24h: 1420.5, volCcy24h: 115027500, change24hPct: 1.19 },
+    { instId: 'ETH-USDC', base: 'ETH', quote: 'USDC', name: 'Ethereum', price: 2331.48, bidPx: 2331.00, askPx: 2332.00, open24h: 2300.00, high24h: 2360.00, low24h: 2280.00, vol24h: 8520.4, volCcy24h: 22614800, change24hPct: 1.37 },
+    { instId: 'XRP-USDC', base: 'XRP', quote: 'USDC', name: 'Ripple', price: 1.2836, bidPx: 1.2834, askPx: 1.2838, open24h: 1.2600, high24h: 1.3100, low24h: 1.2500, vol24h: 284000.0, volCcy24h: 364542, change24hPct: 1.87 },
+    { instId: 'WLD-USDC', base: 'WLD', quote: 'USDC', name: 'Worldcoin (WLD)', price: 0.4171, bidPx: 0.4168, askPx: 0.4174, open24h: 0.4100, high24h: 0.4300, low24h: 0.4000, vol24h: 195000.0, volCcy24h: 81334, change24hPct: 1.73 },
+    { instId: 'ETC-USDC', base: 'ETC', quote: 'USDC', name: 'Ethereum Classic', price: 7.49, bidPx: 7.47, askPx: 7.51, open24h: 7.40, high24h: 7.65, low24h: 7.35, vol24h: 48000.0, volCcy24h: 359520, change24hPct: 1.22 },
     { instId: 'USDG-USDC', base: 'USDG', quote: 'USDC', name: 'Global Dollar (USDG)', price: 1.00, bidPx: 0.9999, askPx: 1.0001, open24h: 1.00, high24h: 1.001, low24h: 0.999, vol24h: 500000.0, volCcy24h: 500000, change24hPct: 0.00 },
     { instId: 'SOL-USDC', base: 'SOL', quote: 'USDC', name: 'Solana', price: 184.50, bidPx: 184.40, askPx: 184.60, open24h: 178.20, high24h: 188.00, low24h: 176.50, vol24h: 42100.0, volCcy24h: 7767450, change24hPct: 3.54 },
     { instId: 'OKB-USDC', base: 'OKB', quote: 'USDC', name: 'OKB Token', price: 46.80, bidPx: 46.75, askPx: 46.85, open24h: 45.90, high24h: 47.50, low24h: 45.20, vol24h: 15400.0, volCcy24h: 720720, change24hPct: 1.96 },
@@ -308,7 +308,8 @@
     try {
       localStorage.removeItem('okx_standalone_state_v1');
       localStorage.removeItem('okx_standalone_state_v2');
-      const saved = localStorage.getItem('okx_standalone_state_v3');
+      localStorage.removeItem('okx_standalone_state_v3');
+      const saved = localStorage.getItem('okx_standalone_state_v4');
       if (saved) {
         _standaloneState = JSON.parse(saved);
         if (
@@ -395,24 +396,10 @@
         site: 'eea.okx.com',
         syncedFromOkx: true,
         accountSourceLabel: 'Konto OKX DEMO API (eea.okx.com — 7 aktywów oraz USD)',
-        totalValueUsdc: 432301.46,
-        cashUsdc: 99900.00,
-        cryptoValueUsdc: 332401.46,
+        totalValueUsdc: 468244.29,
+        cashUsdc: 299880.00,
+        cryptoValueUsdc: 168364.29,
         holdings: [
-          {
-            asset: 'USDC',
-            name: 'USD Coin (EEA MiCA)',
-            amount: 99900.00,
-            availAmount: 99900.00,
-            tradingAmount: 99900.00,
-            fundingAmount: 0,
-            priceUsdc: 1.0,
-            usdcValue: 99900.00,
-            avgBuyPrice: 1.0,
-            change24hPct: 0,
-            pnlPct: 0,
-            allocationPct: 23.11
-          },
           {
             asset: 'USD',
             name: 'US Dollar (OKX Demo Gotówka)',
@@ -425,7 +412,7 @@
             avgBuyPrice: 1.0,
             change24hPct: 0,
             pnlPct: 0,
-            allocationPct: 23.13
+            allocationPct: 21.36
           },
           {
             asset: 'USDG',
@@ -439,35 +426,35 @@
             avgBuyPrice: 1.0,
             change24hPct: 0,
             pnlPct: 0,
-            allocationPct: 23.13
+            allocationPct: 21.36
+          },
+          {
+            asset: 'USDC',
+            name: 'USD Coin (EEA MiCA)',
+            amount: 99900.00,
+            availAmount: 99900.00,
+            tradingAmount: 99900.00,
+            fundingAmount: 0,
+            priceUsdc: 0.9998,
+            usdcValue: 99880.00,
+            avgBuyPrice: 1.0,
+            change24hPct: 0,
+            pnlPct: 0,
+            allocationPct: 21.33
           },
           {
             asset: 'BTC',
             name: 'Bitcoin',
-            amount: 0.981237,
-            availAmount: 0.981237,
-            tradingAmount: 0.981237,
+            amount: 1.00,
+            availAmount: 1.00,
+            tradingAmount: 1.00,
             fundingAmount: 0,
-            priceUsdc: 80976.84,
-            usdcValue: 79457.46,
-            avgBuyPrice: 80976.84,
-            change24hPct: 1.86,
+            priceUsdc: 80753.90,
+            usdcValue: 80753.90,
+            avgBuyPrice: 80753.90,
+            change24hPct: 1.19,
             pnlPct: 0,
-            allocationPct: 18.38
-          },
-          {
-            asset: 'ETH',
-            name: 'Ethereum',
-            amount: 10.00,
-            availAmount: 10.00,
-            tradingAmount: 10.00,
-            fundingAmount: 0,
-            priceUsdc: 2654.20,
-            usdcValue: 26542.00,
-            avgBuyPrice: 2654.20,
-            change24hPct: 2.88,
-            pnlPct: 0,
-            allocationPct: 6.14
+            allocationPct: 17.25
           },
           {
             asset: 'XRP',
@@ -476,24 +463,38 @@
             availAmount: 50000.00,
             tradingAmount: 50000.00,
             fundingAmount: 0,
-            priceUsdc: 0.5240,
-            usdcValue: 26200.00,
-            avgBuyPrice: 0.5240,
-            change24hPct: 1.16,
+            priceUsdc: 1.2836,
+            usdcValue: 64180.50,
+            avgBuyPrice: 1.2836,
+            change24hPct: 1.87,
             pnlPct: 0,
-            allocationPct: 6.06
+            allocationPct: 13.71
+          },
+          {
+            asset: 'ETH',
+            name: 'Ethereum',
+            amount: 10.00,
+            availAmount: 10.00,
+            tradingAmount: 10.00,
+            fundingAmount: 0,
+            priceUsdc: 2331.48,
+            usdcValue: 23314.80,
+            avgBuyPrice: 2331.48,
+            change24hPct: 1.37,
+            pnlPct: 0,
+            allocationPct: 4.98
           },
           {
             asset: 'WLD',
             name: 'Worldcoin (WLD)',
-            amount: 186.27,
-            availAmount: 186.27,
-            tradingAmount: 186.27,
+            amount: 186.08,
+            availAmount: 186.08,
+            tradingAmount: 186.08,
             fundingAmount: 0,
-            priceUsdc: 0.5368,
-            usdcValue: 100.0,
-            avgBuyPrice: 0.5368,
-            change24hPct: 3.23,
+            priceUsdc: 0.4171,
+            usdcValue: 77.62,
+            avgBuyPrice: 0.4171,
+            change24hPct: 1.73,
             pnlPct: 0,
             allocationPct: 0.02
           },
@@ -504,12 +505,12 @@
             availAmount: 5.00,
             tradingAmount: 5.00,
             fundingAmount: 0,
-            priceUsdc: 20.40,
-            usdcValue: 102.00,
-            avgBuyPrice: 20.40,
-            change24hPct: 3.03,
+            priceUsdc: 7.49,
+            usdcValue: 37.47,
+            avgBuyPrice: 7.49,
+            change24hPct: 1.22,
             pnlPct: 0,
-            allocationPct: 0.02
+            allocationPct: 0.01
           }
         ],
         ledger: {
@@ -517,67 +518,67 @@
             {
               asset: 'BTC',
               instId: 'BTC-USDC',
-              currentPriceUsdc: 80976.84,
-              boughtAmount: 0.981237,
-              boughtUsdc: 79457.46,
+              currentPriceUsdc: 80753.90,
+              boughtAmount: 1.00,
+              boughtUsdc: 80753.90,
               buyCount: 1,
               soldAmount: 0,
               soldUsdc: 0,
               sellCount: 0,
-              netAmount: 0.981237,
-              netUsdcFlow: -79457.46
-            },
-            {
-              asset: 'WLD',
-              instId: 'WLD-USDC',
-              currentPriceUsdc: 0.5368,
-              boughtAmount: 186.27,
-              boughtUsdc: 100.0,
-              buyCount: 1,
-              soldAmount: 0,
-              soldUsdc: 0,
-              sellCount: 0,
-              netAmount: 186.27,
-              netUsdcFlow: -100.0
-            },
-            {
-              asset: 'ETH',
-              instId: 'ETH-USDC',
-              currentPriceUsdc: 2654.20,
-              boughtAmount: 10.0,
-              boughtUsdc: 26542.00,
-              buyCount: 1,
-              soldAmount: 0,
-              soldUsdc: 0,
-              sellCount: 0,
-              netAmount: 10.0,
-              netUsdcFlow: -26542.00
+              netAmount: 1.00,
+              netUsdcFlow: -80753.90
             },
             {
               asset: 'XRP',
               instId: 'XRP-USDC',
-              currentPriceUsdc: 0.5240,
+              currentPriceUsdc: 1.2836,
               boughtAmount: 50000.0,
-              boughtUsdc: 26200.00,
+              boughtUsdc: 64180.50,
               buyCount: 1,
               soldAmount: 0,
               soldUsdc: 0,
               sellCount: 0,
               netAmount: 50000.0,
-              netUsdcFlow: -26200.00
+              netUsdcFlow: -64180.50
+            },
+            {
+              asset: 'ETH',
+              instId: 'ETH-USDC',
+              currentPriceUsdc: 2331.48,
+              boughtAmount: 10.0,
+              boughtUsdc: 23314.80,
+              buyCount: 1,
+              soldAmount: 0,
+              soldUsdc: 0,
+              sellCount: 0,
+              netAmount: 10.0,
+              netUsdcFlow: -23314.80
+            },
+            {
+              asset: 'WLD',
+              instId: 'WLD-USDC',
+              currentPriceUsdc: 0.4171,
+              boughtAmount: 186.08,
+              boughtUsdc: 77.62,
+              buyCount: 1,
+              soldAmount: 0,
+              soldUsdc: 0,
+              sellCount: 0,
+              netAmount: 186.08,
+              netUsdcFlow: -77.62
             },
             {
               asset: 'ETC',
               instId: 'ETC-USDC',
-              currentPriceUsdc: 20.40,
+              currentPriceUsdc: 7.49,
               boughtAmount: 5.0,
-              boughtUsdc: 102.00,
+              boughtUsdc: 37.47,
               buyCount: 1,
               soldAmount: 0,
               soldUsdc: 0,
               sellCount: 0,
               netAmount: 5.0,
-              netUsdcFlow: -102.00
+              netUsdcFlow: -37.47
             },
             {
               asset: 'USDG',
@@ -606,7 +607,7 @@
               netUsdcFlow: -100000.00
             }
           ],
-          totalBoughtUsdc: 332401.46,
+          totalBoughtUsdc: 368364.29,
           totalSoldUsdc: 0
         },
         orders: [
@@ -616,14 +617,14 @@
             asset: 'BTC',
             side: 'BUY',
             orderType: 'market',
-            amount: 0.981237,
-            price: 80976.84,
-            usdcValue: 79457.46,
+            amount: 1.00,
+            price: 80753.90,
+            usdcValue: 80753.90,
             status: 'CLOSED',
             rawState: 'filled',
             statusLabel: 'Zamknięte (Zrealizowane na OKX)',
             source: 'Konto OKX DEMO API',
-            strategyName: 'Zlecenie OKX market (BTC-USDC) • Prowizja: 0.000981 BTC',
+            strategyName: 'Zlecenie OKX market (BTC-USDC) • Prowizja: 0.001 BTC',
             date: '2026-10-29',
             time: '19:57:37',
             timestamp: 1730231857000
@@ -634,9 +635,9 @@
             asset: 'WLD',
             side: 'BUY',
             orderType: 'market',
-            amount: 186.27,
-            price: 0.5368,
-            usdcValue: 100.0,
+            amount: 186.08,
+            price: 0.4171,
+            usdcValue: 77.62,
             status: 'CLOSED',
             rawState: 'filled',
             statusLabel: 'Zamknięte (Zrealizowane na OKX)',
@@ -654,14 +655,14 @@
             date: '2026-10-29',
             time: '19:57:37',
             timestamp: 1730231857000,
-            action: 'Kupno 0.981237 BTC @ 80976.84 USDC (BTC-USDC)',
+            action: 'Kupno 1.00 BTC @ 80753.90 USDC (BTC-USDC)',
             side: 'BUY',
-            usdcValue: 79457.46,
-            diffUsdc: 79457.46,
-            totalValueUsdc: 432301.46,
+            usdcValue: 80753.90,
+            diffUsdc: 80753.90,
+            totalValueUsdc: 468244.29,
             asset: 'BTC',
-            amount: 0.981237,
-            price: 80976.84
+            amount: 1.00,
+            price: 80753.90
           },
           {
             id: 'ORD-HIST-OKX-1729389931000',
@@ -669,14 +670,14 @@
             date: '2026-10-20',
             time: '02:05:31',
             timestamp: 1729389931000,
-            action: 'Kupno 186.27 WLD @ 0.5368 USDC (WLD-USDC)',
+            action: 'Kupno 186.08 WLD @ 0.4171 USDC (WLD-USDC)',
             side: 'BUY',
-            usdcValue: 100.0,
-            diffUsdc: 100.0,
-            totalValueUsdc: 352844.00,
+            usdcValue: 77.62,
+            diffUsdc: 77.62,
+            totalValueUsdc: 387490.39,
             asset: 'WLD',
-            amount: 186.27,
-            price: 0.5368
+            amount: 186.08,
+            price: 0.4171
           }
         ]
       }
@@ -688,7 +689,7 @@
   function saveStandaloneState() {
     try {
       if (_standaloneState) {
-        localStorage.setItem('okx_standalone_state_v3', JSON.stringify(_standaloneState));
+        localStorage.setItem('okx_standalone_state_v4', JSON.stringify(_standaloneState));
       }
     } catch (e) {}
   }
@@ -1001,8 +1002,10 @@
     // Keep holdings and portfolio values in sync with live spot prices
     if (_standaloneState.portfolio && Array.isArray(_standaloneState.portfolio.holdings)) {
       const mList = _standaloneState.markets || _standaloneState.tickers || [];
+      const isCashAsset = (ccy) => ccy === 'USDC' || ccy === 'USDT' || ccy === 'USD' || ccy === 'USDG';
+
       _standaloneState.portfolio.holdings.forEach((h) => {
-        if (h.asset !== 'USDC' && h.asset !== 'USDT') {
+        if (!isCashAsset(h.asset)) {
           const m = mList.find((x) => x.base === h.asset || x.instId === `${h.asset}-USDC`);
           if (m && m.price > 0) {
             h.priceUsdc = m.price;
@@ -1010,13 +1013,29 @@
           }
         }
       });
-      const cryptoVal = _standaloneState.portfolio.holdings
-        .filter((h) => h.asset !== 'USDC' && h.asset !== 'USDT')
+      const totalVal = _standaloneState.portfolio.holdings.reduce((sum, h) => sum + (h.usdcValue || 0), 0);
+      const cashVal = _standaloneState.portfolio.holdings
+        .filter((h) => isCashAsset(h.asset))
         .reduce((sum, h) => sum + (h.usdcValue || 0), 0);
+      const cryptoVal = _standaloneState.portfolio.holdings
+        .filter((h) => !isCashAsset(h.asset))
+        .reduce((sum, h) => sum + (h.usdcValue || 0), 0);
+
+      _standaloneState.portfolio.totalValueUsdc = Number(totalVal.toFixed(2));
+      _standaloneState.portfolio.cashUsdc = Number(cashVal.toFixed(2));
       _standaloneState.portfolio.cryptoValueUsdc = Number(cryptoVal.toFixed(2));
-      _standaloneState.portfolio.totalValueUsdc = Number(
-        ((_standaloneState.portfolio.cashUsdc || 0) + _standaloneState.portfolio.cryptoValueUsdc).toFixed(2)
-      );
+
+      // Keep allocation % in sync
+      if (_standaloneState.portfolio.totalValueUsdc > 0) {
+        _standaloneState.portfolio.holdings.forEach((h) => {
+          h.allocationPct = Number(((h.usdcValue / _standaloneState.portfolio.totalValueUsdc) * 100).toFixed(2));
+        });
+      }
+
+      // Keep latest snapshot in portfolioHistory synchronized with current portfolio total
+      if (Array.isArray(_standaloneState.portfolio.portfolioHistory) && _standaloneState.portfolio.portfolioHistory.length > 0) {
+        _standaloneState.portfolio.portfolioHistory[0].totalValueUsdc = _standaloneState.portfolio.totalValueUsdc;
+      }
     }
 
     return _standaloneState;

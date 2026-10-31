@@ -119,11 +119,11 @@ class OkxEeaTradingEngine {
           USDC: { asset: 'USDC', name: 'USD Coin (EEA MiCA)', amount: 99900.00, availAmount: 99900.00, frozenAmount: 0, avgBuyPrice: 1.00 },
           USD: { asset: 'USD', name: 'US Dollar (OKX Demo)', amount: 100000.00, availAmount: 100000.00, frozenAmount: 0, avgBuyPrice: 1.00 },
           USDG: { asset: 'USDG', name: 'Global Dollar (USDG)', amount: 100000.00, availAmount: 100000.00, frozenAmount: 0, avgBuyPrice: 1.00 },
-          BTC: { asset: 'BTC', name: 'Bitcoin', amount: 0.981237, availAmount: 0.981237, frozenAmount: 0, avgBuyPrice: 80976.84 },
-          ETH: { asset: 'ETH', name: 'Ethereum', amount: 10.00, availAmount: 10.00, frozenAmount: 0, avgBuyPrice: 2654.20 },
-          XRP: { asset: 'XRP', name: 'Ripple', amount: 50000.00, availAmount: 50000.00, frozenAmount: 0, avgBuyPrice: 0.5240 },
-          WLD: { asset: 'WLD', name: 'Worldcoin (WLD)', amount: 186.27, availAmount: 186.27, frozenAmount: 0, avgBuyPrice: 0.5368 },
-          ETC: { asset: 'ETC', name: 'Ethereum Classic (ETC)', amount: 5.00, availAmount: 5.00, frozenAmount: 0, avgBuyPrice: 20.40 }
+          BTC: { asset: 'BTC', name: 'Bitcoin', amount: 1.00, availAmount: 1.00, frozenAmount: 0, avgBuyPrice: 80753.90 },
+          ETH: { asset: 'ETH', name: 'Ethereum', amount: 10.00, availAmount: 10.00, frozenAmount: 0, avgBuyPrice: 2331.48 },
+          XRP: { asset: 'XRP', name: 'Ripple', amount: 50000.00, availAmount: 50000.00, frozenAmount: 0, avgBuyPrice: 1.2836 },
+          WLD: { asset: 'WLD', name: 'Worldcoin (WLD)', amount: 186.08, availAmount: 186.08, frozenAmount: 0, avgBuyPrice: 0.4171 },
+          ETC: { asset: 'ETC', name: 'Ethereum Classic (ETC)', amount: 5.00, availAmount: 5.00, frozenAmount: 0, avgBuyPrice: 7.49 }
         },
         ledger: {},
         portfolioHistory: [],
