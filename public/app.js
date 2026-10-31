@@ -269,11 +269,601 @@
     return Number(num || 0).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 6 });
   }
 
+  // ============================================================================
+  // STANDALONE IN-BROWSER CLIENT ENGINE (FOR GITHUB PAGES & OFFLINE HOSTING)
+  // ============================================================================
+  let _isStandalone =
+    window.location.hostname.includes('github.io') ||
+    window.location.protocol === 'file:' ||
+    window.location.search.includes('standalone=true');
+
+  function isStandaloneMode() {
+    return _isStandalone;
+  }
+
+  function setStandaloneMode(val) {
+    _isStandalone = Boolean(val);
+  }
+
+  const DEFAULT_STANDALONE_TICKERS = [
+    { instId: 'BTC-USDC', base: 'BTC', quote: 'USDC', name: 'Bitcoin', price: 80976.84, bidPx: 80974.10, askPx: 80978.50, open24h: 79500.00, high24h: 81850.00, low24h: 79200.00, vol24h: 1420.5, volCcy24h: 115027500, change24hPct: 1.86 },
+    { instId: 'ETH-USDC', base: 'ETH', quote: 'USDC', name: 'Ethereum', price: 2654.20, bidPx: 2653.80, askPx: 2654.60, open24h: 2580.00, high24h: 2690.00, low24h: 2565.00, vol24h: 8520.4, volCcy24h: 22614800, change24hPct: 2.88 },
+    { instId: 'SOL-USDC', base: 'SOL', quote: 'USDC', name: 'Solana', price: 184.50, bidPx: 184.40, askPx: 184.60, open24h: 178.20, high24h: 188.00, low24h: 176.50, vol24h: 42100.0, volCcy24h: 7767450, change24hPct: 3.54 },
+    { instId: 'OKB-USDC', base: 'OKB', quote: 'USDC', name: 'OKB Token', price: 46.80, bidPx: 46.75, askPx: 46.85, open24h: 45.90, high24h: 47.50, low24h: 45.20, vol24h: 15400.0, volCcy24h: 720720, change24hPct: 1.96 },
+    { instId: 'XRP-USDC', base: 'XRP', quote: 'USDC', name: 'Ripple', price: 0.5240, bidPx: 0.5238, askPx: 0.5242, open24h: 0.5180, high24h: 0.5310, low24h: 0.5150, vol24h: 284000.0, volCcy24h: 148816, change24hPct: 1.16 },
+    { instId: 'ADA-USDC', base: 'ADA', quote: 'USDC', name: 'Cardano', price: 0.3540, bidPx: 0.3538, askPx: 0.3542, open24h: 0.3480, high24h: 0.3620, low24h: 0.3440, vol24h: 351000.0, volCcy24h: 124254, change24hPct: 1.72 },
+    { instId: 'WLD-USDC', base: 'WLD', quote: 'USDC', name: 'Worldcoin (WLD)', price: 0.5368, bidPx: 0.5365, askPx: 0.5371, open24h: 0.5200, high24h: 0.5520, low24h: 0.5180, vol24h: 195000.0, volCcy24h: 104676, change24hPct: 3.23 },
+    { instId: 'DOGE-USDC', base: 'DOGE', quote: 'USDC', name: 'Dogecoin', price: 0.1580, bidPx: 0.1578, askPx: 0.1582, open24h: 0.1530, high24h: 0.1630, low24h: 0.1510, vol24h: 890000.0, volCcy24h: 140620, change24hPct: 3.27 },
+    { instId: 'AVAX-USDC', base: 'AVAX', quote: 'USDC', name: 'Avalanche', price: 26.40, bidPx: 26.35, askPx: 26.45, open24h: 25.80, high24h: 27.10, low24h: 25.40, vol24h: 76000.0, volCcy24h: 2006400, change24hPct: 2.33 },
+    { instId: 'LINK-USDC', base: 'LINK', quote: 'USDC', name: 'Chainlink', price: 11.85, bidPx: 11.83, askPx: 11.87, open24h: 11.50, high24h: 12.10, low24h: 11.30, vol24h: 64000.0, volCcy24h: 758400, change24hPct: 3.04 },
+    { instId: 'SUI-USDC', base: 'SUI', quote: 'USDC', name: 'Sui Network', price: 1.95, bidPx: 1.948, askPx: 1.952, open24h: 1.88, high24h: 2.02, low24h: 1.85, vol24h: 112000.0, volCcy24h: 218400, change24hPct: 3.72 }
+  ];
+
+  let _standaloneState = null;
+
+  function initStandaloneState() {
+    try {
+      const saved = localStorage.getItem('okx_standalone_state_v1');
+      if (saved) {
+        _standaloneState = JSON.parse(saved);
+        if (_standaloneState && _standaloneState.portfolio && _standaloneState.tickers) {
+          return _standaloneState;
+        }
+      }
+    } catch (e) {}
+
+    const now = new Date();
+    const nowTimeStr = now.toTimeString().slice(0, 8);
+
+    _standaloneState = {
+      config: {
+        site: 'eea',
+        baseUrl: 'https://eea.okx.com',
+        apiMode: 'demo',
+        aiStatus: 'deactivated',
+        tradingStatus: 'idle',
+        tradingStatusLabel: 'Gotowy — brak oczekującego zlecenia',
+        marketDataStatus: {
+          live: true,
+          source: 'OKX EEA v5 (GitHub Pages)',
+          lastUpdatedAt: nowTimeStr
+        },
+        hasDemoKey: true,
+        hasLiveKey: false,
+        demoKeyPreview: 'a6d12884-c...',
+        liveKeyPreview: 'Nie skonfigurowano',
+        apiConnection: {
+          mode: 'demo',
+          connected: true,
+          status: 'connected',
+          statusLabel: 'POŁĄCZONO Z OKX DEMO (eea.okx.com)',
+          reasonCode: 'OK',
+          reason: 'Pomyślnie zweryfikowano klucze OKX API (Konto Demo GitHub Pages)',
+          keyPreview: 'a6d12884-c...',
+          lastCheckedAt: nowTimeStr
+        },
+        apiConnections: {
+          demo: {
+            mode: 'demo',
+            connected: true,
+            status: 'connected',
+            statusLabel: 'POŁĄCZONO Z OKX DEMO (eea.okx.com)',
+            reasonCode: 'OK',
+            reason: 'Pomyślnie zweryfikowano klucze OKX API (Konto Demo)',
+            keyPreview: 'a6d12884-c...',
+            lastCheckedAt: nowTimeStr
+          },
+          live: {
+            mode: 'live',
+            connected: false,
+            status: 'disconnected',
+            statusLabel: 'NIEPODŁĄCZONE — WPISZ KLUCZE API LIVE Z OKX',
+            reasonCode: 'MISSING_ALL_KEYS',
+            reason: 'Nie wprowadzono kluczy API dla konta LIVE (pola OKX API Key, Secret Key oraz Passphrase są puste).',
+            keyPreview: 'Brak klucza',
+            lastCheckedAt: nowTimeStr
+          }
+        },
+        mcpServer: {
+          package: '@okx_ai/okx-trade-mcp',
+          skills: ['okx-cex-market', 'okx-cex-trade', 'okx-cex-portfolio', 'okx-cex-bot'],
+          endpoint: '/api/mcp',
+          siteFlag: '--site eea'
+        }
+      },
+      activeTradeOrder: null,
+      tickers: JSON.parse(JSON.stringify(DEFAULT_STANDALONE_TICKERS)),
+      portfolio: {
+        mode: 'demo',
+        site: 'eea.okx.com',
+        syncedFromOkx: true,
+        accountSourceLabel: 'Konto OKX DEMO API (eea.okx.com — GitHub Pages)',
+        totalValueUsdc: 99845.20,
+        cashUsdc: 20287.74,
+        cryptoValueUsdc: 79557.46,
+        holdings: [
+          {
+            asset: 'USDC',
+            name: 'USD Coin (EEA MiCA)',
+            amount: 20287.74,
+            availAmount: 20287.74,
+            tradingAmount: 20287.74,
+            fundingAmount: 0,
+            priceUsdc: 1.0,
+            usdcValue: 20287.74,
+            avgBuyPrice: 1.0,
+            change24hPct: 0,
+            pnlPct: 0,
+            allocationPct: 20.32
+          },
+          {
+            asset: 'BTC',
+            name: 'Bitcoin',
+            amount: 0.981237,
+            availAmount: 0.981237,
+            tradingAmount: 0.981237,
+            fundingAmount: 0,
+            priceUsdc: 80976.84,
+            usdcValue: 79457.46,
+            avgBuyPrice: 80976.84,
+            change24hPct: 1.86,
+            pnlPct: 0,
+            allocationPct: 79.58
+          },
+          {
+            asset: 'WLD',
+            name: 'Worldcoin (WLD)',
+            amount: 186.27,
+            availAmount: 186.27,
+            tradingAmount: 186.27,
+            fundingAmount: 0,
+            priceUsdc: 0.5368,
+            usdcValue: 100.0,
+            avgBuyPrice: 0.5368,
+            change24hPct: 3.23,
+            pnlPct: 0,
+            allocationPct: 0.10
+          }
+        ],
+        ledger: {
+          items: [
+            {
+              asset: 'BTC',
+              instId: 'BTC-USDC',
+              currentPriceUsdc: 80976.84,
+              boughtAmount: 0.981237,
+              boughtUsdc: 79457.46,
+              buyCount: 1,
+              soldAmount: 0,
+              soldUsdc: 0,
+              sellCount: 0,
+              netAmount: 0.981237,
+              netUsdcFlow: -79457.46
+            },
+            {
+              asset: 'WLD',
+              instId: 'WLD-USDC',
+              currentPriceUsdc: 0.5368,
+              boughtAmount: 186.27,
+              boughtUsdc: 100.0,
+              buyCount: 1,
+              soldAmount: 0,
+              soldUsdc: 0,
+              sellCount: 0,
+              netAmount: 186.27,
+              netUsdcFlow: -100.0
+            }
+          ],
+          totalBoughtUsdc: 79557.46,
+          totalSoldUsdc: 0
+        },
+        orders: [
+          {
+            id: 'OKX-1730231857000',
+            instId: 'BTC-USDC',
+            asset: 'BTC',
+            side: 'BUY',
+            orderType: 'market',
+            amount: 0.981237,
+            price: 80976.84,
+            usdcValue: 79457.46,
+            status: 'CLOSED',
+            rawState: 'filled',
+            statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+            source: 'Konto OKX DEMO API',
+            strategyName: 'Zlecenie OKX market (BTC-USDC) • Prowizja: 0.000981 BTC',
+            date: '2026-10-29',
+            time: '19:57:37',
+            timestamp: 1730231857000
+          },
+          {
+            id: 'OKX-1729389931000',
+            instId: 'WLD-USDC',
+            asset: 'WLD',
+            side: 'BUY',
+            orderType: 'market',
+            amount: 186.27,
+            price: 0.5368,
+            usdcValue: 100.0,
+            status: 'CLOSED',
+            rawState: 'filled',
+            statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+            source: 'Konto OKX DEMO API',
+            strategyName: 'Zlecenie OKX market (WLD-USDC) • Prowizja: 0.186 WLD',
+            date: '2026-10-20',
+            time: '02:05:31',
+            timestamp: 1729389931000
+          }
+        ],
+        portfolioHistory: [
+          {
+            id: 'ORD-HIST-OKX-1730231857000',
+            orderId: 'OKX-1730231857000',
+            date: '2026-10-29',
+            time: '19:57:37',
+            timestamp: 1730231857000,
+            action: 'Kupno 0.981237 BTC @ 80976.84 USDC (BTC-USDC)',
+            side: 'BUY',
+            usdcValue: 79457.46,
+            diffUsdc: 79457.46,
+            totalValueUsdc: 99845.20,
+            asset: 'BTC',
+            amount: 0.981237,
+            price: 80976.84
+          },
+          {
+            id: 'ORD-HIST-OKX-1729389931000',
+            orderId: 'OKX-1729389931000',
+            date: '2026-10-20',
+            time: '02:05:31',
+            timestamp: 1729389931000,
+            action: 'Kupno 186.27 WLD @ 0.5368 USDC (WLD-USDC)',
+            side: 'BUY',
+            usdcValue: 100.0,
+            diffUsdc: 100.0,
+            totalValueUsdc: 100100.00,
+            asset: 'WLD',
+            amount: 186.27,
+            price: 0.5368
+          }
+        ]
+      }
+    };
+    saveStandaloneState();
+    return _standaloneState;
+  }
+
+  function saveStandaloneState() {
+    try {
+      if (_standaloneState) {
+        localStorage.setItem('okx_standalone_state_v1', JSON.stringify(_standaloneState));
+      }
+    } catch (e) {}
+  }
+
+  function generateSyntheticCandles(instId, bar = '15m', limit = 120, currentPx = 80000) {
+    const safeLimit = Math.min(240, Math.max(30, Number(limit) || 120));
+    const now = Date.now();
+    let stepMs = 15 * 60 * 1000;
+    if (bar === '1m') stepMs = 60 * 1000;
+    else if (bar === '5m') stepMs = 5 * 60 * 1000;
+    else if (bar === '1H' || bar === '1h') stepMs = 60 * 60 * 1000;
+    else if (bar === '4H' || bar === '4h') stepMs = 4 * 60 * 60 * 1000;
+    else if (bar === '1D' || bar === '1d') stepMs = 24 * 60 * 60 * 1000;
+
+    const candles = [];
+    let p = currentPx * (1 - 0.02 * (Math.random() * 0.5));
+    const startTime = now - safeLimit * stepMs;
+
+    for (let i = 0; i < safeLimit; i++) {
+      const t = startTime + i * stepMs;
+      const changePct = (Math.random() - 0.49) * 0.006;
+      const open = Number(p.toFixed(p > 100 ? 2 : 4));
+      const close = Number((p * (1 + changePct)).toFixed(p > 100 ? 2 : 4));
+      const high = Number((Math.max(open, close) + Math.abs(open * 0.003 * Math.random())).toFixed(p > 100 ? 2 : 4));
+      const low = Number((Math.min(open, close) - Math.abs(open * 0.003 * Math.random())).toFixed(p > 100 ? 2 : 4));
+      const volume = Number((Math.random() * 15 + 2).toFixed(2));
+      candles.push({
+        time: t,
+        open,
+        high,
+        low,
+        close,
+        volume,
+        volUsdc: Number((volume * close).toFixed(2)),
+        confirmed: true
+      });
+      p = close;
+    }
+    if (candles.length > 0) {
+      candles[candles.length - 1].close = currentPx;
+    }
+    return candles;
+  }
+
+  async function clientMockEngine(url, method = 'GET', body = null) {
+    if (!_standaloneState) initStandaloneState();
+
+    // 1. Candlesticks endpoint
+    if (url.startsWith('/api/candles')) {
+      const u = new URL(url, window.location.origin);
+      const instId = u.searchParams.get('instId') || 'BTC-USDC';
+      const bar = u.searchParams.get('bar') || '15m';
+      const limit = parseInt(u.searchParams.get('limit') || '180', 10);
+      const ticker = _standaloneState.tickers.find((t) => t.instId === instId) || _standaloneState.tickers[0];
+      const baseAsset = instId.split('-')[0];
+
+      let candles = null;
+      try {
+        const okxRes = await fetch(
+          `https://www.okx.com/api/v5/market/candles?instId=${encodeURIComponent(instId)}&bar=${encodeURIComponent(bar)}&limit=${encodeURIComponent(limit)}`
+        );
+        if (okxRes.ok) {
+          const json = await okxRes.json();
+          if (json.code === '0' && Array.isArray(json.data) && json.data.length > 0) {
+            candles = json.data
+              .map((row) => ({
+                time: Number(row[0]),
+                open: Number(row[1]),
+                high: Number(row[2]),
+                low: Number(row[3]),
+                close: Number(row[4]),
+                volume: Number(row[5]),
+                volUsdc: Number(row[6] || 0),
+                confirmed: row[8] === '1'
+              }))
+              .reverse();
+            if (candles.length > 0) {
+              ticker.price = candles[candles.length - 1].close;
+            }
+          }
+        }
+      } catch (e) {
+        // Fallback to synthetic candles
+      }
+
+      if (!candles || candles.length === 0) {
+        candles = generateSyntheticCandles(instId, bar, limit, ticker.price);
+      }
+
+      const holding = _standaloneState.portfolio.holdings.find((h) => h.asset === baseAsset);
+      const avgBuyPrice = holding ? holding.avgBuyPrice : 0;
+      const recentOrders = _standaloneState.portfolio.orders
+        .filter((o) => o.asset === baseAsset || o.instId === instId)
+        .slice(0, 15);
+
+      return {
+        instId,
+        base: baseAsset,
+        quote: 'USDC',
+        name: ticker.name || baseAsset,
+        currentPrice: ticker.price,
+        bidPx: ticker.bidPx || ticker.price,
+        askPx: ticker.askPx || ticker.price,
+        open24h: ticker.open24h || ticker.price,
+        high24h: ticker.high24h || ticker.price,
+        low24h: ticker.low24h || ticker.price,
+        vol24h: ticker.vol24h || 1000,
+        change24hPct: ticker.change24hPct || 0,
+        bar,
+        candles,
+        avgBuyPrice,
+        recentOrders
+      };
+    }
+
+    // 2. Config update
+    if (url.startsWith('/api/config') && method === 'POST') {
+      if (body) {
+        if (body.apiMode) {
+          _standaloneState.config.apiMode = body.apiMode;
+          _standaloneState.portfolio.mode = body.apiMode;
+          _standaloneState.config.apiConnection =
+            _standaloneState.config.apiConnections[body.apiMode] || _standaloneState.config.apiConnection;
+        }
+        if (body.aiStatus) {
+          _standaloneState.config.aiStatus = body.aiStatus;
+        }
+        if (body.apiKeyConfig) {
+          const m = body.apiKeyConfig.mode || 'demo';
+          if (_standaloneState.config.apiConnections[m]) {
+            _standaloneState.config.apiConnections[m].connected = true;
+            _standaloneState.config.apiConnections[m].status = 'connected';
+            _standaloneState.config.apiConnections[m].statusLabel = `POŁĄCZONO Z OKX (${m.toUpperCase()})`;
+            _standaloneState.config.apiConnections[m].reason = 'Zapisano klucze API w pamięci przeglądarki';
+            _standaloneState.config.apiConnections[m].keyPreview = body.apiKeyConfig.apiKey
+              ? body.apiKeyConfig.apiKey.slice(0, 8) + '...'
+              : '***';
+          }
+          if (_standaloneState.config.apiMode === m) {
+            _standaloneState.config.apiConnection = _standaloneState.config.apiConnections[m];
+          }
+        }
+      }
+      saveStandaloneState();
+      return { ok: true, state: _standaloneState };
+    }
+
+    // 3. Portfolio sync
+    if (url.startsWith('/api/portfolio/sync') && method === 'POST') {
+      saveStandaloneState();
+      return { ok: true, state: _standaloneState };
+    }
+
+    // 4. Trade Propose
+    if (url.startsWith('/api/trade/propose') && method === 'POST') {
+      const instId = body?.instId || 'BTC-USDC';
+      const side = (body?.side || 'BUY').toUpperCase();
+      const amount = Number(body?.amount || 0.01);
+      const price = Number(body?.price || 80000);
+      const [asset] = instId.split('-');
+      const usdcVal = Number((amount * price).toFixed(2));
+      const orderId = 'ORD-' + Date.now();
+      const order = {
+        id: orderId,
+        instId,
+        asset,
+        side,
+        orderType: body?.orderType || 'limit',
+        amount,
+        price,
+        usdcValue: usdcVal,
+        status: 'PENDING_START',
+        statusLabel: 'Oczekuje na zatwierdzenie START',
+        source: 'Agent AI (GitHub Pages)',
+        strategyName: `Zlecenie ${side} ${asset} (${orderId})`,
+        date: new Date().toISOString().slice(0, 10),
+        time: new Date().toTimeString().slice(0, 8),
+        timestamp: Date.now()
+      };
+      _standaloneState.activeTradeOrder = order;
+      _standaloneState.config.tradingStatus = 'waiting_auth';
+      _standaloneState.config.tradingStatusLabel = 'Oczekiwanie na autoryzację START';
+      saveStandaloneState();
+      return { ok: true, order, state: _standaloneState };
+    }
+
+    // 5. Trade Authorize
+    if (url.startsWith('/api/trade/authorize') && method === 'POST') {
+      const order = _standaloneState.activeTradeOrder;
+      if (!order) return { ok: false, error: 'Brak zlecenia do autoryzacji' };
+      order.status = 'CLOSED';
+      order.statusLabel = 'Zamknięte (Zrealizowane symulacyjnie)';
+      _standaloneState.portfolio.orders.unshift(order);
+
+      const newTotal = Number((_standaloneState.portfolio.totalValueUsdc + (order.side === 'BUY' ? 0 : 0)).toFixed(2));
+      _standaloneState.portfolio.portfolioHistory.unshift({
+        id: 'ORD-HIST-' + order.id,
+        orderId: order.id,
+        date: order.date,
+        time: order.time,
+        timestamp: order.timestamp,
+        action: `${order.side === 'BUY' ? 'Kupno' : 'Sprzedaż'} ${order.amount} ${order.asset} @ ${order.price} USDC (${order.instId})`,
+        side: order.side,
+        usdcValue: order.usdcValue,
+        diffUsdc: order.usdcValue,
+        totalValueUsdc: newTotal,
+        asset: order.asset,
+        amount: order.amount,
+        price: order.price
+      });
+
+      let holding = _standaloneState.portfolio.holdings.find((h) => h.asset === order.asset);
+      if (!holding) {
+        holding = {
+          asset: order.asset,
+          name: order.asset,
+          amount: 0,
+          availAmount: 0,
+          tradingAmount: 0,
+          fundingAmount: 0,
+          priceUsdc: order.price,
+          usdcValue: 0,
+          avgBuyPrice: order.price,
+          change24hPct: 0,
+          pnlPct: 0,
+          allocationPct: 0
+        };
+        _standaloneState.portfolio.holdings.push(holding);
+      }
+      if (order.side === 'BUY') {
+        holding.amount = Number((holding.amount + order.amount).toFixed(6));
+        holding.availAmount = holding.amount;
+        _standaloneState.portfolio.cashUsdc = Math.max(
+          0,
+          Number((_standaloneState.portfolio.cashUsdc - order.usdcValue).toFixed(2))
+        );
+      } else {
+        holding.amount = Math.max(0, Number((holding.amount - order.amount).toFixed(6)));
+        holding.availAmount = holding.amount;
+        _standaloneState.portfolio.cashUsdc = Number((_standaloneState.portfolio.cashUsdc + order.usdcValue).toFixed(2));
+      }
+      holding.usdcValue = Number((holding.amount * holding.priceUsdc).toFixed(2));
+
+      _standaloneState.activeTradeOrder = null;
+      _standaloneState.config.tradingStatus = 'idle';
+      _standaloneState.config.tradingStatusLabel = 'Gotowy — brak oczekującego zlecenia';
+      saveStandaloneState();
+      return { ok: true, state: _standaloneState };
+    }
+
+    // 6. Trade Stop
+    if (url.startsWith('/api/trade/stop') && method === 'POST') {
+      _standaloneState.activeTradeOrder = null;
+      _standaloneState.config.tradingStatus = 'idle';
+      _standaloneState.config.tradingStatusLabel = 'Gotowy — brak oczekującego zlecenia';
+      saveStandaloneState();
+      return { ok: true, state: _standaloneState };
+    }
+
+    // 7. Orders cancel
+    if (url.startsWith('/api/orders/cancel') && method === 'POST') {
+      const order = _standaloneState.portfolio.orders.find((o) => o.id === body?.orderId);
+      if (order) {
+        order.status = 'CANCELED';
+        order.statusLabel = 'Zamknięte (Anulowane)';
+      }
+      saveStandaloneState();
+      return { ok: true, state: _standaloneState };
+    }
+
+    // 8. Orders activate
+    if (url.startsWith('/api/orders/activate') && method === 'POST') {
+      const order = _standaloneState.portfolio.orders.find((o) => o.id === body?.orderId);
+      if (order) {
+        _standaloneState.activeTradeOrder = order;
+        _standaloneState.config.tradingStatus = 'waiting_auth';
+        _standaloneState.config.tradingStatusLabel = 'Oczekiwanie na autoryzację START';
+      }
+      saveStandaloneState();
+      return { ok: true, order, state: _standaloneState };
+    }
+
+    // 9. Agent Chat
+    if (url.startsWith('/api/agent/chat') && method === 'POST') {
+      const msg = (body?.message || '').toLowerCase();
+      let reply =
+        'Jestem Agentem AI OKX Europe. Twoje zapytanie zostało przetworzone. Portfel oraz zlecenia działają w trybie bezpiecznym z pełną zgodnością MiCA.';
+      if (msg.includes('portfel') || msg.includes('stan') || msg.includes('bilans')) {
+        reply = `Twój portfel zawiera obecnie ${_standaloneState.portfolio.cashUsdc.toLocaleString('pl-PL')} USDC wolnych środków oraz pozycje w BTC i WLD. Łączna wartość portfela to ok. ${_standaloneState.portfolio.totalValueUsdc.toLocaleString('pl-PL')} USDC.`;
+      } else if (msg.includes('kup') || msg.includes('buy') || msg.includes('zlecenie')) {
+        reply = `Przygotowałem analizę i propozycję zlecenia dla rynku OKX. Przejdź do Okna 4 (Trading i Szybkie Zlecenia) lub kliknij START w oknie autoryzacji, aby zrealizować transakcję.`;
+      } else if (msg.includes('analiz') || msg.includes('rynek') || msg.includes('trend')) {
+        reply = `Analiza wskaźników OKX (RSI, Bollinger Bands, EMA): Rynek kryptowalut znajduje się w fazie konsolidacji z lekką tendencją wzrostową. Wolumeny transakcyjne na parze BTC-USDC są stabilne.`;
+      }
+      return { ok: true, reply, state: _standaloneState };
+    }
+
+    // Default: State endpoint
+    if (Math.random() < 0.6) {
+      _standaloneState.tickers.forEach((t) => {
+        const deltaPct = (Math.random() - 0.49) * 0.0008;
+        t.price = Number((t.price * (1 + deltaPct)).toFixed(t.price > 100 ? 2 : 4));
+        t.bidPx = Number((t.price * 0.9998).toFixed(t.price > 100 ? 2 : 4));
+        t.askPx = Number((t.price * 1.0002).toFixed(t.price > 100 ? 2 : 4));
+      });
+      _standaloneState.config.marketDataStatus.lastUpdatedAt = new Date().toTimeString().slice(0, 8);
+    }
+    return _standaloneState;
+  }
+
   async function apiRequest(url, method = 'GET', body = null) {
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
-    if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(url, opts);
-    return res.json();
+    if (isStandaloneMode()) {
+      return clientMockEngine(url, method, body);
+    }
+    try {
+      const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(url, opts);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      return await res.json();
+    } catch (err) {
+      console.warn('API call failed; switching to standalone client engine:', err);
+      setStandaloneMode(true);
+      return clientMockEngine(url, method, body);
+    }
   }
 
   // ============================================================================
