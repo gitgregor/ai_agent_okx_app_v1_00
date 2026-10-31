@@ -285,7 +285,7 @@
     _isStandalone = Boolean(val);
   }
 
-  const DEFAULT_STANDALONE_TICKERS = [
+  const DEFAULT_STANDALONE_MARKETS = [
     { instId: 'BTC-USDC', base: 'BTC', quote: 'USDC', name: 'Bitcoin', price: 80976.84, bidPx: 80974.10, askPx: 80978.50, open24h: 79500.00, high24h: 81850.00, low24h: 79200.00, vol24h: 1420.5, volCcy24h: 115027500, change24hPct: 1.86 },
     { instId: 'ETH-USDC', base: 'ETH', quote: 'USDC', name: 'Ethereum', price: 2654.20, bidPx: 2653.80, askPx: 2654.60, open24h: 2580.00, high24h: 2690.00, low24h: 2565.00, vol24h: 8520.4, volCcy24h: 22614800, change24hPct: 2.88 },
     { instId: 'SOL-USDC', base: 'SOL', quote: 'USDC', name: 'Solana', price: 184.50, bidPx: 184.40, askPx: 184.60, open24h: 178.20, high24h: 188.00, low24h: 176.50, vol24h: 42100.0, volCcy24h: 7767450, change24hPct: 3.54 },
@@ -298,15 +298,27 @@
     { instId: 'LINK-USDC', base: 'LINK', quote: 'USDC', name: 'Chainlink', price: 11.85, bidPx: 11.83, askPx: 11.87, open24h: 11.50, high24h: 12.10, low24h: 11.30, vol24h: 64000.0, volCcy24h: 758400, change24hPct: 3.04 },
     { instId: 'SUI-USDC', base: 'SUI', quote: 'USDC', name: 'Sui Network', price: 1.95, bidPx: 1.948, askPx: 1.952, open24h: 1.88, high24h: 2.02, low24h: 1.85, vol24h: 112000.0, volCcy24h: 218400, change24hPct: 3.72 }
   ];
+  const DEFAULT_STANDALONE_TICKERS = DEFAULT_STANDALONE_MARKETS;
 
   let _standaloneState = null;
 
   function initStandaloneState() {
     try {
-      const saved = localStorage.getItem('okx_standalone_state_v1');
+      localStorage.removeItem('okx_standalone_state_v1');
+      const saved = localStorage.getItem('okx_standalone_state_v2');
       if (saved) {
         _standaloneState = JSON.parse(saved);
-        if (_standaloneState && _standaloneState.portfolio && _standaloneState.tickers) {
+        if (
+          _standaloneState &&
+          _standaloneState.portfolio &&
+          Array.isArray(_standaloneState.portfolio.holdings) &&
+          _standaloneState.portfolio.holdings.length > 0 &&
+          Array.isArray(_standaloneState.portfolio.portfolioHistory) &&
+          _standaloneState.portfolio.portfolioHistory.length >= 2 &&
+          Array.isArray(_standaloneState.markets) &&
+          _standaloneState.markets.length > 0
+        ) {
+          _standaloneState.tickers = _standaloneState.markets;
           return _standaloneState;
         }
       }
@@ -314,6 +326,7 @@
 
     const now = new Date();
     const nowTimeStr = now.toTimeString().slice(0, 8);
+    const mList = JSON.parse(JSON.stringify(DEFAULT_STANDALONE_MARKETS));
 
     _standaloneState = {
       config: {
@@ -372,7 +385,8 @@
         }
       },
       activeTradeOrder: null,
-      tickers: JSON.parse(JSON.stringify(DEFAULT_STANDALONE_TICKERS)),
+      markets: mList,
+      tickers: mList,
       portfolio: {
         mode: 'demo',
         site: 'eea.okx.com',
@@ -536,7 +550,7 @@
   function saveStandaloneState() {
     try {
       if (_standaloneState) {
-        localStorage.setItem('okx_standalone_state_v1', JSON.stringify(_standaloneState));
+        localStorage.setItem('okx_standalone_state_v2', JSON.stringify(_standaloneState));
       }
     } catch (e) {}
   }
@@ -836,7 +850,8 @@
 
     // Default: State endpoint
     if (Math.random() < 0.6) {
-      _standaloneState.tickers.forEach((t) => {
+      const mList = _standaloneState.markets || _standaloneState.tickers || [];
+      mList.forEach((t) => {
         const deltaPct = (Math.random() - 0.49) * 0.0008;
         t.price = Number((t.price * (1 + deltaPct)).toFixed(t.price > 100 ? 2 : 4));
         t.bidPx = Number((t.price * 0.9998).toFixed(t.price > 100 ? 2 : 4));
@@ -844,6 +859,28 @@
       });
       _standaloneState.config.marketDataStatus.lastUpdatedAt = new Date().toTimeString().slice(0, 8);
     }
+
+    // Keep holdings and portfolio values in sync with live spot prices
+    if (_standaloneState.portfolio && Array.isArray(_standaloneState.portfolio.holdings)) {
+      const mList = _standaloneState.markets || _standaloneState.tickers || [];
+      _standaloneState.portfolio.holdings.forEach((h) => {
+        if (h.asset !== 'USDC' && h.asset !== 'USDT') {
+          const m = mList.find((x) => x.base === h.asset || x.instId === `${h.asset}-USDC`);
+          if (m && m.price > 0) {
+            h.priceUsdc = m.price;
+            h.usdcValue = Number((h.amount * h.priceUsdc).toFixed(2));
+          }
+        }
+      });
+      const cryptoVal = _standaloneState.portfolio.holdings
+        .filter((h) => h.asset !== 'USDC' && h.asset !== 'USDT')
+        .reduce((sum, h) => sum + (h.usdcValue || 0), 0);
+      _standaloneState.portfolio.cryptoValueUsdc = Number(cryptoVal.toFixed(2));
+      _standaloneState.portfolio.totalValueUsdc = Number(
+        ((_standaloneState.portfolio.cashUsdc || 0) + _standaloneState.portfolio.cryptoValueUsdc).toFixed(2)
+      );
+    }
+
     return _standaloneState;
   }
 
@@ -1616,14 +1653,21 @@
       el.mainStartBtnSubtext.textContent = 'Status: Czekam na start zlecenia (kliknij po podgląd pop-up)';
     }
 
-    renderAuthPopupContent(state);
-    renderMarketTickerStrip(state.markets);
-    updateOrderFormBalances(state);
-    renderTradingPortfolio(portfolio);
-    renderBoughtSoldLedger(portfolio.ledger);
-    renderPortfolioHistory(portfolio.portfolioHistory);
-    renderOrdersHistory(portfolio.orders);
-    renderWindowMenus();
+    try { renderAuthPopupContent(state); } catch (e) { console.error('AuthPopup render error:', e); }
+    try {
+      const markets = (state && (state.markets || state.tickers)) || DEFAULT_STANDALONE_MARKETS;
+      renderMarketTickerStrip(markets);
+    } catch (e) { console.error('MarketTickerStrip render error:', e); }
+    try { updateOrderFormBalances(state); } catch (e) { console.error('OrderFormBalances render error:', e); }
+    try {
+      if (portfolio) {
+        renderTradingPortfolio(portfolio);
+        if (portfolio.ledger) renderBoughtSoldLedger(portfolio.ledger);
+        if (portfolio.portfolioHistory) renderPortfolioHistory(portfolio.portfolioHistory);
+        if (portfolio.orders) renderOrdersHistory(portfolio.orders);
+      }
+    } catch (e) { console.error('Portfolio render error:', e); }
+    try { renderWindowMenus(); } catch (e) { console.error('WindowMenus render error:', e); }
   }
 
   function ensurePairOptionExists(instId, labelText) {
@@ -1643,6 +1687,7 @@
   }
 
   function renderMarketTickerStrip(markets) {
+    if (!Array.isArray(markets)) return;
     markets.forEach((m) => ensurePairOptionExists(m.instId, `${m.instId} (${m.name} / USD Coin)`));
 
     el.marketTickerStrip.innerHTML = markets
@@ -1661,9 +1706,11 @@
   }
 
   function updateOrderFormBalances(state) {
+    if (!state) return;
     const selectedPair = el.tradePairSelect.value || 'BTC-USDC';
     const [asset] = selectedPair.split('-');
-    const market = state.markets.find((m) => m.instId === selectedPair) || state.markets[0];
+    const markets = (state && (state.markets || state.tickers)) || DEFAULT_STANDALONE_MARKETS;
+    const market = markets.find((m) => m.instId === selectedPair) || markets[0] || { price: 80000 };
     el.tradeAssetUnit.textContent = asset;
     el.formAvailAssetName.textContent = asset;
 
@@ -1675,9 +1722,10 @@
       if (!el.tradePriceInput.value) el.tradePriceInput.value = market.price;
     }
 
-    const cashHolding = state.portfolio.holdings.find((h) => h.asset === 'USDC');
-    const usdtHolding = state.portfolio.holdings.find((h) => h.asset === 'USDT');
-    const assetHolding = state.portfolio.holdings.find((h) => h.asset === asset);
+    const holdings = state.portfolio?.holdings || [];
+    const cashHolding = holdings.find((h) => h.asset === 'USDC');
+    const usdtHolding = holdings.find((h) => h.asset === 'USDT');
+    const assetHolding = holdings.find((h) => h.asset === asset);
     const totalAvailCash = (cashHolding ? cashHolding.amount : 0) + (usdtHolding ? usdtHolding.amount : 0);
     el.formAvailUsdc.textContent = formatUsdc(totalAvailCash);
     el.formAvailAssetAmt.textContent = `${formatQty(assetHolding ? assetHolding.amount : 0)} ${asset}`;
@@ -3509,7 +3557,8 @@
     const recalcUsdcFromAmount = () => {
       if (!appState) return;
       const pair = el.tradePairSelect.value;
-      const market = appState.markets.find((m) => m.instId === pair) || appState.markets[0];
+      const markets = (appState && (appState.markets || appState.tickers)) || DEFAULT_STANDALONE_MARKETS;
+      const market = markets.find((m) => m.instId === pair) || markets[0] || { price: 80000 };
       const price = el.tradeOrderType.value === 'LIMIT' ? Number(el.tradePriceInput.value || market.price) : market.price;
       const amt = Number(el.tradeAmountInput.value || 0);
       el.tradeUsdcInput.value = (amt * price).toFixed(2);
@@ -3518,7 +3567,8 @@
     const recalcAmountFromUsdc = () => {
       if (!appState) return;
       const pair = el.tradePairSelect.value;
-      const market = appState.markets.find((m) => m.instId === pair) || appState.markets[0];
+      const markets = (appState && (appState.markets || appState.tickers)) || DEFAULT_STANDALONE_MARKETS;
+      const market = markets.find((m) => m.instId === pair) || markets[0] || { price: 80000 };
       const price = el.tradeOrderType.value === 'LIMIT' ? Number(el.tradePriceInput.value || market.price) : market.price;
       const usdc = Number(el.tradeUsdcInput.value || 0);
       if (price > 0) el.tradeAmountInput.value = (usdc / price).toFixed(6);
