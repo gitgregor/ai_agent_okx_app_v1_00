@@ -97,6 +97,10 @@ const server = http.createServer(async (req, res) => {
     // 4. AI Agent MCP natural language chat
     if (pathname === '/api/agent/chat' && req.method === 'POST') {
       const body = await readJsonBody(req);
+      if (Array.isArray(body.clientTickers)) {
+        engine.applyClientTickers(body.clientTickers);
+      }
+      await engine.fetchRealOkxTickers();
       const result = engine.processAiAgentPrompt(body.message || '');
       return sendJson(res, 200, result);
     }
@@ -104,13 +108,30 @@ const server = http.createServer(async (req, res) => {
     // 4B. AI Agent OKX Buy Strategy & Deep Market Analysis
     if (pathname === '/api/agent/strategy' && req.method === 'POST') {
       const body = await readJsonBody(req);
+      if (Array.isArray(body.clientTickers)) {
+        engine.applyClientTickers(body.clientTickers);
+      }
+      await engine.fetchRealOkxTickers();
       const result = engine.generateAiBuyStrategy(body.query || body.message || 'BTC');
       return sendJson(res, 200, result);
+    }
+
+    // 4C. Sync live OKX tickers from browser client (fallback when server runs in isolated network)
+    if (pathname === '/api/market/tickers' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (Array.isArray(body.tickers)) {
+        engine.applyClientTickers(body.tickers);
+      }
+      return sendJson(res, 200, { ok: true, state: engine.getState() });
     }
 
     // 5. Propose trade order (sets status to "Czekam na start zlecenia" and opens Authorization Pop-up)
     if (pathname === '/api/trade/propose' && req.method === 'POST') {
       const body = await readJsonBody(req);
+      if (Array.isArray(body.clientTickers)) {
+        engine.applyClientTickers(body.clientTickers);
+      }
+      await engine.fetchRealOkxTickers();
       const result = engine.proposeTradeOrder(body);
       return sendJson(res, 200, result);
     }

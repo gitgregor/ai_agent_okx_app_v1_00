@@ -10,19 +10,19 @@ const KEYS_FILE_PATH = path.join(__dirname, '.okx-keys.json');
 
 // Fallback initial structure before first live HTTP response from OKX arrives (updated within <1s on startup)
 const DEFAULT_WATCHED_MARKETS = {
-  'BTC-USDC': { instId: 'BTC-USDC', base: 'BTC', quote: 'USDC', name: 'Bitcoin', price: 80753.90, bidPx: 80750.00, askPx: 80756.00, open24h: 79800.00, high24h: 81500.00, low24h: 79500.00, vol24h: 1420.5, volCcy24h: 115027500 },
-  'ETH-USDC': { instId: 'ETH-USDC', base: 'ETH', quote: 'USDC', name: 'Ethereum', price: 2331.48, bidPx: 2331.00, askPx: 2332.00, open24h: 2300.00, high24h: 2360.00, low24h: 2280.00, vol24h: 8520.4, volCcy24h: 22614800 },
-  'XRP-USDC': { instId: 'XRP-USDC', base: 'XRP', quote: 'USDC', name: 'Ripple', price: 1.2836, bidPx: 1.2834, askPx: 1.2838, open24h: 1.2600, high24h: 1.3100, low24h: 1.2500, vol24h: 284000.0, volCcy24h: 364542 },
-  'WLD-USDC': { instId: 'WLD-USDC', base: 'WLD', quote: 'USDC', name: 'Worldcoin (WLD)', price: 0.4171, bidPx: 0.4168, askPx: 0.4174, open24h: 0.4100, high24h: 0.4300, low24h: 0.4000, vol24h: 195000.0, volCcy24h: 81334 },
-  'ETC-USDC': { instId: 'ETC-USDC', base: 'ETC', quote: 'USDC', name: 'Ethereum Classic', price: 7.49, bidPx: 7.47, askPx: 7.51, open24h: 7.40, high24h: 7.65, low24h: 7.35, vol24h: 48000.0, volCcy24h: 359520 },
+  'BTC-USDC': { instId: 'BTC-USDC', base: 'BTC', quote: 'USDC', name: 'Bitcoin', price: 76682.30, bidPx: 76680.50, askPx: 76680.60, open24h: 77838.10, high24h: 78789.30, low24h: 76606.90, vol24h: 1071.88, volCcy24h: 83103441 },
+  'ETH-USDC': { instId: 'ETH-USDC', base: 'ETH', quote: 'USDC', name: 'Ethereum', price: 2248.22, bidPx: 2248.22, askPx: 2248.23, open24h: 2263.15, high24h: 2315.88, low24h: 2234.69, vol24h: 10535.29, volCcy24h: 23983599 },
+  'XRP-USDC': { instId: 'XRP-USDC', base: 'XRP', quote: 'USDC', name: 'Ripple', price: 1.2458, bidPx: 1.2462, askPx: 1.2464, open24h: 1.2500, high24h: 1.2629, low24h: 1.2341, vol24h: 4555244.55, volCcy24h: 5692241 },
+  'WLD-USDC': { instId: 'WLD-USDC', base: 'WLD', quote: 'USDC', name: 'Worldcoin (WLD)', price: 0.3719, bidPx: 0.3719, askPx: 0.3723, open24h: 0.3894, high24h: 0.3932, low24h: 0.3683, vol24h: 500263.32, volCcy24h: 191589 },
+  'ETC-USDC': { instId: 'ETC-USDC', base: 'ETC', quote: 'USDC', name: 'Ethereum Classic', price: 6.953, bidPx: 6.934, askPx: 6.966, open24h: 7.123, high24h: 7.171, low24h: 6.894, vol24h: 2199.89, volCcy24h: 15512 },
   'USDG-USDC': { instId: 'USDG-USDC', base: 'USDG', quote: 'USDC', name: 'Global Dollar (USDG)', price: 1.00, bidPx: 0.9999, askPx: 1.0001, open24h: 1.00, high24h: 1.001, low24h: 0.999, vol24h: 500000.0, volCcy24h: 500000 },
-  'SOL-USDC': { instId: 'SOL-USDC', base: 'SOL', quote: 'USDC', name: 'Solana', price: 184.50, bidPx: 184.40, askPx: 184.60, open24h: 178.20, high24h: 188.00, low24h: 176.50, vol24h: 42100.0, volCcy24h: 7767450 },
-  'OKB-USDC': { instId: 'OKB-USDC', base: 'OKB', quote: 'USDC', name: 'OKB Token', price: 46.80, bidPx: 46.75, askPx: 46.85, open24h: 45.90, high24h: 47.50, low24h: 45.20, vol24h: 15400.0, volCcy24h: 720720 },
-  'ADA-USDC': { instId: 'ADA-USDC', base: 'ADA', quote: 'USDC', name: 'Cardano', price: 0.3540, bidPx: 0.3538, askPx: 0.3542, open24h: 0.3480, high24h: 0.3620, low24h: 0.3440, vol24h: 351000.0, volCcy24h: 124254 },
-  'DOGE-USDC': { instId: 'DOGE-USDC', base: 'DOGE', quote: 'USDC', name: 'Dogecoin', price: 0.1580, bidPx: 0.1578, askPx: 0.1582, open24h: 0.1530, high24h: 0.1630, low24h: 0.1510, vol24h: 890000.0, volCcy24h: 140620 },
-  'AVAX-USDC': { instId: 'AVAX-USDC', base: 'AVAX', quote: 'USDC', name: 'Avalanche', price: 26.40, bidPx: 26.35, askPx: 26.45, open24h: 25.80, high24h: 27.10, low24h: 25.40, vol24h: 76000.0, volCcy24h: 2006400 },
-  'LINK-USDC': { instId: 'LINK-USDC', base: 'LINK', quote: 'USDC', name: 'Chainlink', price: 11.85, bidPx: 11.83, askPx: 11.87, open24h: 11.50, high24h: 12.10, low24h: 11.30, vol24h: 64000.0, volCcy24h: 758400 },
-  'SUI-USDC': { instId: 'SUI-USDC', base: 'SUI', quote: 'USDC', name: 'Sui Network', price: 1.95, bidPx: 1.948, askPx: 1.952, open24h: 1.88, high24h: 2.02, low24h: 1.85, vol24h: 112000.0, volCcy24h: 218400 }
+  'SOL-USDC': { instId: 'SOL-USDC', base: 'SOL', quote: 'USDC', name: 'Solana', price: 91.37, bidPx: 91.46, askPx: 91.48, open24h: 94.33, high24h: 95.80, low24h: 90.77, vol24h: 85978.59, volCcy24h: 8063966 },
+  'OKB-USDC': { instId: 'OKB-USDC', base: 'OKB', quote: 'USDC', name: 'OKB Token', price: 108.23, bidPx: 108.22, askPx: 108.24, open24h: 113.93, high24h: 114.43, low24h: 107.70, vol24h: 2603.48, volCcy24h: 291272 },
+  'ADA-USDC': { instId: 'ADA-USDC', base: 'ADA', quote: 'USDC', name: 'Cardano', price: 0.1880, bidPx: 0.1880, askPx: 0.1882, open24h: 0.1920, high24h: 0.1948, low24h: 0.1860, vol24h: 917886.96, volCcy24h: 175202 },
+  'DOGE-USDC': { instId: 'DOGE-USDC', base: 'DOGE', quote: 'USDC', name: 'Dogecoin', price: 0.07383, bidPx: 0.07383, askPx: 0.07387, open24h: 0.07518, high24h: 0.07625, low24h: 0.07310, vol24h: 8697801.73, volCcy24h: 650910 },
+  'AVAX-USDC': { instId: 'AVAX-USDC', base: 'AVAX', quote: 'USDC', name: 'Avalanche', price: 8.33, bidPx: 8.328, askPx: 8.346, open24h: 8.675, high24h: 8.728, low24h: 8.267, vol24h: 11411.57, volCcy24h: 97402 },
+  'LINK-USDC': { instId: 'LINK-USDC', base: 'LINK', quote: 'USDC', name: 'Chainlink', price: 11.041, bidPx: 11.048, askPx: 11.052, open24h: 11.391, high24h: 11.429, low24h: 10.988, vol24h: 54395.38, volCcy24h: 612058 },
+  'SUI-USDC': { instId: 'SUI-USDC', base: 'SUI', quote: 'USDC', name: 'Sui Network', price: 0.8677, bidPx: 0.8687, askPx: 0.8690, open24h: 0.8947, high24h: 0.9080, low24h: 0.8631, vol24h: 952011.95, volCcy24h: 843315 }
 };
 
 const ASSET_NAMES = {
@@ -436,6 +436,38 @@ class OkxEeaTradingEngine {
     } catch (err) {
       this.config.marketDataStatus.lastUpdatedAt = new Date().toTimeString().slice(0, 8);
     }
+  }
+
+  applyClientTickers(tickers) {
+    if (!Array.isArray(tickers) || tickers.length === 0) return;
+    for (const t of tickers) {
+      if (t && t.instId) {
+        this.spotTickerMap[t.instId] = t;
+      }
+    }
+    for (const instId of Object.keys(this.markets)) {
+      const m = this.markets[instId];
+      const t = this.spotTickerMap[instId] || this.spotTickerMap[`${m.base}-USDT`];
+      if (t) {
+        const last = Number(t.last || t.price || 0);
+        if (last > 0) {
+          m.price = last;
+          m.bidPx = Number(t.bidPx || last);
+          m.askPx = Number(t.askPx || last);
+          m.open24h = Number(t.open24h || t.sodUtc0 || last);
+          m.high24h = Number(t.high24h || last);
+          m.low24h = Number(t.low24h || last);
+          m.vol24h = Number(Number(t.vol24h || m.vol24h || 0).toFixed(2));
+          m.volCcy24h = Number(Number(t.volCcy24h || m.volCcy24h || 0).toFixed(2));
+          m.ts = Number(t.ts || Date.now());
+        }
+      }
+    }
+    this.config.marketDataStatus = {
+      live: true,
+      source: 'OKX API v5 Live (eea.okx.com / www.okx.com)',
+      lastUpdatedAt: new Date().toTimeString().slice(0, 8)
+    };
   }
 
   getPrice(asset) {

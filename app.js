@@ -7,6 +7,10 @@
   let lastExchangeFeedback = null;
   let currentAiStrategyAnalysis = null;
   const expandedFeedbackIds = new Set();
+  const collapsedAiTxIds = new Set();
+  const executedSessionTransactions = [];
+  let latestBrowserOkxTickers = [];
+  let lastOkxBrowserFetchTs = 0;
 
   // Chart Window State (Requirement 9 + TradingView Superchart + Window Manager)
   const chartState = {
@@ -295,23 +299,150 @@
   }
 
   const DEFAULT_STANDALONE_MARKETS = [
-    { instId: 'BTC-USDC', base: 'BTC', quote: 'USDC', name: 'Bitcoin', price: 80753.90, bidPx: 80750.00, askPx: 80756.00, open24h: 79800.00, high24h: 81500.00, low24h: 79500.00, vol24h: 1420.5, volCcy24h: 115027500, change24hPct: 1.19 },
-    { instId: 'ETH-USDC', base: 'ETH', quote: 'USDC', name: 'Ethereum', price: 2331.48, bidPx: 2331.00, askPx: 2332.00, open24h: 2300.00, high24h: 2360.00, low24h: 2280.00, vol24h: 8520.4, volCcy24h: 22614800, change24hPct: 1.37 },
-    { instId: 'XRP-USDC', base: 'XRP', quote: 'USDC', name: 'Ripple', price: 1.2836, bidPx: 1.2834, askPx: 1.2838, open24h: 1.2600, high24h: 1.3100, low24h: 1.2500, vol24h: 284000.0, volCcy24h: 364542, change24hPct: 1.87 },
-    { instId: 'WLD-USDC', base: 'WLD', quote: 'USDC', name: 'Worldcoin (WLD)', price: 0.4171, bidPx: 0.4168, askPx: 0.4174, open24h: 0.4100, high24h: 0.4300, low24h: 0.4000, vol24h: 195000.0, volCcy24h: 81334, change24hPct: 1.73 },
-    { instId: 'ETC-USDC', base: 'ETC', quote: 'USDC', name: 'Ethereum Classic', price: 7.49, bidPx: 7.47, askPx: 7.51, open24h: 7.40, high24h: 7.65, low24h: 7.35, vol24h: 48000.0, volCcy24h: 359520, change24hPct: 1.22 },
+    { instId: 'BTC-USDC', base: 'BTC', quote: 'USDC', name: 'Bitcoin', price: 76682.30, bidPx: 76680.50, askPx: 76680.60, open24h: 77838.10, high24h: 78789.30, low24h: 76606.90, vol24h: 1071.88, volCcy24h: 83103441, change24hPct: -1.48 },
+    { instId: 'ETH-USDC', base: 'ETH', quote: 'USDC', name: 'Ethereum', price: 2248.22, bidPx: 2248.22, askPx: 2248.23, open24h: 2263.15, high24h: 2315.88, low24h: 2234.69, vol24h: 10535.29, volCcy24h: 23983599, change24hPct: -0.66 },
+    { instId: 'XRP-USDC', base: 'XRP', quote: 'USDC', name: 'Ripple', price: 1.2458, bidPx: 1.2462, askPx: 1.2464, open24h: 1.2500, high24h: 1.2629, low24h: 1.2341, vol24h: 4555244.55, volCcy24h: 5692241, change24hPct: -0.34 },
+    { instId: 'WLD-USDC', base: 'WLD', quote: 'USDC', name: 'Worldcoin (WLD)', price: 0.3719, bidPx: 0.3719, askPx: 0.3723, open24h: 0.3894, high24h: 0.3932, low24h: 0.3683, vol24h: 500263.32, volCcy24h: 191589, change24hPct: -4.49 },
+    { instId: 'ETC-USDC', base: 'ETC', quote: 'USDC', name: 'Ethereum Classic', price: 6.953, bidPx: 6.934, askPx: 6.966, open24h: 7.123, high24h: 7.171, low24h: 6.894, vol24h: 2199.89, volCcy24h: 15512, change24hPct: -2.39 },
     { instId: 'USDG-USDC', base: 'USDG', quote: 'USDC', name: 'Global Dollar (USDG)', price: 1.00, bidPx: 0.9999, askPx: 1.0001, open24h: 1.00, high24h: 1.001, low24h: 0.999, vol24h: 500000.0, volCcy24h: 500000, change24hPct: 0.00 },
-    { instId: 'SOL-USDC', base: 'SOL', quote: 'USDC', name: 'Solana', price: 184.50, bidPx: 184.40, askPx: 184.60, open24h: 178.20, high24h: 188.00, low24h: 176.50, vol24h: 42100.0, volCcy24h: 7767450, change24hPct: 3.54 },
-    { instId: 'OKB-USDC', base: 'OKB', quote: 'USDC', name: 'OKB Token', price: 46.80, bidPx: 46.75, askPx: 46.85, open24h: 45.90, high24h: 47.50, low24h: 45.20, vol24h: 15400.0, volCcy24h: 720720, change24hPct: 1.96 },
-    { instId: 'ADA-USDC', base: 'ADA', quote: 'USDC', name: 'Cardano', price: 0.3540, bidPx: 0.3538, askPx: 0.3542, open24h: 0.3480, high24h: 0.3620, low24h: 0.3440, vol24h: 351000.0, volCcy24h: 124254, change24hPct: 1.72 },
-    { instId: 'DOGE-USDC', base: 'DOGE', quote: 'USDC', name: 'Dogecoin', price: 0.1580, bidPx: 0.1578, askPx: 0.1582, open24h: 0.1530, high24h: 0.1630, low24h: 0.1510, vol24h: 890000.0, volCcy24h: 140620, change24hPct: 3.27 },
-    { instId: 'AVAX-USDC', base: 'AVAX', quote: 'USDC', name: 'Avalanche', price: 26.40, bidPx: 26.35, askPx: 26.45, open24h: 25.80, high24h: 27.10, low24h: 25.40, vol24h: 76000.0, volCcy24h: 2006400, change24hPct: 2.33 },
-    { instId: 'LINK-USDC', base: 'LINK', quote: 'USDC', name: 'Chainlink', price: 11.85, bidPx: 11.83, askPx: 11.87, open24h: 11.50, high24h: 12.10, low24h: 11.30, vol24h: 64000.0, volCcy24h: 758400, change24hPct: 3.04 },
-    { instId: 'SUI-USDC', base: 'SUI', quote: 'USDC', name: 'Sui Network', price: 1.95, bidPx: 1.948, askPx: 1.952, open24h: 1.88, high24h: 2.02, low24h: 1.85, vol24h: 112000.0, volCcy24h: 218400, change24hPct: 3.72 }
+    { instId: 'SOL-USDC', base: 'SOL', quote: 'USDC', name: 'Solana', price: 91.37, bidPx: 91.46, askPx: 91.48, open24h: 94.33, high24h: 95.80, low24h: 90.77, vol24h: 85978.59, volCcy24h: 8063966, change24hPct: -3.14 },
+    { instId: 'OKB-USDC', base: 'OKB', quote: 'USDC', name: 'OKB Token', price: 108.23, bidPx: 108.22, askPx: 108.24, open24h: 113.93, high24h: 114.43, low24h: 107.70, vol24h: 2603.48, volCcy24h: 291272, change24hPct: -5.00 },
+    { instId: 'ADA-USDC', base: 'ADA', quote: 'USDC', name: 'Cardano', price: 0.1880, bidPx: 0.1880, askPx: 0.1882, open24h: 0.1920, high24h: 0.1948, low24h: 0.1860, vol24h: 917886.96, volCcy24h: 175202, change24hPct: -2.08 },
+    { instId: 'DOGE-USDC', base: 'DOGE', quote: 'USDC', name: 'Dogecoin', price: 0.07383, bidPx: 0.07383, askPx: 0.07387, open24h: 0.07518, high24h: 0.07625, low24h: 0.07310, vol24h: 8697801.73, volCcy24h: 650910, change24hPct: -1.80 },
+    { instId: 'AVAX-USDC', base: 'AVAX', quote: 'USDC', name: 'Avalanche', price: 8.33, bidPx: 8.328, askPx: 8.346, open24h: 8.675, high24h: 8.728, low24h: 8.267, vol24h: 11411.57, volCcy24h: 97402, change24hPct: -3.98 },
+    { instId: 'LINK-USDC', base: 'LINK', quote: 'USDC', name: 'Chainlink', price: 11.041, bidPx: 11.048, askPx: 11.052, open24h: 11.391, high24h: 11.429, low24h: 10.988, vol24h: 54395.38, volCcy24h: 612058, change24hPct: -3.07 },
+    { instId: 'SUI-USDC', base: 'SUI', quote: 'USDC', name: 'Sui Network', price: 0.8677, bidPx: 0.8687, askPx: 0.8690, open24h: 0.8947, high24h: 0.9080, low24h: 0.8631, vol24h: 952011.95, volCcy24h: 843315, change24hPct: -3.02 }
   ];
   const DEFAULT_STANDALONE_TICKERS = DEFAULT_STANDALONE_MARKETS;
 
   let _standaloneState = null;
+
+  function recalculateStateValuations(targetState) {
+    if (!targetState) return;
+    const mList = targetState.markets || targetState.tickers || DEFAULT_STANDALONE_MARKETS;
+    const isCashAsset = (ccy) => ccy === 'USDC' || ccy === 'USDT' || ccy === 'USD' || ccy === 'USDG';
+
+    if (targetState.portfolio && Array.isArray(targetState.portfolio.holdings)) {
+      targetState.portfolio.holdings.forEach((h) => {
+        if (isCashAsset(h.asset)) {
+          h.priceUsdc = 1.0;
+          h.usdcValue = Number((h.amount * 1.0).toFixed(2));
+        } else {
+          const m = mList.find((x) => x.base === h.asset || x.instId === `${h.asset}-USDC`);
+          if (m && m.price > 0) {
+            h.priceUsdc = m.price;
+            h.usdcValue = Number((h.amount * h.priceUsdc).toFixed(2));
+            h.change24hPct = Number(m.change24hPct || 0);
+            if (h.avgBuyPrice > 0) {
+              h.pnlPct = Number((((h.priceUsdc - h.avgBuyPrice) / h.avgBuyPrice) * 100).toFixed(2));
+            }
+          }
+        }
+      });
+
+      const totalVal = targetState.portfolio.holdings.reduce((sum, h) => sum + (h.usdcValue || 0), 0);
+      const cashVal = targetState.portfolio.holdings
+        .filter((h) => isCashAsset(h.asset))
+        .reduce((sum, h) => sum + (h.usdcValue || 0), 0);
+      const cryptoVal = targetState.portfolio.holdings
+        .filter((h) => !isCashAsset(h.asset))
+        .reduce((sum, h) => sum + (h.usdcValue || 0), 0);
+
+      targetState.portfolio.totalValueUsdc = Number(totalVal.toFixed(2));
+      targetState.portfolio.cashUsdc = Number(cashVal.toFixed(2));
+      targetState.portfolio.cryptoValueUsdc = Number(cryptoVal.toFixed(2));
+
+      if (targetState.portfolio.totalValueUsdc > 0) {
+        targetState.portfolio.holdings.forEach((h) => {
+          h.allocationPct = Number(((h.usdcValue / targetState.portfolio.totalValueUsdc) * 100).toFixed(2));
+        });
+      }
+
+      if (targetState.portfolio.ledger && Array.isArray(targetState.portfolio.ledger.items)) {
+        targetState.portfolio.ledger.items.forEach((l) => {
+          if (isCashAsset(l.asset)) {
+            l.currentPriceUsdc = 1.0;
+          } else {
+            const m = mList.find((x) => x.base === l.asset || x.instId === `${l.asset}-USDC`);
+            if (m && m.price > 0) {
+              l.currentPriceUsdc = m.price;
+            }
+          }
+        });
+      }
+
+      if (Array.isArray(targetState.portfolio.portfolioHistory) && targetState.portfolio.portfolioHistory.length > 0) {
+        targetState.portfolio.portfolioHistory[0].totalValueUsdc = targetState.portfolio.totalValueUsdc;
+      }
+    }
+  }
+
+  async function fetchLiveOkxTickersInBrowser(force = false) {
+    const nowMs = Date.now();
+    if (!force && nowMs - lastOkxBrowserFetchTs < 2000 && latestBrowserOkxTickers.length > 0) {
+      return latestBrowserOkxTickers;
+    }
+    lastOkxBrowserFetchTs = nowMs;
+
+    const endpoints = [
+      'https://www.okx.com/api/v5/market/tickers?instType=SPOT',
+      'https://eea.okx.com/api/v5/market/tickers?instType=SPOT'
+    ];
+
+    for (const ep of endpoints) {
+      try {
+        const res = await fetch(ep, { cache: 'no-store' });
+        if (!res.ok) continue;
+        const json = await res.json();
+        if (json && json.code === '0' && Array.isArray(json.data) && json.data.length > 0) {
+          latestBrowserOkxTickers = json.data;
+          const map = {};
+          for (const t of json.data) {
+            map[t.instId] = t;
+          }
+
+          const updateMarketList = (list) => {
+            if (!Array.isArray(list)) return;
+            list.forEach((m) => {
+              const t = map[m.instId] || map[`${m.base}-USDT`];
+              if (t) {
+                const last = Number(t.last || 0);
+                if (last > 0) {
+                  const open24h = Number(t.open24h || t.sodUtc0 || last);
+                  m.price = last;
+                  m.bidPx = Number(t.bidPx || last);
+                  m.askPx = Number(t.askPx || last);
+                  m.open24h = open24h > 0 ? open24h : last;
+                  m.high24h = Number(t.high24h || last);
+                  m.low24h = Number(t.low24h || last);
+                  m.vol24h = Number(Number(t.vol24h || m.vol24h || 0).toFixed(2));
+                  m.volCcy24h = Number(Number(t.volCcy24h || m.volCcy24h || 0).toFixed(2));
+                  m.change24hPct = m.open24h > 0 ? Number((((last - m.open24h) / m.open24h) * 100).toFixed(2)) : 0;
+                }
+              }
+            });
+          };
+
+          updateMarketList(DEFAULT_STANDALONE_MARKETS);
+          if (_standaloneState) {
+            updateMarketList(_standaloneState.markets);
+            _standaloneState.tickers = _standaloneState.markets;
+            if (_standaloneState.config && _standaloneState.config.marketDataStatus) {
+              _standaloneState.config.marketDataStatus.live = true;
+              _standaloneState.config.marketDataStatus.source = 'OKX API v5 Live (Bieżące notowania OKX)';
+              _standaloneState.config.marketDataStatus.lastUpdatedAt = new Date().toTimeString().slice(0, 8);
+            }
+            recalculateStateValuations(_standaloneState);
+            saveStandaloneState();
+          }
+          return latestBrowserOkxTickers;
+        }
+      } catch (e) {
+        // Try next endpoint
+      }
+    }
+    return latestBrowserOkxTickers;
+  }
 
   function initStandaloneState() {
     try {
@@ -319,7 +450,9 @@
       localStorage.removeItem('okx_standalone_state_v2');
       localStorage.removeItem('okx_standalone_state_v3');
       localStorage.removeItem('okx_standalone_state_v4');
-      const saved = localStorage.getItem('okx_standalone_state_v5');
+      localStorage.removeItem('okx_standalone_state_v5');
+      localStorage.removeItem('okx_standalone_state_v6');
+      const saved = localStorage.getItem('okx_standalone_state_v7');
       if (saved) {
         _standaloneState = JSON.parse(saved);
         if (
@@ -332,7 +465,10 @@
           Array.isArray(_standaloneState.markets) &&
           _standaloneState.markets.length > 0
         ) {
+          // Always sync markets with latest DEFAULT_STANDALONE_MARKETS (which is updated by live OKX API)
+          _standaloneState.markets = JSON.parse(JSON.stringify(DEFAULT_STANDALONE_MARKETS));
           _standaloneState.tickers = _standaloneState.markets;
+          recalculateStateValuations(_standaloneState);
           return _standaloneState;
         }
       }
@@ -405,10 +541,10 @@
         mode: 'demo',
         site: 'eea.okx.com',
         syncedFromOkx: true,
-        accountSourceLabel: 'Konto OKX DEMO API (eea.okx.com — 7 aktywów oraz USD)',
-        totalValueUsdc: 468244.29,
-        cashUsdc: 299880.00,
-        cryptoValueUsdc: 168364.29,
+        accountSourceLabel: 'Konto OKX DEMO API (eea.okx.com — 7 aktywów oraz USD • Kursy OKX Live)',
+        totalValueUsdc: 461458.47,
+        cashUsdc: 299900.00,
+        cryptoValueUsdc: 161558.47,
         holdings: [
           {
             asset: 'USD',
@@ -422,7 +558,7 @@
             avgBuyPrice: 1.0,
             change24hPct: 0,
             pnlPct: 0,
-            allocationPct: 21.36
+            allocationPct: 21.67
           },
           {
             asset: 'USDG',
@@ -436,7 +572,7 @@
             avgBuyPrice: 1.0,
             change24hPct: 0,
             pnlPct: 0,
-            allocationPct: 21.36
+            allocationPct: 21.67
           },
           {
             asset: 'USDC',
@@ -445,12 +581,12 @@
             availAmount: 99900.00,
             tradingAmount: 99900.00,
             fundingAmount: 0,
-            priceUsdc: 0.9998,
-            usdcValue: 99880.00,
+            priceUsdc: 1.0,
+            usdcValue: 99900.00,
             avgBuyPrice: 1.0,
             change24hPct: 0,
             pnlPct: 0,
-            allocationPct: 21.33
+            allocationPct: 21.65
           },
           {
             asset: 'BTC',
@@ -459,12 +595,12 @@
             availAmount: 1.00,
             tradingAmount: 1.00,
             fundingAmount: 0,
-            priceUsdc: 80753.90,
-            usdcValue: 80753.90,
+            priceUsdc: 76682.30,
+            usdcValue: 76682.30,
             avgBuyPrice: 80753.90,
-            change24hPct: 1.19,
-            pnlPct: 0,
-            allocationPct: 17.25
+            change24hPct: -1.48,
+            pnlPct: -5.04,
+            allocationPct: 16.62
           },
           {
             asset: 'XRP',
@@ -473,12 +609,12 @@
             availAmount: 50000.00,
             tradingAmount: 50000.00,
             fundingAmount: 0,
-            priceUsdc: 1.2836,
-            usdcValue: 64180.50,
+            priceUsdc: 1.2458,
+            usdcValue: 62290.00,
             avgBuyPrice: 1.2836,
-            change24hPct: 1.87,
-            pnlPct: 0,
-            allocationPct: 13.71
+            change24hPct: -0.34,
+            pnlPct: -2.94,
+            allocationPct: 13.50
           },
           {
             asset: 'ETH',
@@ -487,12 +623,12 @@
             availAmount: 10.00,
             tradingAmount: 10.00,
             fundingAmount: 0,
-            priceUsdc: 2331.48,
-            usdcValue: 23314.80,
+            priceUsdc: 2248.22,
+            usdcValue: 22482.20,
             avgBuyPrice: 2331.48,
-            change24hPct: 1.37,
-            pnlPct: 0,
-            allocationPct: 4.98
+            change24hPct: -0.66,
+            pnlPct: -3.57,
+            allocationPct: 4.87
           },
           {
             asset: 'WLD',
@@ -501,12 +637,12 @@
             availAmount: 186.08,
             tradingAmount: 186.08,
             fundingAmount: 0,
-            priceUsdc: 0.4171,
-            usdcValue: 77.62,
+            priceUsdc: 0.3719,
+            usdcValue: 69.20,
             avgBuyPrice: 0.4171,
-            change24hPct: 1.73,
-            pnlPct: 0,
-            allocationPct: 0.02
+            change24hPct: -4.49,
+            pnlPct: -10.84,
+            allocationPct: 0.01
           },
           {
             asset: 'ETC',
@@ -515,11 +651,11 @@
             availAmount: 5.00,
             tradingAmount: 5.00,
             fundingAmount: 0,
-            priceUsdc: 7.49,
-            usdcValue: 37.47,
+            priceUsdc: 6.953,
+            usdcValue: 34.77,
             avgBuyPrice: 7.49,
-            change24hPct: 1.22,
-            pnlPct: 0,
+            change24hPct: -2.39,
+            pnlPct: -7.17,
             allocationPct: 0.01
           }
         ],
@@ -528,7 +664,7 @@
             {
               asset: 'BTC',
               instId: 'BTC-USDC',
-              currentPriceUsdc: 80753.90,
+              currentPriceUsdc: 76682.30,
               boughtAmount: 1.00,
               boughtUsdc: 80753.90,
               buyCount: 1,
@@ -541,7 +677,7 @@
             {
               asset: 'XRP',
               instId: 'XRP-USDC',
-              currentPriceUsdc: 1.2836,
+              currentPriceUsdc: 1.2458,
               boughtAmount: 50000.0,
               boughtUsdc: 64180.50,
               buyCount: 1,
@@ -554,7 +690,7 @@
             {
               asset: 'ETH',
               instId: 'ETH-USDC',
-              currentPriceUsdc: 2331.48,
+              currentPriceUsdc: 2248.22,
               boughtAmount: 10.0,
               boughtUsdc: 23314.80,
               buyCount: 1,
@@ -567,7 +703,7 @@
             {
               asset: 'WLD',
               instId: 'WLD-USDC',
-              currentPriceUsdc: 0.4171,
+              currentPriceUsdc: 0.3719,
               boughtAmount: 186.08,
               boughtUsdc: 77.62,
               buyCount: 1,
@@ -580,7 +716,7 @@
             {
               asset: 'ETC',
               instId: 'ETC-USDC',
-              currentPriceUsdc: 7.49,
+              currentPriceUsdc: 6.953,
               boughtAmount: 5.0,
               boughtUsdc: 37.47,
               buyCount: 1,
@@ -728,7 +864,7 @@
             feeUsdc: 80.75,
             feeAsset: 0.001,
             diffUsdc: 80753.90,
-            totalValueUsdc: 468244.29,
+            totalValueUsdc: 461458.47,
             asset: 'BTC',
             amount: 1.00,
             price: 80753.90
@@ -754,6 +890,7 @@
         ]
       }
     };
+    recalculateStateValuations(_standaloneState);
     saveStandaloneState();
     return _standaloneState;
   }
@@ -761,7 +898,7 @@
   function saveStandaloneState() {
     try {
       if (_standaloneState) {
-        localStorage.setItem('okx_standalone_state_v5', JSON.stringify(_standaloneState));
+        localStorage.setItem('okx_standalone_state_v7', JSON.stringify(_standaloneState));
       }
     } catch (e) {}
   }
@@ -808,6 +945,11 @@
 
   async function clientMockEngine(url, method = 'GET', body = null) {
     if (!_standaloneState) initStandaloneState();
+    const forceLiveTickerFetch =
+      url.startsWith('/api/agent/') ||
+      url.startsWith('/api/trade/') ||
+      url.startsWith('/api/portfolio/sync');
+    await fetchLiveOkxTickersInBrowser(forceLiveTickerFetch);
 
     // 1. Candlesticks endpoint
     if (url.startsWith('/api/candles')) {
@@ -920,11 +1062,11 @@
       const instId = body?.instId || 'BTC-USDC';
       const [asset] = instId.split('-');
       const mList = _standaloneState.markets || _standaloneState.tickers || DEFAULT_STANDALONE_MARKETS;
-      const market = mList.find((m) => m.instId === instId) || mList[0] || { price: 80753.90 };
+      const market = mList.find((m) => m.instId === instId) || mList[0] || { price: 76682.30 };
       const side = (body?.side || 'BUY').toUpperCase();
       const isBuy = side !== 'SELL';
       const orderType = (body?.orderType || 'MARKET').toUpperCase();
-      const execPrice = orderType === 'LIMIT' && body?.limitPrice ? Number(body.limitPrice) : Number(body?.price || market.price || 80000);
+      const execPrice = orderType === 'LIMIT' && body?.limitPrice ? Number(body.limitPrice) : Number(body?.price || market.price || 76682.30);
       let amount = Number(body?.amount || 0);
       let usdcVal = Number(body?.usdcAmount || 0);
       if (amount <= 0 && usdcVal > 0 && execPrice > 0) {
@@ -1201,8 +1343,8 @@
 
       const instId = `${asset}-USDC`;
       const mList = _standaloneState.markets || _standaloneState.tickers || DEFAULT_STANDALONE_MARKETS;
-      const market = mList.find((m) => m.instId === instId) || mList[0] || { price: 80753.90 };
-      const livePrice = Number(market.price || 80753.90);
+      const market = mList.find((m) => m.instId === instId) || mList[0] || { price: 76682.30 };
+      const livePrice = Number(market.price || 76682.30);
 
       const isSell =
         lower.includes('sprzedaj') ||
@@ -1335,14 +1477,14 @@
         instId,
         base: asset,
         name: asset,
-        price: 80753.90,
-        bidPx: 80750.00,
-        askPx: 80756.00,
-        open24h: 79800.00,
-        high24h: 81500.00,
-        low24h: 79500.00,
-        vol24h: 1420.5,
-        change24hPct: 1.19
+        price: 76682.30,
+        bidPx: 76680.50,
+        askPx: 76680.60,
+        open24h: 77838.10,
+        high24h: 78789.30,
+        low24h: 76606.90,
+        vol24h: 1071.88,
+        change24hPct: -1.48
       };
 
       const livePrice = Number(market.price || 100);
@@ -1584,57 +1726,9 @@
       return { ok: true, analysis, reply, activeTradeOrder: order, state: _standaloneState };
     }
 
-    // Default: State endpoint
-    if (Math.random() < 0.6) {
-      const mList = _standaloneState.markets || _standaloneState.tickers || [];
-      mList.forEach((t) => {
-        const deltaPct = (Math.random() - 0.49) * 0.0008;
-        t.price = Number((t.price * (1 + deltaPct)).toFixed(t.price > 100 ? 2 : 4));
-        t.bidPx = Number((t.price * 0.9998).toFixed(t.price > 100 ? 2 : 4));
-        t.askPx = Number((t.price * 1.0002).toFixed(t.price > 100 ? 2 : 4));
-      });
-      _standaloneState.config.marketDataStatus.lastUpdatedAt = new Date().toTimeString().slice(0, 8);
-    }
-
-    // Keep holdings and portfolio values in sync with live spot prices
-    if (_standaloneState.portfolio && Array.isArray(_standaloneState.portfolio.holdings)) {
-      const mList = _standaloneState.markets || _standaloneState.tickers || [];
-      const isCashAsset = (ccy) => ccy === 'USDC' || ccy === 'USDT' || ccy === 'USD' || ccy === 'USDG';
-
-      _standaloneState.portfolio.holdings.forEach((h) => {
-        if (!isCashAsset(h.asset)) {
-          const m = mList.find((x) => x.base === h.asset || x.instId === `${h.asset}-USDC`);
-          if (m && m.price > 0) {
-            h.priceUsdc = m.price;
-            h.usdcValue = Number((h.amount * h.priceUsdc).toFixed(2));
-          }
-        }
-      });
-      const totalVal = _standaloneState.portfolio.holdings.reduce((sum, h) => sum + (h.usdcValue || 0), 0);
-      const cashVal = _standaloneState.portfolio.holdings
-        .filter((h) => isCashAsset(h.asset))
-        .reduce((sum, h) => sum + (h.usdcValue || 0), 0);
-      const cryptoVal = _standaloneState.portfolio.holdings
-        .filter((h) => !isCashAsset(h.asset))
-        .reduce((sum, h) => sum + (h.usdcValue || 0), 0);
-
-      _standaloneState.portfolio.totalValueUsdc = Number(totalVal.toFixed(2));
-      _standaloneState.portfolio.cashUsdc = Number(cashVal.toFixed(2));
-      _standaloneState.portfolio.cryptoValueUsdc = Number(cryptoVal.toFixed(2));
-
-      // Keep allocation % in sync
-      if (_standaloneState.portfolio.totalValueUsdc > 0) {
-        _standaloneState.portfolio.holdings.forEach((h) => {
-          h.allocationPct = Number(((h.usdcValue / _standaloneState.portfolio.totalValueUsdc) * 100).toFixed(2));
-        });
-      }
-
-      // Keep latest snapshot in portfolioHistory synchronized with current portfolio total
-      if (Array.isArray(_standaloneState.portfolio.portfolioHistory) && _standaloneState.portfolio.portfolioHistory.length > 0) {
-        _standaloneState.portfolio.portfolioHistory[0].totalValueUsdc = _standaloneState.portfolio.totalValueUsdc;
-      }
-    }
-
+    // Default: State endpoint — keep holdings and portfolio values in sync with live OKX spot prices
+    _standaloneState.config.marketDataStatus.lastUpdatedAt = new Date().toTimeString().slice(0, 8);
+    recalculateStateValuations(_standaloneState);
     return _standaloneState;
   }
 
@@ -1643,13 +1737,59 @@
       return clientMockEngine(url, method, body);
     }
     try {
+      const forceTickerRefresh =
+        url.startsWith('/api/agent/') ||
+        url.startsWith('/api/trade/') ||
+        url.startsWith('/api/portfolio/sync');
+      await fetchLiveOkxTickersInBrowser(forceTickerRefresh);
+
       const opts = { method, headers: { 'Content-Type': 'application/json' } };
-      if (body) opts.body = JSON.stringify(body);
+      if (body && typeof body === 'object') {
+        const enrichedBody = { ...body };
+        if (latestBrowserOkxTickers.length > 0 && (url.startsWith('/api/agent/') || url.startsWith('/api/trade/'))) {
+          enrichedBody.clientTickers = latestBrowserOkxTickers;
+        }
+        opts.body = JSON.stringify(enrichedBody);
+      } else if (body) {
+        opts.body = JSON.stringify(body);
+      }
+
       const res = await fetch(url, opts);
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
-      return await res.json();
+      const data = await res.json();
+
+      // If backend returned state and browser has live OKX tickers while backend was offline, sync them
+      const targetState = data?.state || (url.startsWith('/api/state') ? data : null);
+      if (targetState && latestBrowserOkxTickers.length > 0 && !targetState.config?.marketDataStatus?.live) {
+        const map = {};
+        latestBrowserOkxTickers.forEach((t) => { map[t.instId] = t; });
+        if (Array.isArray(targetState.markets)) {
+          targetState.markets.forEach((m) => {
+            const t = map[m.instId] || map[`${m.base}-USDT`];
+            if (t && Number(t.last) > 0) {
+              const last = Number(t.last);
+              const open24h = Number(t.open24h || t.sodUtc0 || last);
+              m.price = last;
+              m.bidPx = Number(t.bidPx || last);
+              m.askPx = Number(t.askPx || last);
+              m.open24h = open24h > 0 ? open24h : last;
+              m.high24h = Number(t.high24h || last);
+              m.low24h = Number(t.low24h || last);
+              m.change24hPct = m.open24h > 0 ? Number((((last - m.open24h) / m.open24h) * 100).toFixed(2)) : 0;
+            }
+          });
+        }
+        recalculateStateValuations(targetState);
+        fetch('/api/market/tickers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tickers: latestBrowserOkxTickers })
+        }).catch(() => {});
+      }
+
+      return data;
     } catch (err) {
       console.warn('API call failed; switching to standalone client engine:', err);
       setStandaloneMode(true);
@@ -2818,11 +2958,50 @@
 
   // ============================================================================
   // INLINE ORDER CONFIRMATION CARD (PO NACIŚNIĘCIU "WYŚLIJ DO AI" -> SZCZEGÓŁY + 1 KLAWISZ POTWIERDŹ)
+  // + ZWIJANIE POKAZANYCH TRANSAKCJI PO ICH REALIZACJI
   // ============================================================================
+  function renderCollapsibleExecutedTxHtml(fb) {
+    const txKey = String(fb.orderId || 'LATEST');
+    const isCollapsed = collapsedAiTxIds.has(txKey);
+    const isBuy = fb.side === 'BUY';
+    return `
+      <div class="ai-order-executed-feedback-wrap ${isCollapsed ? 'is-collapsed' : ''}" data-executed-tx-id="${txKey}">
+        <div class="ai-executed-tx-collapse-header">
+          <div class="ai-executed-tx-summary">
+            <span class="ai-executed-status-pill">✅ ZREALIZOWANO</span>
+            <code>#${fb.orderId}</code>
+            <span class="${isBuy ? 'badge-buy' : 'badge-sell'}">${isBuy ? 'KUPNO (BUY)' : 'SPRZEDAŻ (SELL)'}</span>
+            <strong>${formatQty(fb.amount)} ${fb.asset}</strong>
+            <span>@ ${formatUnitPrice(fb.price)}</span>
+            <strong style="color: var(--accent-okx);">(${formatUsdc(fb.usdcValue)})</strong>
+            <span class="small-muted">📅 ${fb.date} ⏰ ${fb.time}</span>
+          </div>
+          <div class="ai-executed-tx-actions">
+            <button
+              type="button"
+              class="btn btn-collapse-ai-tx toggle-ai-executed-tx-btn ${isCollapsed ? 'collapsed' : ''}"
+              data-toggle-ai-tx="${txKey}"
+              title="${isCollapsed ? 'Rozwiń szczegóły zrealizowanej transakcji' : 'Zwiń pokazane szczegóły zrealizowanej transakcji'}"
+            >
+              ${isCollapsed ? '🔽 Rozwiń transakcję' : '🔼 Zwiń transakcję'}
+            </button>
+          </div>
+        </div>
+        <div class="ai-executed-tx-body" ${isCollapsed ? 'hidden' : ''}>
+          ${renderExchangeFeedbackDetailsHtml(fb)}
+          <div class="ef-saved-footer">
+            <span>💾 Rezultat został zapisany w historii — dostępny po naciśnięciu klawisza <strong>„Szczegóły transakcji (Exchange Feedback)”</strong>.</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function renderAuthPopupContent(state) {
     if (!el.aiInlineOrderContainer) return;
     const active = state?.activeTradeOrder;
     const modeLabel = (state?.config?.apiMode || 'demo').toUpperCase();
+    const htmlParts = [];
 
     if (active) {
       const isBuy = active.side === 'BUY';
@@ -2834,8 +3013,7 @@
         active.totalUsdcWithFee ?? (isBuy ? (active.usdcValue + feeUsdc).toFixed(2) : (active.usdcValue - feeUsdc).toFixed(2))
       );
 
-      el.aiInlineOrderContainer.hidden = false;
-      el.aiInlineOrderContainer.innerHTML = `
+      htmlParts.push(`
         <div class="ai-order-confirm-card">
           <div class="ai-order-confirm-header">
             <span class="ai-order-badge">📋 ZLECENIE PRZYGOTOWANE DO REALIZACJI • OKX EUROPE (${modeLabel})</span>
@@ -2885,20 +3063,34 @@
             </button>
           </div>
         </div>
-      `;
-      return;
+      `);
     }
 
-    if (lastExchangeFeedback) {
-      el.aiInlineOrderContainer.hidden = false;
-      el.aiInlineOrderContainer.innerHTML = `
-        <div class="ai-order-executed-feedback-wrap">
-          ${renderExchangeFeedbackDetailsHtml(lastExchangeFeedback)}
-          <div class="ef-saved-footer">
-            <span>💾 Rezultat został zapisany w historii — dostępny po naciśnięciu klawisza <strong>„Szczegóły transakcji (Exchange Feedback)”</strong>.</span>
+    const txListToRender =
+      executedSessionTransactions.length > 0
+        ? executedSessionTransactions
+        : lastExchangeFeedback
+        ? [lastExchangeFeedback]
+        : [];
+
+    if (txListToRender.length > 0) {
+      const allCollapsed = txListToRender.every((fb) => collapsedAiTxIds.has(String(fb.orderId || 'LATEST')));
+      htmlParts.push(`
+        <div class="ai-executed-tx-list-container">
+          <div class="ai-executed-tx-list-toolbar">
+            <span>✅ <strong>Zrealizowane transakcje w sesji Agenta AI (${txListToRender.length}):</strong></span>
+            <button type="button" class="btn btn-collapse-ai-tx toggle-all-ai-tx-btn">
+              ${allCollapsed ? '🔽 Rozwiń wszystkie transakcje' : '🔼 Zwiń zrealizowane transakcje'}
+            </button>
           </div>
+          ${txListToRender.map((fb) => renderCollapsibleExecutedTxHtml(fb)).join('')}
         </div>
-      `;
+      `);
+    }
+
+    if (htmlParts.length > 0) {
+      el.aiInlineOrderContainer.hidden = false;
+      el.aiInlineOrderContainer.innerHTML = htmlParts.join('');
       return;
     }
 
@@ -2986,11 +3178,8 @@
       `;
     } else if (lastExchangeFeedback) {
       orderOrFeedbackHtml = `
-        <div class="ai-order-executed-feedback-wrap" style="margin-top: 12px;">
-          ${renderExchangeFeedbackDetailsHtml(lastExchangeFeedback)}
-          <div class="ef-saved-footer">
-            <span>💾 Rezultat został zapisany w historii — dostępny po naciśnięciu klawisza <strong>„Szczegóły transakcji (Exchange Feedback)”</strong>.</span>
-          </div>
+        <div style="margin-top: 12px;">
+          ${renderCollapsibleExecutedTxHtml(lastExchangeFeedback)}
         </div>
       `;
     }
@@ -4270,19 +4459,45 @@
   }
 
   // ============================================================================
-  // AI CHAT HELPER
+  // AI CHAT HELPER (Z MOŻLIWOŚCIĄ ZWIJANIA POKAZANYCH TRANSAKCJI W GŁÓWNYM OKNIE AGENTA AI)
   // ============================================================================
-  function appendChatMessage(role, text) {
+  function appendChatMessage(role, text, options = {}) {
     const bubble = document.createElement('div');
-    bubble.className = `chat-bubble ${role}`;
+    const isCollapsibleTx = role === 'assistant' || Boolean(options.collapsible);
+    if (options.orderId) {
+      bubble.setAttribute('data-chat-order-id', String(options.orderId));
+    }
+    if (options.isPendingTx) {
+      bubble.classList.add('chat-bubble-pending-tx');
+    }
+    if (options.isExecutedTx) {
+      bubble.classList.add('chat-bubble-executed-tx');
+    }
+    bubble.className = `chat-bubble ${role} ${options.isExecutedTx ? 'chat-bubble-executed-tx' : ''} ${options.isPendingTx ? 'chat-bubble-pending-tx' : ''}`.trim();
 
     const formattedHtml = text
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/`(.*?)`/g, '<code>$1</code>')
       .replace(/\n/g, '<br/>');
 
+    const firstLinePlain = text
+      .split('\n')[0]
+      .replace(/\*\*/g, '')
+      .replace(/`/g, '')
+      .slice(0, 95);
+
     bubble.innerHTML = `
-      <div class="bubble-meta">${role === 'user' ? 'Ty' : 'OKX EEA AI Agent'}</div>
+      <div class="bubble-meta-row">
+        <div class="bubble-meta">
+          <span>${role === 'user' ? 'Ty' : 'OKX EEA AI Agent'}</span>
+          <span class="bubble-collapsed-preview" hidden>— ${firstLinePlain}</span>
+        </div>
+        ${
+          isCollapsibleTx
+            ? `<button type="button" class="btn-collapse-chat-bubble toggle-chat-bubble-btn" title="Zwiń lub rozwiń tę transakcję w oknie Agenta AI">🔼 Zwiń transakcję</button>`
+            : ''
+        }
+      </div>
       <div class="bubble-text">${formattedHtml}</div>
     `;
     el.chatMessages.appendChild(bubble);
@@ -4575,17 +4790,21 @@
       const execOrd = res.executedOrder || pendingOrder;
       const fb = res.exchangeFeedback || buildExchangeFeedbackForItem(execOrd);
       lastExchangeFeedback = fb;
+      if (!executedSessionTransactions.some((t) => t.orderId === fb.orderId)) {
+        executedSessionTransactions.unshift(fb);
+      }
       renderApp(res.state);
       showToast(`✅ ${fb.exchangeMessage}`);
       appendChatMessage(
         'assistant',
         [
-          `✅ **KOMUNIKAT ZWROTNY Z GIEŁDY OKX EUROPE (EXCHANGE FEEDBACK):**`,
+          `✅ **KOMUNIKAT ZWROTNY Z GIEŁDY OKX EUROPE (EXCHANGE FEEDBACK) — #${fb.orderId}:**`,
           `- **Założenie strategii i proces:** ${fb.strategyMessage}`,
           `- **Potwierdzenie z giełdy:** ${fb.exchangeMessage}`,
           `- **Szczegóły rozliczenia:** ID \`${fb.orderId}\` • Data: \`${fb.date} ${fb.time}\` • Ilość: **${formatQty(fb.amount)} ${fb.asset}** • Kurs: **${formatUnitPrice(fb.price)}** • Przeliczenie: **${formatUsdc(fb.usdcValue)}** • Fee (${fb.feeRate}): **${formatUsdc(fb.feeUsdc)}** (${fb.feeAsset} ${fb.asset}) • Razem z Fee: **${formatUsdc(fb.totalUsdcWithFee)}**`,
           `- 💾 *Rezultat został zapisany w historii transakcji i historii portfela — dostępny po naciśnięciu klawisza **Szczegóły transakcji (Exchange Feedback)**.*`
-        ].join('\n')
+        ].join('\n'),
+        { orderId: fb.orderId, isExecutedTx: true }
       );
       if (chartState.isOpen && !chartState.isMinimized) {
         fetchAndDrawCandles();
@@ -4914,6 +5133,78 @@
           feedbackToggleBtn.classList.add('active');
           if (detailRow) detailRow.hidden = false;
         }
+        return;
+      }
+
+      // 9. Collapse / Expand individual executed transaction in AI Agent Window (#win-ai-chat / #win-ai-strategies)
+      const toggleAiTxBtn = e.target.closest('.toggle-ai-executed-tx-btn[data-toggle-ai-tx]');
+      if (toggleAiTxBtn) {
+        const txKey = String(toggleAiTxBtn.getAttribute('data-toggle-ai-tx') || 'LATEST');
+        if (collapsedAiTxIds.has(txKey)) {
+          collapsedAiTxIds.delete(txKey);
+        } else {
+          collapsedAiTxIds.add(txKey);
+        }
+        if (appState) {
+          renderAuthPopupContent(appState);
+          renderAiStrategiesResultBox(appState);
+        }
+        return;
+      }
+
+      // 9B. Collapse / Expand ALL executed transactions in AI Agent Window (#win-ai-chat)
+      const toggleAllAiTxBtn = e.target.closest('.toggle-all-ai-tx-btn');
+      if (toggleAllAiTxBtn) {
+        const txList =
+          executedSessionTransactions.length > 0
+            ? executedSessionTransactions
+            : lastExchangeFeedback
+            ? [lastExchangeFeedback]
+            : [];
+        const allCollapsed = txList.every((fb) => collapsedAiTxIds.has(String(fb.orderId || 'LATEST')));
+        if (allCollapsed) {
+          txList.forEach((fb) => collapsedAiTxIds.delete(String(fb.orderId || 'LATEST')));
+          document.querySelectorAll('#chatMessages .chat-bubble.assistant').forEach((b) => {
+            b.classList.remove('is-collapsed-bubble');
+            const txt = b.querySelector('.bubble-text');
+            const prev = b.querySelector('.bubble-collapsed-preview');
+            const btn = b.querySelector('.toggle-chat-bubble-btn');
+            if (txt) txt.hidden = false;
+            if (prev) prev.hidden = true;
+            if (btn) btn.textContent = '🔼 Zwiń transakcję';
+          });
+        } else {
+          txList.forEach((fb) => collapsedAiTxIds.add(String(fb.orderId || 'LATEST')));
+          document.querySelectorAll('#chatMessages .chat-bubble.assistant').forEach((b) => {
+            b.classList.add('is-collapsed-bubble');
+            const txt = b.querySelector('.bubble-text');
+            const prev = b.querySelector('.bubble-collapsed-preview');
+            const btn = b.querySelector('.toggle-chat-bubble-btn');
+            if (txt) txt.hidden = true;
+            if (prev) prev.hidden = false;
+            if (btn) btn.textContent = '🔽 Rozwiń transakcję';
+          });
+        }
+        if (appState) {
+          renderAuthPopupContent(appState);
+          renderAiStrategiesResultBox(appState);
+        }
+        return;
+      }
+
+      // 9C. Collapse / Expand individual transaction message bubble in #chatMessages
+      const toggleChatBubbleBtn = e.target.closest('.toggle-chat-bubble-btn');
+      if (toggleChatBubbleBtn) {
+        const bubble = toggleChatBubbleBtn.closest('.chat-bubble');
+        if (bubble) {
+          const isCollapsed = bubble.classList.toggle('is-collapsed-bubble');
+          const txt = bubble.querySelector('.bubble-text');
+          const prev = bubble.querySelector('.bubble-collapsed-preview');
+          if (txt) txt.hidden = isCollapsed;
+          if (prev) prev.hidden = !isCollapsed;
+          toggleChatBubbleBtn.textContent = isCollapsed ? '🔽 Rozwiń transakcję' : '🔼 Zwiń transakcję';
+        }
+        return;
       }
     });
 
