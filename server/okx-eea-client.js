@@ -1616,7 +1616,9 @@ class OkxEeaTradingEngine {
 
     if (numbers.length > 0 && livePrice > 0) {
       const firstNum = numbers[0];
-      const mentionsUsdcAfterNumber = new RegExp(`${numbers[0]}\\s*(usdc|usdt|usd|dolar|\\$)`, 'i').test(text) || (lower.includes('za ') && (lower.includes('usdc') || lower.includes('usdt')));
+      const mentionsUsdcAfterNumber =
+        /\d+(?:[.,]\d+)?\s*(usdc|usdt|usd|dolar|\$)/i.test(text) ||
+        /za\s+\d+/i.test(text);
       if (mentionsUsdcAfterNumber || (asset === 'BTC' && firstNum >= 20) || (asset === 'ETH' && firstNum >= 50)) {
         usdcAmount = firstNum;
         amount = Number((usdcAmount / livePrice).toFixed(6));
@@ -1793,8 +1795,8 @@ class OkxEeaTradingEngine {
     if (numbers.length > 0 && livePrice > 0) {
       const firstNum = numbers[0];
       const mentionsUsdc =
-        new RegExp(`${numbers[0]}\\s*(usdc|usdt|usd|dolar|\\$)`, 'i').test(rawQuery) ||
-        (lower.includes('za ') && (lower.includes('usdc') || lower.includes('usdt') || lower.includes('usd')));
+        /\d+(?:[.,]\d+)?\s*(usdc|usdt|usd|dolar|\$)/i.test(rawQuery) ||
+        /za\s+\d+/i.test(rawQuery);
       if (mentionsUsdc || (asset === 'BTC' && firstNum >= 20) || (asset === 'ETH' && firstNum >= 50)) {
         usdcBudget = Number(firstNum.toFixed(2));
         amount = Number((usdcBudget / livePrice).toFixed(6));
