@@ -868,9 +868,10 @@ select:focus {
 /* PORTFOLIO HISTORY LAYOUT (Requirement 8) */
 .portfolio-history-layout {
   display: grid;
-  grid-template-columns: 380px 1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
   align-items: start;
+  width: 100%;
 }
 
 .portfolio-curve-box {

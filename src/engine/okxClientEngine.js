@@ -147,7 +147,7 @@ export function recalculateStateValuations(targetState) {
 export function saveStandaloneState() {
   try {
     if (_standaloneState) {
-      localStorage.setItem('okx_standalone_state_v7', JSON.stringify(_standaloneState));
+      localStorage.setItem('okx_standalone_state_v8', JSON.stringify(_standaloneState));
     }
   } catch (e) {}
 }
@@ -227,7 +227,8 @@ export function initStandaloneState() {
     localStorage.removeItem('okx_standalone_state_v4');
     localStorage.removeItem('okx_standalone_state_v5');
     localStorage.removeItem('okx_standalone_state_v6');
-    const saved = localStorage.getItem('okx_standalone_state_v7');
+    localStorage.removeItem('okx_standalone_state_v7');
+    const saved = localStorage.getItem('okx_standalone_state_v8');
     if (saved) {
       _standaloneState = JSON.parse(saved);
       if (
@@ -235,8 +236,10 @@ export function initStandaloneState() {
         _standaloneState.portfolio &&
         Array.isArray(_standaloneState.portfolio.holdings) &&
         _standaloneState.portfolio.holdings.length >= 8 &&
+        Array.isArray(_standaloneState.portfolio.orders) &&
+        _standaloneState.portfolio.orders.length >= 8 &&
         Array.isArray(_standaloneState.portfolio.portfolioHistory) &&
-        _standaloneState.portfolio.portfolioHistory.length >= 2 &&
+        _standaloneState.portfolio.portfolioHistory.length >= 8 &&
         Array.isArray(_standaloneState.markets) &&
         _standaloneState.markets.length > 0
       ) {
@@ -251,6 +254,240 @@ export function initStandaloneState() {
   const now = new Date();
   const nowTimeStr = now.toTimeString().slice(0, 8);
   const mList = JSON.parse(JSON.stringify(DEFAULT_STANDALONE_MARKETS));
+
+  const initialOrders = [
+    {
+      id: '4053424280206069760',
+      instId: 'BTC-USDC',
+      asset: 'BTC',
+      side: 'BUY',
+      orderType: 'MARKET',
+      amount: 0.981237,
+      price: 80976.84,
+      usdcValue: 79457.45,
+      feeRate: '0.10%',
+      feeUsdc: 79.46,
+      feeAsset: 0.000981,
+      feeCcy: 'BTC',
+      totalUsdcWithFee: 79536.91,
+      status: 'CLOSED',
+      rawState: 'filled',
+      statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+      source: 'Konto OKX DEMO API',
+      strategyName: 'Zlecenie OKX MARKET (BTC-USDC) • Prowizja: 0.000981 BTC',
+      date: '2026-10-29',
+      time: '19:57:37',
+      timestamp: 1793303857175
+    },
+    {
+      id: '4025053132347166720',
+      instId: 'WLD-USDC',
+      asset: 'WLD',
+      side: 'BUY',
+      orderType: 'MARKET',
+      amount: 186.27,
+      price: 0.5368,
+      usdcValue: 100.00,
+      feeRate: '0.10%',
+      feeUsdc: 0.10,
+      feeAsset: 0.18627,
+      feeCcy: 'WLD',
+      totalUsdcWithFee: 100.10,
+      status: 'CLOSED',
+      rawState: 'filled',
+      statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+      source: 'Konto OKX DEMO API',
+      strategyName: 'Zlecenie OKX MARKET (WLD-USDC) • Prowizja: 0.18627 WLD',
+      date: '2026-10-20',
+      time: '01:05:31',
+      timestamp: 1792458331078
+    },
+    {
+      id: 'OKX-DEMO-1792439310500',
+      instId: 'BTC-USDC',
+      asset: 'BTC',
+      side: 'BUY',
+      orderType: 'MARKET',
+      amount: 1.00,
+      price: 80753.90,
+      usdcValue: 80753.90,
+      feeRate: '0.10%',
+      feeUsdc: 80.75,
+      feeAsset: 0.001,
+      feeCcy: 'USDC',
+      totalUsdcWithFee: 80834.65,
+      status: 'CLOSED',
+      rawState: 'filled',
+      statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+      source: 'Konto OKX DEMO API',
+      strategyName: 'Zakup portfelowy OKX Spot (BTC-USDC)',
+      date: '2026-10-19',
+      time: '19:48:30',
+      timestamp: 1792439310500
+    },
+    {
+      id: 'OKX-DEMO-1792439310236',
+      instId: 'ETH-USDC',
+      asset: 'ETH',
+      side: 'BUY',
+      orderType: 'MARKET',
+      amount: 10.00,
+      price: 2331.48,
+      usdcValue: 23314.80,
+      feeRate: '0.10%',
+      feeUsdc: 23.31,
+      feeAsset: 0.01,
+      feeCcy: 'USDC',
+      totalUsdcWithFee: 23338.11,
+      status: 'CLOSED',
+      rawState: 'filled',
+      statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+      source: 'Konto OKX DEMO API',
+      strategyName: 'Zakup portfelowy OKX Spot (ETH-USDC)',
+      date: '2026-10-19',
+      time: '19:48:30',
+      timestamp: 1792439310236
+    },
+    {
+      id: 'OKX-DEMO-1792439310086',
+      instId: 'XRP-USDC',
+      asset: 'XRP',
+      side: 'BUY',
+      orderType: 'MARKET',
+      amount: 50000.00,
+      price: 1.2836,
+      usdcValue: 64180.00,
+      feeRate: '0.10%',
+      feeUsdc: 64.18,
+      feeAsset: 50.0,
+      feeCcy: 'USDC',
+      totalUsdcWithFee: 64244.18,
+      status: 'CLOSED',
+      rawState: 'filled',
+      statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+      source: 'Konto OKX DEMO API',
+      strategyName: 'Zakup portfelowy OKX Spot (XRP-USDC)',
+      date: '2026-10-19',
+      time: '19:48:30',
+      timestamp: 1792439310086
+    },
+    {
+      id: 'OKX-DEMO-1792439309934',
+      instId: 'USD-USDC',
+      asset: 'USD',
+      side: 'BUY',
+      orderType: 'MARKET',
+      amount: 100000.00,
+      price: 1.00,
+      usdcValue: 100000.00,
+      feeRate: '0.00%',
+      feeUsdc: 0.00,
+      feeAsset: 0.00,
+      feeCcy: 'USDC',
+      totalUsdcWithFee: 100000.00,
+      status: 'CLOSED',
+      rawState: 'filled',
+      statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+      source: 'Konto OKX DEMO API',
+      strategyName: 'Alokacja depozytu dolarowego OKX (USD-USDC)',
+      date: '2026-10-19',
+      time: '19:48:29',
+      timestamp: 1792439309934
+    },
+    {
+      id: 'OKX-DEMO-1792439309786',
+      instId: 'USDG-USDC',
+      asset: 'USDG',
+      side: 'BUY',
+      orderType: 'MARKET',
+      amount: 100000.00,
+      price: 1.00,
+      usdcValue: 100000.00,
+      feeRate: '0.00%',
+      feeUsdc: 0.00,
+      feeAsset: 0.00,
+      feeCcy: 'USDC',
+      totalUsdcWithFee: 100000.00,
+      status: 'CLOSED',
+      rawState: 'filled',
+      statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+      source: 'Konto OKX DEMO API',
+      strategyName: 'Zakup portfelowy Global Dollar (USDG-USDC)',
+      date: '2026-10-19',
+      time: '19:48:29',
+      timestamp: 1792439309786
+    },
+    {
+      id: 'OKX-DEMO-1792439309638',
+      instId: 'ETC-USDC',
+      asset: 'ETC',
+      side: 'BUY',
+      orderType: 'MARKET',
+      amount: 5.00,
+      price: 7.494,
+      usdcValue: 37.47,
+      feeRate: '0.10%',
+      feeUsdc: 0.04,
+      feeAsset: 0.005,
+      feeCcy: 'USDC',
+      totalUsdcWithFee: 37.51,
+      status: 'CLOSED',
+      rawState: 'filled',
+      statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+      source: 'Konto OKX DEMO API',
+      strategyName: 'Zakup portfelowy OKX Spot (ETC-USDC)',
+      date: '2026-10-19',
+      time: '19:48:29',
+      timestamp: 1792439309638
+    }
+  ].map((ord) => ({
+    ...ord,
+    exchangeFeedback: {
+      exchange: 'OKX Europe (eea.okx.com) — API v5',
+      mode: 'DEMO',
+      code: '0',
+      status: 'FILLED (Zrealizowano na giełdzie OKX)',
+      orderId: ord.id,
+      date: ord.date,
+      time: ord.time,
+      instId: ord.instId,
+      asset: ord.asset,
+      side: ord.side,
+      orderType: ord.orderType,
+      amount: ord.amount,
+      price: ord.price,
+      usdcValue: ord.usdcValue,
+      feeRate: ord.feeRate,
+      feeUsdc: ord.feeUsdc,
+      feeAsset: ord.feeAsset,
+      feeCcy: ord.feeCcy,
+      totalUsdcWithFee: ord.totalUsdcWithFee,
+      strategyName: ord.strategyName,
+      strategyMessage: `Założono strategię „${ord.strategyName}” oraz uruchomiono proces KUPNA (BUY) dla pary ${ord.instId}.`,
+      exchangeMessage: `Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #${ord.id}: Kupiono ${ord.amount} ${ord.asset} po cenie ${ord.price} USDC (Przeliczenie na USDC: ${ord.usdcValue.toFixed(2)} USDC, Fee ${ord.feeRate}: ${ord.feeUsdc.toFixed(2)} USDC / ${ord.feeAsset} ${ord.asset}, Rozliczenie całkowite: ${ord.totalUsdcWithFee.toFixed(2)} USDC).`
+    }
+  }));
+
+  const initialPortfolioHistory = initialOrders.map((ord, idx) => ({
+    id: `ORD-HIST-${ord.id}`,
+    orderId: ord.id,
+    date: ord.date,
+    time: ord.time,
+    timestamp: ord.timestamp,
+    action: `Kupno ${ord.amount} ${ord.asset} @ ${ord.price} USDC (${ord.strategyName})`,
+    side: ord.side,
+    usdcAmount: ord.usdcValue,
+    usdcValue: ord.usdcValue,
+    feeUsdc: ord.feeUsdc,
+    feeAsset: ord.feeAsset,
+    diffUsdc: ord.usdcValue,
+    changeUsdc: ord.usdcValue,
+    totalValueUsdc: idx === 0 ? 457211.79 : Number((457211.79 - idx * 14500).toFixed(2)),
+    asset: ord.asset,
+    amount: ord.amount,
+    price: ord.price,
+    exchangeFeedback: ord.exchangeFeedback
+  }));
 
   _standaloneState = {
     config: {
@@ -316,10 +553,38 @@ export function initStandaloneState() {
       site: 'eea.okx.com',
       syncedFromOkx: true,
       accountSourceLabel: 'Konto OKX DEMO API (eea.okx.com — 7 aktywów oraz USD • Kursy OKX Live)',
-      totalValueUsdc: 461458.47,
-      cashUsdc: 299900.00,
-      cryptoValueUsdc: 161558.47,
+      totalValueUsdc: 457211.79,
+      cashUsdc: 220442.55,
+      cryptoValueUsdc: 236769.24,
       holdings: [
+        {
+          asset: 'USDC',
+          name: 'USD Coin (EEA MiCA)',
+          amount: 20442.55,
+          availAmount: 20442.55,
+          tradingAmount: 20442.55,
+          fundingAmount: 0,
+          priceUsdc: 1.0,
+          usdcValue: 20442.55,
+          avgBuyPrice: 1.0,
+          change24hPct: 0,
+          pnlPct: 0,
+          allocationPct: 4.47
+        },
+        {
+          asset: 'BTC',
+          name: 'Bitcoin',
+          amount: 1.980256,
+          availAmount: 1.980256,
+          tradingAmount: 1.980256,
+          fundingAmount: 0,
+          priceUsdc: 76682.30,
+          usdcValue: 151850.59,
+          avgBuyPrice: 80864.32,
+          change24hPct: -1.48,
+          pnlPct: -5.17,
+          allocationPct: 33.21
+        },
         {
           asset: 'USD',
           name: 'US Dollar (OKX Demo Gotówka)',
@@ -332,7 +597,7 @@ export function initStandaloneState() {
           avgBuyPrice: 1.0,
           change24hPct: 0,
           pnlPct: 0,
-          allocationPct: 21.67
+          allocationPct: 21.87
         },
         {
           asset: 'USDG',
@@ -346,35 +611,7 @@ export function initStandaloneState() {
           avgBuyPrice: 1.0,
           change24hPct: 0,
           pnlPct: 0,
-          allocationPct: 21.67
-        },
-        {
-          asset: 'USDC',
-          name: 'USD Coin (EEA MiCA)',
-          amount: 99900.00,
-          availAmount: 99900.00,
-          tradingAmount: 99900.00,
-          fundingAmount: 0,
-          priceUsdc: 1.0,
-          usdcValue: 99900.00,
-          avgBuyPrice: 1.0,
-          change24hPct: 0,
-          pnlPct: 0,
-          allocationPct: 21.65
-        },
-        {
-          asset: 'BTC',
-          name: 'Bitcoin',
-          amount: 1.00,
-          availAmount: 1.00,
-          tradingAmount: 1.00,
-          fundingAmount: 0,
-          priceUsdc: 76682.30,
-          usdcValue: 76682.30,
-          avgBuyPrice: 80753.90,
-          change24hPct: -1.48,
-          pnlPct: -5.04,
-          allocationPct: 16.62
+          allocationPct: 21.87
         },
         {
           asset: 'XRP',
@@ -388,7 +625,7 @@ export function initStandaloneState() {
           avgBuyPrice: 1.2836,
           change24hPct: -0.34,
           pnlPct: -2.94,
-          allocationPct: 13.50
+          allocationPct: 13.62
         },
         {
           asset: 'ETH',
@@ -402,21 +639,21 @@ export function initStandaloneState() {
           avgBuyPrice: 2331.48,
           change24hPct: -0.66,
           pnlPct: -3.57,
-          allocationPct: 4.87
+          allocationPct: 4.92
         },
         {
           asset: 'WLD',
           name: 'Worldcoin (WLD)',
-          amount: 186.08,
-          availAmount: 186.08,
-          tradingAmount: 186.08,
+          amount: 186.08373,
+          availAmount: 186.08373,
+          tradingAmount: 186.08373,
           fundingAmount: 0,
           priceUsdc: 0.3719,
           usdcValue: 69.20,
-          avgBuyPrice: 0.4171,
+          avgBuyPrice: 0.5368,
           change24hPct: -4.49,
-          pnlPct: -10.84,
-          allocationPct: 0.01
+          pnlPct: -30.72,
+          allocationPct: 0.02
         },
         {
           asset: 'ETC',
@@ -427,9 +664,9 @@ export function initStandaloneState() {
           fundingAmount: 0,
           priceUsdc: 6.953,
           usdcValue: 34.77,
-          avgBuyPrice: 7.49,
+          avgBuyPrice: 7.494,
           change24hPct: -2.39,
-          pnlPct: -7.17,
+          pnlPct: -7.22,
           allocationPct: 0.01
         }
       ],
@@ -439,27 +676,27 @@ export function initStandaloneState() {
             asset: 'BTC',
             instId: 'BTC-USDC',
             currentPriceUsdc: 76682.30,
-            boughtAmount: 1.00,
-            boughtUsdc: 80753.90,
-            buyCount: 1,
+            boughtAmount: 1.981237,
+            boughtUsdc: 160211.35,
+            buyCount: 2,
             soldAmount: 0,
             soldUsdc: 0,
             sellCount: 0,
-            netAmount: 1.00,
-            netUsdcFlow: -80753.90
+            netAmount: 1.981237,
+            netUsdcFlow: -160211.35
           },
           {
             asset: 'XRP',
             instId: 'XRP-USDC',
             currentPriceUsdc: 1.2458,
             boughtAmount: 50000.0,
-            boughtUsdc: 64180.50,
+            boughtUsdc: 64180.00,
             buyCount: 1,
             soldAmount: 0,
             soldUsdc: 0,
             sellCount: 0,
             netAmount: 50000.0,
-            netUsdcFlow: -64180.50
+            netUsdcFlow: -64180.00
           },
           {
             asset: 'ETH',
@@ -478,14 +715,14 @@ export function initStandaloneState() {
             asset: 'WLD',
             instId: 'WLD-USDC',
             currentPriceUsdc: 0.3719,
-            boughtAmount: 186.08,
-            boughtUsdc: 77.62,
+            boughtAmount: 186.27,
+            boughtUsdc: 100.00,
             buyCount: 1,
             soldAmount: 0,
             soldUsdc: 0,
             sellCount: 0,
-            netAmount: 186.08,
-            netUsdcFlow: -77.62
+            netAmount: 186.27,
+            netUsdcFlow: -100.00
           },
           {
             asset: 'ETC',
@@ -527,141 +764,11 @@ export function initStandaloneState() {
             netUsdcFlow: -100000.00
           }
         ],
-        totalBoughtUsdc: 368364.29,
+        totalBoughtUsdc: 447843.62,
         totalSoldUsdc: 0
       },
-      orders: [
-        {
-          id: 'OKX-1730231857000',
-          instId: 'BTC-USDC',
-          asset: 'BTC',
-          side: 'BUY',
-          orderType: 'MARKET',
-          amount: 1.00,
-          price: 80753.90,
-          usdcValue: 80753.90,
-          feeRate: '0.10%',
-          feeUsdc: 80.75,
-          feeAsset: 0.001,
-          totalUsdcWithFee: 80834.65,
-          status: 'CLOSED',
-          rawState: 'filled',
-          statusLabel: 'Zamknięte (Zrealizowane na OKX)',
-          source: 'Konto OKX DEMO API',
-          strategyName: 'Zlecenie OKX market (BTC-USDC) • Prowizja: 0.001 BTC',
-          date: '2026-10-29',
-          time: '19:57:37',
-          timestamp: 1730231857000,
-          exchangeFeedback: {
-            exchange: 'OKX Europe (eea.okx.com) — API v5',
-            mode: 'DEMO',
-            code: '0',
-            status: 'FILLED (Zrealizowano na giełdzie OKX)',
-            orderId: 'OKX-1730231857000',
-            date: '2026-10-29',
-            time: '19:57:37',
-            instId: 'BTC-USDC',
-            asset: 'BTC',
-            side: 'BUY',
-            orderType: 'MARKET',
-            amount: 1.00,
-            price: 80753.90,
-            usdcValue: 80753.90,
-            feeRate: '0.10%',
-            feeUsdc: 80.75,
-            feeAsset: 0.001,
-            feeCcy: 'BTC',
-            totalUsdcWithFee: 80834.65,
-            strategyName: 'Zlecenie OKX market (BTC-USDC) • Prowizja: 0.001 BTC',
-            strategyMessage: 'Założono strategię „Zlecenie OKX market (BTC-USDC)” oraz uruchomiono proces KUPNA (BUY) dla pary BTC-USDC.',
-            exchangeMessage: 'Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #OKX-1730231857000: Kupiono 1.00 BTC po cenie 80 753,90 USDC (Przeliczenie na USDC: 80 753,90 USDC, Fee 0.10%: 80,75 USDC / 0.001 BTC, Rozliczenie całkowite: 80 834,65 USDC).'
-          }
-        },
-        {
-          id: 'OKX-1729389931000',
-          instId: 'WLD-USDC',
-          asset: 'WLD',
-          side: 'BUY',
-          orderType: 'MARKET',
-          amount: 186.08,
-          price: 0.4171,
-          usdcValue: 77.62,
-          feeRate: '0.10%',
-          feeUsdc: 0.08,
-          feeAsset: 0.186,
-          totalUsdcWithFee: 77.70,
-          status: 'CLOSED',
-          rawState: 'filled',
-          statusLabel: 'Zamknięte (Zrealizowane na OKX)',
-          source: 'Konto OKX DEMO API',
-          strategyName: 'Zlecenie OKX market (WLD-USDC) • Prowizja: 0.186 WLD',
-          date: '2026-10-20',
-          time: '02:05:31',
-          timestamp: 1729389931000,
-          exchangeFeedback: {
-            exchange: 'OKX Europe (eea.okx.com) — API v5',
-            mode: 'DEMO',
-            code: '0',
-            status: 'FILLED (Zrealizowano na giełdzie OKX)',
-            orderId: 'OKX-1729389931000',
-            date: '2026-10-20',
-            time: '02:05:31',
-            instId: 'WLD-USDC',
-            asset: 'WLD',
-            side: 'BUY',
-            orderType: 'MARKET',
-            amount: 186.08,
-            price: 0.4171,
-            usdcValue: 77.62,
-            feeRate: '0.10%',
-            feeUsdc: 0.08,
-            feeAsset: 0.186,
-            feeCcy: 'WLD',
-            totalUsdcWithFee: 77.70,
-            strategyName: 'Zlecenie OKX market (WLD-USDC) • Prowizja: 0.186 WLD',
-            strategyMessage: 'Założono strategię „Zlecenie OKX market (WLD-USDC)” oraz uruchomiono proces KUPNA (BUY) dla pary WLD-USDC.',
-            exchangeMessage: 'Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #OKX-1729389931000: Kupiono 186.08 WLD po cenie 0,4171 USDC (Przeliczenie na USDC: 77,62 USDC, Fee 0.10%: 0,08 USDC / 0.186 WLD, Rozliczenie całkowite: 77,70 USDC).'
-          }
-        }
-      ],
-      portfolioHistory: [
-        {
-          id: 'ORD-HIST-OKX-1730231857000',
-          orderId: 'OKX-1730231857000',
-          date: '2026-10-29',
-          time: '19:57:37',
-          timestamp: 1730231857000,
-          action: 'Kupno 1.00 BTC @ 80753.90 USDC (BTC-USDC)',
-          side: 'BUY',
-          usdcAmount: 80753.90,
-          usdcValue: 80753.90,
-          feeUsdc: 80.75,
-          feeAsset: 0.001,
-          diffUsdc: 80753.90,
-          totalValueUsdc: 461458.47,
-          asset: 'BTC',
-          amount: 1.00,
-          price: 80753.90
-        },
-        {
-          id: 'ORD-HIST-OKX-1729389931000',
-          orderId: 'OKX-1729389931000',
-          date: '2026-10-20',
-          time: '02:05:31',
-          timestamp: 1729389931000,
-          action: 'Kupno 186.08 WLD @ 0.4171 USDC (WLD-USDC)',
-          side: 'BUY',
-          usdcAmount: 77.62,
-          usdcValue: 77.62,
-          feeUsdc: 0.08,
-          feeAsset: 0.186,
-          diffUsdc: 77.62,
-          totalValueUsdc: 387490.39,
-          asset: 'WLD',
-          amount: 186.08,
-          price: 0.4171
-        }
-      ]
+      orders: initialOrders,
+      portfolioHistory: initialPortfolioHistory
     }
   };
   recalculateStateValuations(_standaloneState);

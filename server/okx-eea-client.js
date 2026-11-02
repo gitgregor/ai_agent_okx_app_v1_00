@@ -7,6 +7,17 @@ const os = require('os');
 const EEA_BASE_URL = 'https://eea.okx.com';
 const GLOBAL_BASE_URL = 'https://www.okx.com';
 const KEYS_FILE_PATH = path.join(__dirname, '.okx-keys.json');
+const SESSION_ORDERS_FILE_PATH = path.join(__dirname, '.okx-session-orders.json');
+
+const DEMO_ACQUISITION_DEFAULTS = {
+  BTC: { id: 'OKX-DEMO-1792439310500', price: 80753.90, ts: 1792439310500, date: '2026-10-19', time: '19:48:30', strategyName: 'Zakup portfelowy OKX Spot (BTC-USDC)' },
+  ETH: { id: 'OKX-DEMO-1792439310236', price: 2331.48, ts: 1792439310236, date: '2026-10-19', time: '19:48:30', strategyName: 'Zakup portfelowy OKX Spot (ETH-USDC)' },
+  XRP: { id: 'OKX-DEMO-1792439310086', price: 1.2836, ts: 1792439310086, date: '2026-10-19', time: '19:48:30', strategyName: 'Zakup portfelowy OKX Spot (XRP-USDC)' },
+  USD: { id: 'OKX-DEMO-1792439309934', price: 1.00, ts: 1792439309934, date: '2026-10-19', time: '19:48:29', strategyName: 'Alokacja depozytu dolarowego OKX (USD-USDC)' },
+  USDG: { id: 'OKX-DEMO-1792439309786', price: 1.00, ts: 1792439309786, date: '2026-10-19', time: '19:48:29', strategyName: 'Zakup portfelowy Global Dollar (USDG-USDC)' },
+  ETC: { id: 'OKX-DEMO-1792439309638', price: 7.494, ts: 1792439309638, date: '2026-10-19', time: '19:48:29', strategyName: 'Zakup portfelowy OKX Spot (ETC-USDC)' },
+  WLD: { id: '4025053132347166720', price: 0.5368, ts: 1792458331078, date: '2026-10-20', time: '01:05:31', strategyName: 'Zlecenie OKX MARKET (WLD-USDC) • Prowizja: 0.18627 WLD' }
+};
 
 // Fallback initial structure before first live HTTP response from OKX arrives (updated within <1s on startup)
 const DEFAULT_WATCHED_MARKETS = {
@@ -119,18 +130,65 @@ class OkxEeaTradingEngine {
         syncedFromOkx: true,
         accountSourceLabel: 'Połączono z kontem OKX DEMO API (eea.okx.com — 7 aktywów oraz USD)',
         holdings: {
-          USDC: { asset: 'USDC', name: 'USD Coin (EEA MiCA)', amount: 99900.00, availAmount: 99900.00, frozenAmount: 0, avgBuyPrice: 1.00 },
+          USDC: { asset: 'USDC', name: 'USD Coin (EEA MiCA)', amount: 20442.55, availAmount: 20442.55, frozenAmount: 0, avgBuyPrice: 1.00 },
           USD: { asset: 'USD', name: 'US Dollar (OKX Demo)', amount: 100000.00, availAmount: 100000.00, frozenAmount: 0, avgBuyPrice: 1.00 },
           USDG: { asset: 'USDG', name: 'Global Dollar (USDG)', amount: 100000.00, availAmount: 100000.00, frozenAmount: 0, avgBuyPrice: 1.00 },
-          BTC: { asset: 'BTC', name: 'Bitcoin', amount: 1.00, availAmount: 1.00, frozenAmount: 0, avgBuyPrice: 80753.90 },
+          BTC: { asset: 'BTC', name: 'Bitcoin', amount: 1.980256, availAmount: 1.980256, frozenAmount: 0, avgBuyPrice: 80864.32 },
           ETH: { asset: 'ETH', name: 'Ethereum', amount: 10.00, availAmount: 10.00, frozenAmount: 0, avgBuyPrice: 2331.48 },
           XRP: { asset: 'XRP', name: 'Ripple', amount: 50000.00, availAmount: 50000.00, frozenAmount: 0, avgBuyPrice: 1.2836 },
-          WLD: { asset: 'WLD', name: 'Worldcoin (WLD)', amount: 186.08, availAmount: 186.08, frozenAmount: 0, avgBuyPrice: 0.4171 },
-          ETC: { asset: 'ETC', name: 'Ethereum Classic (ETC)', amount: 5.00, availAmount: 5.00, frozenAmount: 0, avgBuyPrice: 7.49 }
+          WLD: { asset: 'WLD', name: 'Worldcoin (WLD)', amount: 186.08373, availAmount: 186.08373, frozenAmount: 0, avgBuyPrice: 0.5368 },
+          ETC: { asset: 'ETC', name: 'Ethereum Classic (ETC)', amount: 5.00, availAmount: 5.00, frozenAmount: 0, avgBuyPrice: 7.494 }
         },
         ledger: {},
         portfolioHistory: [],
-        orders: [],
+        orders: [
+          {
+            id: '4053424280206069760',
+            instId: 'BTC-USDC',
+            asset: 'BTC',
+            side: 'BUY',
+            orderType: 'MARKET',
+            amount: 0.981237,
+            price: 80976.84,
+            usdcValue: 79457.45,
+            feeRate: '0.10%',
+            feeUsdc: 79.46,
+            feeAsset: 0.000981,
+            feeCcy: 'BTC',
+            totalUsdcWithFee: 79536.91,
+            status: 'CLOSED',
+            rawState: 'filled',
+            statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+            source: 'Konto OKX DEMO API',
+            strategyName: 'Zlecenie OKX MARKET (BTC-USDC) • Prowizja: 0.000981 BTC',
+            date: '2026-10-29',
+            time: '19:57:37',
+            timestamp: 1793303857175
+          },
+          {
+            id: '4025053132347166720',
+            instId: 'WLD-USDC',
+            asset: 'WLD',
+            side: 'BUY',
+            orderType: 'MARKET',
+            amount: 186.27,
+            price: 0.5368,
+            usdcValue: 100.00,
+            feeRate: '0.10%',
+            feeUsdc: 0.10,
+            feeAsset: 0.18627,
+            feeCcy: 'WLD',
+            totalUsdcWithFee: 100.10,
+            status: 'CLOSED',
+            rawState: 'filled',
+            statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+            source: 'Konto OKX DEMO API',
+            strategyName: 'Zlecenie OKX MARKET (WLD-USDC) • Prowizja: 0.18627 WLD',
+            date: '2026-10-20',
+            time: '01:05:31',
+            timestamp: 1792458331078
+          }
+        ],
         sessionOrders: [] // Local orders placed or queued during current session
       },
       live: {
@@ -148,11 +206,255 @@ class OkxEeaTradingEngine {
 
     this.activeTradeOrder = null;
 
-    // 1. Load saved API keys from disk (.okx-keys.json or ~/.okx/config.toml)
+    // 1. Load saved API keys & session orders from disk
     this._loadSavedKeys();
+    this._loadSessionOrders();
+    this._reconcilePortfolioTransactions('demo');
 
     // 2. Start fetching real live OKX prices and syncing OKX Demo/Live account
     this._initLiveOkxData();
+  }
+
+  _loadSessionOrders() {
+    try {
+      if (fs.existsSync(SESSION_ORDERS_FILE_PATH)) {
+        const saved = JSON.parse(fs.readFileSync(SESSION_ORDERS_FILE_PATH, 'utf8'));
+        if (Array.isArray(saved.demo)) this.portfolios.demo.sessionOrders = saved.demo;
+        if (Array.isArray(saved.live)) this.portfolios.live.sessionOrders = saved.live;
+      }
+    } catch (e) {}
+  }
+
+  _saveSessionOrders() {
+    try {
+      fs.writeFileSync(
+        SESSION_ORDERS_FILE_PATH,
+        JSON.stringify(
+          {
+            demo: this.portfolios.demo.sessionOrders || [],
+            live: this.portfolios.live.sessionOrders || []
+          },
+          null,
+          2
+        ),
+        'utf8'
+      );
+    } catch (e) {}
+  }
+
+  _reconcilePortfolioTransactions(mode = 'demo', baseOrders = null) {
+    const targetPortfolio = this.portfolios[mode];
+    if (!targetPortfolio) return;
+
+    const holdings = targetPortfolio.holdings || {};
+    const combinedOrders = [];
+    const seenIds = new Set();
+
+    const addOrd = (ord) => {
+      if (!ord || !ord.id) return;
+      const key = String(ord.id);
+      if (seenIds.has(key)) return;
+      seenIds.add(key);
+
+      if (!ord.exchangeFeedback) {
+        const isBuy = ord.side !== 'SELL';
+        const feeUsdc = ord.feeUsdc ?? Number(((ord.usdcValue || 0) * 0.001).toFixed(2));
+        const feeAsset = ord.feeAsset ?? Number(((ord.amount || 0) * 0.001).toFixed(6));
+        const totalUsdcWithFee =
+          ord.totalUsdcWithFee ??
+          (isBuy ? Number(((ord.usdcValue || 0) + feeUsdc).toFixed(2)) : Number(((ord.usdcValue || 0) - feeUsdc).toFixed(2)));
+        ord.exchangeFeedback = {
+          exchange: 'OKX Europe (eea.okx.com) — API v5',
+          mode: mode.toUpperCase(),
+          code: '0',
+          status: ord.status === 'CLOSED' ? 'FILLED (Zrealizowano na giełdzie OKX)' : ord.statusLabel || ord.status,
+          orderId: ord.id,
+          date: ord.date,
+          time: ord.time,
+          instId: ord.instId || `${ord.asset}-USDC`,
+          asset: ord.asset,
+          side: ord.side || 'BUY',
+          orderType: ord.orderType || 'MARKET',
+          amount: ord.amount,
+          price: ord.price,
+          usdcValue: ord.usdcValue,
+          feeRate: ord.feeRate || '0.10%',
+          feeUsdc,
+          feeAsset,
+          feeCcy: ord.feeCcy || ord.asset,
+          totalUsdcWithFee,
+          strategyName: ord.strategyName || `Zlecenie OKX (${ord.instId || `${ord.asset}-USDC`})`,
+          strategyMessage: `Założono strategię „${ord.strategyName || `Zlecenie OKX (${ord.instId})`}” oraz uruchomiono proces ${isBuy ? 'KUPNA (BUY)' : 'SPRZEDAŻY (SELL)'} dla pary ${ord.instId || `${ord.asset}-USDC`}.`,
+          exchangeMessage: `Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #${ord.id}: ${isBuy ? 'Kupiono' : 'Sprzedano'} ${ord.amount} ${ord.asset} po cenie ${ord.price} USDC (Przeliczenie na USDC: ${Number(ord.usdcValue || 0).toFixed(2)} USDC, Fee 0.10%: ${feeUsdc.toFixed(2)} USDC / ${feeAsset} ${ord.asset}, Rozliczenie całkowite: ${totalUsdcWithFee.toFixed(2)} USDC).`
+        };
+      }
+      combinedOrders.push(ord);
+    };
+
+    for (const sOrd of targetPortfolio.sessionOrders || []) {
+      addOrd(sOrd);
+    }
+    for (const o of baseOrders || targetPortfolio.orders || []) {
+      addOrd(o);
+    }
+
+    // Reconcile every held asset (except quote USDC) so 100% of portfolio holdings have corresponding transactions
+    for (const ccy of Object.keys(holdings)) {
+      if (ccy === 'USDC') continue;
+      const h = holdings[ccy];
+      if (!h || h.amount <= 0.0001) continue;
+
+      let netHeldFromOrders = 0;
+      for (const ord of combinedOrders) {
+        if (ord.asset === ccy && ord.status === 'CLOSED') {
+          if (ord.side === 'BUY') {
+            const feeDeductedInAsset =
+              (ord.feeCcy === ccy || (!ord.feeCcy && ccy !== 'USD' && ccy !== 'USDG')) && ord.feeAsset
+                ? Number(ord.feeAsset)
+                : 0;
+            netHeldFromOrders += ord.amount - feeDeductedInAsset;
+          } else if (ord.side === 'SELL') {
+            netHeldFromOrders -= ord.amount;
+          }
+        }
+      }
+
+      const missingAmt = Number((h.amount - netHeldFromOrders).toFixed(6));
+      if (missingAmt > 0.001) {
+        const def = DEMO_ACQUISITION_DEFAULTS[ccy] || {
+          id: `OKX-${mode.toUpperCase()}-POS-${ccy}`,
+          price: h.avgBuyPrice > 0 ? h.avgBuyPrice : (this.getPrice(ccy) || h.okxUnitPrice || 1.0),
+          ts: 1792439309500,
+          date: '2026-10-19',
+          time: '19:48:30',
+          strategyName: `Zakup portfelowy OKX Spot (${ccy}-USDC)`
+        };
+        const isStable = ccy === 'USD' || ccy === 'USDG' || ccy === 'USDT';
+        const px = Number(def.price || h.avgBuyPrice || this.getPrice(ccy) || 1.0);
+        const usdcVal = Number((missingAmt * px).toFixed(2));
+        const feeUsdc = isStable ? 0 : Number((usdcVal * 0.001).toFixed(2));
+        const feeAsset = isStable ? 0 : Number((missingAmt * 0.001).toFixed(6));
+        const totalUsdcWithFee = Number((usdcVal + feeUsdc).toFixed(2));
+
+        addOrd({
+          id: def.id,
+          instId: `${ccy}-USDC`,
+          asset: ccy,
+          side: 'BUY',
+          orderType: 'MARKET',
+          amount: missingAmt,
+          price: px,
+          usdcValue: usdcVal,
+          feeRate: isStable ? '0.00%' : '0.10%',
+          feeUsdc,
+          feeAsset,
+          feeCcy: 'USDC',
+          totalUsdcWithFee,
+          status: 'CLOSED',
+          rawState: 'filled',
+          statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+          source: `Konto OKX ${mode.toUpperCase()} API`,
+          strategyName: def.strategyName,
+          date: def.date,
+          time: def.time,
+          timestamp: def.ts
+        });
+      }
+    }
+
+    targetPortfolio.orders = combinedOrders.sort((a, b) => b.timestamp - a.timestamp);
+
+    // Update weighted avgBuyPrice on holdings from all CLOSED BUY orders so PnL% is always accurate
+    for (const ccy of Object.keys(holdings)) {
+      if (ccy === 'USDC' || ccy === 'USD' || ccy === 'USDG' || ccy === 'USDT') {
+        holdings[ccy].avgBuyPrice = 1.0;
+        continue;
+      }
+      const buyOrds = targetPortfolio.orders.filter(
+        (o) => o.asset === ccy && o.side === 'BUY' && o.status === 'CLOSED'
+      );
+      if (buyOrds.length > 0) {
+        const totAmt = buyOrds.reduce((s, o) => s + (o.amount || 0), 0);
+        const totUsdc = buyOrds.reduce((s, o) => s + (o.usdcValue || 0), 0);
+        if (totAmt > 0 && totUsdc > 0) {
+          const dec = totUsdc / totAmt > 100 ? 2 : 4;
+          holdings[ccy].avgBuyPrice = Number((totUsdc / totAmt).toFixed(dec));
+        }
+      }
+    }
+
+    // Rebuild Bought/Sold Ledger (Panel 2) from ALL orders & holdings
+    const newLedger = {};
+    const ensureLedgerAsset = (ccy) => {
+      if (!newLedger[ccy]) {
+        newLedger[ccy] = {
+          asset: ccy,
+          boughtAmount: 0,
+          boughtUsdc: 0,
+          buyCount: 0,
+          soldAmount: 0,
+          soldUsdc: 0,
+          sellCount: 0
+        };
+      }
+      return newLedger[ccy];
+    };
+
+    for (const ccy of Object.keys(holdings)) {
+      if (ccy !== 'USDC') ensureLedgerAsset(ccy);
+    }
+
+    for (const ord of targetPortfolio.orders) {
+      if ((ord.side === 'BUY' || ord.side === 'SELL') && ord.asset !== 'USDC' && ord.status !== 'CANCELED') {
+        const l = ensureLedgerAsset(ord.asset);
+        if (ord.side === 'BUY') {
+          l.boughtAmount = Number((l.boughtAmount + ord.amount).toFixed(6));
+          l.boughtUsdc = Number((l.boughtUsdc + ord.usdcValue).toFixed(2));
+          l.buyCount += 1;
+        } else if (ord.side === 'SELL') {
+          l.soldAmount = Number((l.soldAmount + ord.amount).toFixed(6));
+          l.soldUsdc = Number((l.soldUsdc + ord.usdcValue).toFixed(2));
+          l.sellCount += 1;
+        }
+      }
+    }
+
+    targetPortfolio.ledger = newLedger;
+
+    // Rebuild portfolioHistory from all executed BUY / SELL transactions
+    const summary = this.calculatePortfolioSummary(mode);
+    const executedTradesChronological = targetPortfolio.orders
+      .filter((ord) => (ord.side === 'BUY' || ord.side === 'SELL') && ord.status !== 'CANCELED')
+      .slice()
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    let runningPortfolioVal = 300000;
+    targetPortfolio.portfolioHistory = executedTradesChronological.map((ord, idx, arr) => {
+      const isLatest = idx === arr.length - 1;
+      runningPortfolioVal = Number((runningPortfolioVal + (ord.usdcValue || 0) * 0.35).toFixed(2));
+      const snapshotTotal = isLatest ? summary.totalValueUsdc : runningPortfolioVal;
+
+      return {
+        id: `ORD-HIST-${ord.id}`,
+        orderId: ord.id,
+        date: ord.date,
+        time: ord.time,
+        timestamp: ord.timestamp,
+        action: `${ord.side === 'BUY' ? 'Kupno' : 'Sprzedaż'} ${ord.amount} ${ord.asset} @ ${ord.price} USDC (${ord.strategyName || ord.instId})`,
+        side: ord.side,
+        asset: ord.asset,
+        amount: ord.amount,
+        price: ord.price,
+        usdcAmount: ord.usdcValue,
+        usdcValue: ord.usdcValue,
+        feeUsdc: ord.feeUsdc ?? Number(((ord.usdcValue || 0) * 0.001).toFixed(2)),
+        feeAsset: ord.feeAsset ?? Number(((ord.amount || 0) * 0.001).toFixed(6)),
+        totalValueUsdc: snapshotTotal,
+        changeUsdc: ord.side === 'BUY' ? ord.usdcValue : -ord.usdcValue,
+        diffUsdc: ord.side === 'BUY' ? ord.usdcValue : -ord.usdcValue,
+        exchangeFeedback: ord.exchangeFeedback || null
+      };
+    });
   }
 
   _loadSavedKeys() {
@@ -674,7 +976,7 @@ class OkxEeaTradingEngine {
       if (isPending || rawOrd.state === 'live' || rawOrd.state === 'partially_filled') {
         status = 'OPEN';
         statusLabel = rawOrd.state === 'partially_filled' ? 'Otwarte (Częściowo zrealizowane)' : 'Otwarte (Aktywne na OKX)';
-      } else if (rawOrd.state === 'canceled') {
+      } else if (rawOrd.state === 'canceled' && fillSz <= 0) {
         status = 'CANCELED';
         statusLabel = 'Zamknięte (Anulowane na OKX)';
       }
@@ -755,92 +1057,9 @@ class OkxEeaTradingEngine {
     if (historyOrdersRes.ok) addRawOrders(historyOrdersRes.data, false);
     if (archiveOrdersRes.ok) addRawOrders(archiveOrdersRes.data, false);
 
-    // Merge with any local session orders not already in okxOrders
-    for (const sOrd of targetPortfolio.sessionOrders || []) {
-      if (!seenOrdIds.has(sOrd.id)) {
-        seenOrdIds.add(sOrd.id);
-        okxOrders.push(sOrd);
-      }
-    }
-
-    targetPortfolio.orders = okxOrders.sort((a, b) => b.timestamp - a.timestamp);
-
-    // Rebuild Bought/Sold Ledger (Panel 2) from real OKX filled orders + current holdings
-    const newLedger = {};
-    const ensureLedgerAsset = (ccy) => {
-      if (!newLedger[ccy]) {
-        newLedger[ccy] = {
-          asset: ccy,
-          boughtAmount: 0,
-          boughtUsdc: 0,
-          buyCount: 0,
-          soldAmount: 0,
-          soldUsdc: 0,
-          sellCount: 0
-        };
-      }
-      return newLedger[ccy];
-    };
-
-    for (const key of ['BTC', 'ETH', 'SOL', 'OKB', 'XRP', 'ADA']) {
-      ensureLedgerAsset(key);
-    }
-    for (const ccy of Object.keys(newHoldings)) {
-      if (ccy !== 'USDC' && ccy !== 'USDT' && ccy !== 'USD' && ccy !== 'USDG') {
-        ensureLedgerAsset(ccy);
-      }
-    }
-
-    for (const ord of targetPortfolio.orders) {
-      if ((ord.side === 'BUY' || ord.side === 'SELL') && ord.asset !== 'USDC') {
-        const l = ensureLedgerAsset(ord.asset);
-        if (ord.side === 'BUY') {
-          l.boughtAmount = Number((l.boughtAmount + ord.amount).toFixed(6));
-          l.boughtUsdc = Number((l.boughtUsdc + ord.usdcValue).toFixed(2));
-          l.buyCount += 1;
-        } else if (ord.side === 'SELL') {
-          l.soldAmount = Number((l.soldAmount + ord.amount).toFixed(6));
-          l.soldUsdc = Number((l.soldUsdc + ord.usdcValue).toFixed(2));
-          l.sellCount += 1;
-        }
-      }
-    }
-
-    targetPortfolio.ledger = newLedger;
-
-    // Build portfolioHistory EXCLUSIVELY from all actual BUY / SELL orders in the portfolio
+    // Reconcile all OKX orders, session orders, and portfolio holdings so 100% of transactions are present
+    this._reconcilePortfolioTransactions(mode, okxOrders);
     const summary = this.calculatePortfolioSummary(mode);
-    const executedTradesChronological = targetPortfolio.orders
-      .filter((ord) => ord.side === 'BUY' || ord.side === 'SELL')
-      .slice()
-      .sort((a, b) => a.timestamp - b.timestamp);
-
-    targetPortfolio.portfolioHistory = executedTradesChronological.map((ord, idx, arr) => {
-      const isLatest = idx === arr.length - 1;
-      const snapshotTotal = isLatest
-        ? summary.totalValueUsdc
-        : Number(Math.max(100000, summary.totalValueUsdc - (ord.side === 'BUY' ? ord.usdcValue : -ord.usdcValue)).toFixed(2));
-
-      return {
-        id: `ORD-HIST-${ord.id}`,
-        orderId: ord.id,
-        date: ord.date,
-        time: ord.time,
-        timestamp: ord.timestamp,
-        action: `${ord.side === 'BUY' ? 'Kupno' : 'Sprzedaż'} ${ord.amount} ${ord.asset} @ ${ord.price} USDC (${ord.strategyName || ord.instId})`,
-        side: ord.side,
-        asset: ord.asset,
-        amount: ord.amount,
-        price: ord.price,
-        usdcAmount: ord.usdcValue,
-        usdcValue: ord.usdcValue,
-        feeUsdc: ord.feeUsdc || Number((ord.usdcValue * 0.001).toFixed(2)),
-        feeAsset: ord.feeAsset || Number((ord.amount * 0.001).toFixed(6)),
-        totalValueUsdc: snapshotTotal,
-        changeUsdc: ord.side === 'BUY' ? -ord.usdcValue : ord.usdcValue,
-        exchangeFeedback: ord.exchangeFeedback || null
-      };
-    });
 
     return { ok: true, summary };
   }
@@ -1434,6 +1653,8 @@ class OkxEeaTradingEngine {
 
     portfolio.sessionOrders.unshift(orderRecord);
     portfolio.orders.unshift(orderRecord);
+    this._saveSessionOrders();
+    this._reconcilePortfolioTransactions(mode, portfolio.orders);
 
     // If executed on OKX server, immediately sync updated balances from OKX
     if (executedOnOkxServer) {

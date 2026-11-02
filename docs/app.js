@@ -14698,7 +14698,7 @@
   function saveStandaloneState() {
     try {
       if (_standaloneState) {
-        localStorage.setItem("okx_standalone_state_v7", JSON.stringify(_standaloneState));
+        localStorage.setItem("okx_standalone_state_v8", JSON.stringify(_standaloneState));
       }
     } catch (e) {
     }
@@ -14772,10 +14772,11 @@
       localStorage.removeItem("okx_standalone_state_v4");
       localStorage.removeItem("okx_standalone_state_v5");
       localStorage.removeItem("okx_standalone_state_v6");
-      const saved = localStorage.getItem("okx_standalone_state_v7");
+      localStorage.removeItem("okx_standalone_state_v7");
+      const saved = localStorage.getItem("okx_standalone_state_v8");
       if (saved) {
         _standaloneState = JSON.parse(saved);
-        if (_standaloneState && _standaloneState.portfolio && Array.isArray(_standaloneState.portfolio.holdings) && _standaloneState.portfolio.holdings.length >= 8 && Array.isArray(_standaloneState.portfolio.portfolioHistory) && _standaloneState.portfolio.portfolioHistory.length >= 2 && Array.isArray(_standaloneState.markets) && _standaloneState.markets.length > 0) {
+        if (_standaloneState && _standaloneState.portfolio && Array.isArray(_standaloneState.portfolio.holdings) && _standaloneState.portfolio.holdings.length >= 8 && Array.isArray(_standaloneState.portfolio.orders) && _standaloneState.portfolio.orders.length >= 8 && Array.isArray(_standaloneState.portfolio.portfolioHistory) && _standaloneState.portfolio.portfolioHistory.length >= 8 && Array.isArray(_standaloneState.markets) && _standaloneState.markets.length > 0) {
           _standaloneState.markets = JSON.parse(JSON.stringify(DEFAULT_STANDALONE_MARKETS));
           _standaloneState.tickers = _standaloneState.markets;
           recalculateStateValuations(_standaloneState);
@@ -14787,6 +14788,238 @@
     const now = /* @__PURE__ */ new Date();
     const nowTimeStr = now.toTimeString().slice(0, 8);
     const mList = JSON.parse(JSON.stringify(DEFAULT_STANDALONE_MARKETS));
+    const initialOrders = [
+      {
+        id: "4053424280206069760",
+        instId: "BTC-USDC",
+        asset: "BTC",
+        side: "BUY",
+        orderType: "MARKET",
+        amount: 0.981237,
+        price: 80976.84,
+        usdcValue: 79457.45,
+        feeRate: "0.10%",
+        feeUsdc: 79.46,
+        feeAsset: 981e-6,
+        feeCcy: "BTC",
+        totalUsdcWithFee: 79536.91,
+        status: "CLOSED",
+        rawState: "filled",
+        statusLabel: "Zamkni\u0119te (Zrealizowane na OKX)",
+        source: "Konto OKX DEMO API",
+        strategyName: "Zlecenie OKX MARKET (BTC-USDC) \u2022 Prowizja: 0.000981 BTC",
+        date: "2026-10-29",
+        time: "19:57:37",
+        timestamp: 1793303857175
+      },
+      {
+        id: "4025053132347166720",
+        instId: "WLD-USDC",
+        asset: "WLD",
+        side: "BUY",
+        orderType: "MARKET",
+        amount: 186.27,
+        price: 0.5368,
+        usdcValue: 100,
+        feeRate: "0.10%",
+        feeUsdc: 0.1,
+        feeAsset: 0.18627,
+        feeCcy: "WLD",
+        totalUsdcWithFee: 100.1,
+        status: "CLOSED",
+        rawState: "filled",
+        statusLabel: "Zamkni\u0119te (Zrealizowane na OKX)",
+        source: "Konto OKX DEMO API",
+        strategyName: "Zlecenie OKX MARKET (WLD-USDC) \u2022 Prowizja: 0.18627 WLD",
+        date: "2026-10-20",
+        time: "01:05:31",
+        timestamp: 1792458331078
+      },
+      {
+        id: "OKX-DEMO-1792439310500",
+        instId: "BTC-USDC",
+        asset: "BTC",
+        side: "BUY",
+        orderType: "MARKET",
+        amount: 1,
+        price: 80753.9,
+        usdcValue: 80753.9,
+        feeRate: "0.10%",
+        feeUsdc: 80.75,
+        feeAsset: 1e-3,
+        feeCcy: "USDC",
+        totalUsdcWithFee: 80834.65,
+        status: "CLOSED",
+        rawState: "filled",
+        statusLabel: "Zamkni\u0119te (Zrealizowane na OKX)",
+        source: "Konto OKX DEMO API",
+        strategyName: "Zakup portfelowy OKX Spot (BTC-USDC)",
+        date: "2026-10-19",
+        time: "19:48:30",
+        timestamp: 1792439310500
+      },
+      {
+        id: "OKX-DEMO-1792439310236",
+        instId: "ETH-USDC",
+        asset: "ETH",
+        side: "BUY",
+        orderType: "MARKET",
+        amount: 10,
+        price: 2331.48,
+        usdcValue: 23314.8,
+        feeRate: "0.10%",
+        feeUsdc: 23.31,
+        feeAsset: 0.01,
+        feeCcy: "USDC",
+        totalUsdcWithFee: 23338.11,
+        status: "CLOSED",
+        rawState: "filled",
+        statusLabel: "Zamkni\u0119te (Zrealizowane na OKX)",
+        source: "Konto OKX DEMO API",
+        strategyName: "Zakup portfelowy OKX Spot (ETH-USDC)",
+        date: "2026-10-19",
+        time: "19:48:30",
+        timestamp: 1792439310236
+      },
+      {
+        id: "OKX-DEMO-1792439310086",
+        instId: "XRP-USDC",
+        asset: "XRP",
+        side: "BUY",
+        orderType: "MARKET",
+        amount: 5e4,
+        price: 1.2836,
+        usdcValue: 64180,
+        feeRate: "0.10%",
+        feeUsdc: 64.18,
+        feeAsset: 50,
+        feeCcy: "USDC",
+        totalUsdcWithFee: 64244.18,
+        status: "CLOSED",
+        rawState: "filled",
+        statusLabel: "Zamkni\u0119te (Zrealizowane na OKX)",
+        source: "Konto OKX DEMO API",
+        strategyName: "Zakup portfelowy OKX Spot (XRP-USDC)",
+        date: "2026-10-19",
+        time: "19:48:30",
+        timestamp: 1792439310086
+      },
+      {
+        id: "OKX-DEMO-1792439309934",
+        instId: "USD-USDC",
+        asset: "USD",
+        side: "BUY",
+        orderType: "MARKET",
+        amount: 1e5,
+        price: 1,
+        usdcValue: 1e5,
+        feeRate: "0.00%",
+        feeUsdc: 0,
+        feeAsset: 0,
+        feeCcy: "USDC",
+        totalUsdcWithFee: 1e5,
+        status: "CLOSED",
+        rawState: "filled",
+        statusLabel: "Zamkni\u0119te (Zrealizowane na OKX)",
+        source: "Konto OKX DEMO API",
+        strategyName: "Alokacja depozytu dolarowego OKX (USD-USDC)",
+        date: "2026-10-19",
+        time: "19:48:29",
+        timestamp: 1792439309934
+      },
+      {
+        id: "OKX-DEMO-1792439309786",
+        instId: "USDG-USDC",
+        asset: "USDG",
+        side: "BUY",
+        orderType: "MARKET",
+        amount: 1e5,
+        price: 1,
+        usdcValue: 1e5,
+        feeRate: "0.00%",
+        feeUsdc: 0,
+        feeAsset: 0,
+        feeCcy: "USDC",
+        totalUsdcWithFee: 1e5,
+        status: "CLOSED",
+        rawState: "filled",
+        statusLabel: "Zamkni\u0119te (Zrealizowane na OKX)",
+        source: "Konto OKX DEMO API",
+        strategyName: "Zakup portfelowy Global Dollar (USDG-USDC)",
+        date: "2026-10-19",
+        time: "19:48:29",
+        timestamp: 1792439309786
+      },
+      {
+        id: "OKX-DEMO-1792439309638",
+        instId: "ETC-USDC",
+        asset: "ETC",
+        side: "BUY",
+        orderType: "MARKET",
+        amount: 5,
+        price: 7.494,
+        usdcValue: 37.47,
+        feeRate: "0.10%",
+        feeUsdc: 0.04,
+        feeAsset: 5e-3,
+        feeCcy: "USDC",
+        totalUsdcWithFee: 37.51,
+        status: "CLOSED",
+        rawState: "filled",
+        statusLabel: "Zamkni\u0119te (Zrealizowane na OKX)",
+        source: "Konto OKX DEMO API",
+        strategyName: "Zakup portfelowy OKX Spot (ETC-USDC)",
+        date: "2026-10-19",
+        time: "19:48:29",
+        timestamp: 1792439309638
+      }
+    ].map((ord) => ({
+      ...ord,
+      exchangeFeedback: {
+        exchange: "OKX Europe (eea.okx.com) \u2014 API v5",
+        mode: "DEMO",
+        code: "0",
+        status: "FILLED (Zrealizowano na gie\u0142dzie OKX)",
+        orderId: ord.id,
+        date: ord.date,
+        time: ord.time,
+        instId: ord.instId,
+        asset: ord.asset,
+        side: ord.side,
+        orderType: ord.orderType,
+        amount: ord.amount,
+        price: ord.price,
+        usdcValue: ord.usdcValue,
+        feeRate: ord.feeRate,
+        feeUsdc: ord.feeUsdc,
+        feeAsset: ord.feeAsset,
+        feeCcy: ord.feeCcy,
+        totalUsdcWithFee: ord.totalUsdcWithFee,
+        strategyName: ord.strategyName,
+        strategyMessage: `Za\u0142o\u017Cono strategi\u0119 \u201E${ord.strategyName}\u201D oraz uruchomiono proces KUPNA (BUY) dla pary ${ord.instId}.`,
+        exchangeMessage: `Gie\u0142da OKX Europe (eea.okx.com) potwierdzi\u0142a dokonanie transakcji #${ord.id}: Kupiono ${ord.amount} ${ord.asset} po cenie ${ord.price} USDC (Przeliczenie na USDC: ${ord.usdcValue.toFixed(2)} USDC, Fee ${ord.feeRate}: ${ord.feeUsdc.toFixed(2)} USDC / ${ord.feeAsset} ${ord.asset}, Rozliczenie ca\u0142kowite: ${ord.totalUsdcWithFee.toFixed(2)} USDC).`
+      }
+    }));
+    const initialPortfolioHistory = initialOrders.map((ord, idx) => ({
+      id: `ORD-HIST-${ord.id}`,
+      orderId: ord.id,
+      date: ord.date,
+      time: ord.time,
+      timestamp: ord.timestamp,
+      action: `Kupno ${ord.amount} ${ord.asset} @ ${ord.price} USDC (${ord.strategyName})`,
+      side: ord.side,
+      usdcAmount: ord.usdcValue,
+      usdcValue: ord.usdcValue,
+      feeUsdc: ord.feeUsdc,
+      feeAsset: ord.feeAsset,
+      diffUsdc: ord.usdcValue,
+      changeUsdc: ord.usdcValue,
+      totalValueUsdc: idx === 0 ? 457211.79 : Number((457211.79 - idx * 14500).toFixed(2)),
+      asset: ord.asset,
+      amount: ord.amount,
+      price: ord.price,
+      exchangeFeedback: ord.exchangeFeedback
+    }));
     _standaloneState = {
       config: {
         site: "eea",
@@ -14851,10 +15084,38 @@
         site: "eea.okx.com",
         syncedFromOkx: true,
         accountSourceLabel: "Konto OKX DEMO API (eea.okx.com \u2014 7 aktyw\xF3w oraz USD \u2022 Kursy OKX Live)",
-        totalValueUsdc: 461458.47,
-        cashUsdc: 299900,
-        cryptoValueUsdc: 161558.47,
+        totalValueUsdc: 457211.79,
+        cashUsdc: 220442.55,
+        cryptoValueUsdc: 236769.24,
         holdings: [
+          {
+            asset: "USDC",
+            name: "USD Coin (EEA MiCA)",
+            amount: 20442.55,
+            availAmount: 20442.55,
+            tradingAmount: 20442.55,
+            fundingAmount: 0,
+            priceUsdc: 1,
+            usdcValue: 20442.55,
+            avgBuyPrice: 1,
+            change24hPct: 0,
+            pnlPct: 0,
+            allocationPct: 4.47
+          },
+          {
+            asset: "BTC",
+            name: "Bitcoin",
+            amount: 1.980256,
+            availAmount: 1.980256,
+            tradingAmount: 1.980256,
+            fundingAmount: 0,
+            priceUsdc: 76682.3,
+            usdcValue: 151850.59,
+            avgBuyPrice: 80864.32,
+            change24hPct: -1.48,
+            pnlPct: -5.17,
+            allocationPct: 33.21
+          },
           {
             asset: "USD",
             name: "US Dollar (OKX Demo Got\xF3wka)",
@@ -14867,7 +15128,7 @@
             avgBuyPrice: 1,
             change24hPct: 0,
             pnlPct: 0,
-            allocationPct: 21.67
+            allocationPct: 21.87
           },
           {
             asset: "USDG",
@@ -14881,35 +15142,7 @@
             avgBuyPrice: 1,
             change24hPct: 0,
             pnlPct: 0,
-            allocationPct: 21.67
-          },
-          {
-            asset: "USDC",
-            name: "USD Coin (EEA MiCA)",
-            amount: 99900,
-            availAmount: 99900,
-            tradingAmount: 99900,
-            fundingAmount: 0,
-            priceUsdc: 1,
-            usdcValue: 99900,
-            avgBuyPrice: 1,
-            change24hPct: 0,
-            pnlPct: 0,
-            allocationPct: 21.65
-          },
-          {
-            asset: "BTC",
-            name: "Bitcoin",
-            amount: 1,
-            availAmount: 1,
-            tradingAmount: 1,
-            fundingAmount: 0,
-            priceUsdc: 76682.3,
-            usdcValue: 76682.3,
-            avgBuyPrice: 80753.9,
-            change24hPct: -1.48,
-            pnlPct: -5.04,
-            allocationPct: 16.62
+            allocationPct: 21.87
           },
           {
             asset: "XRP",
@@ -14923,7 +15156,7 @@
             avgBuyPrice: 1.2836,
             change24hPct: -0.34,
             pnlPct: -2.94,
-            allocationPct: 13.5
+            allocationPct: 13.62
           },
           {
             asset: "ETH",
@@ -14937,21 +15170,21 @@
             avgBuyPrice: 2331.48,
             change24hPct: -0.66,
             pnlPct: -3.57,
-            allocationPct: 4.87
+            allocationPct: 4.92
           },
           {
             asset: "WLD",
             name: "Worldcoin (WLD)",
-            amount: 186.08,
-            availAmount: 186.08,
-            tradingAmount: 186.08,
+            amount: 186.08373,
+            availAmount: 186.08373,
+            tradingAmount: 186.08373,
             fundingAmount: 0,
             priceUsdc: 0.3719,
             usdcValue: 69.2,
-            avgBuyPrice: 0.4171,
+            avgBuyPrice: 0.5368,
             change24hPct: -4.49,
-            pnlPct: -10.84,
-            allocationPct: 0.01
+            pnlPct: -30.72,
+            allocationPct: 0.02
           },
           {
             asset: "ETC",
@@ -14962,9 +15195,9 @@
             fundingAmount: 0,
             priceUsdc: 6.953,
             usdcValue: 34.77,
-            avgBuyPrice: 7.49,
+            avgBuyPrice: 7.494,
             change24hPct: -2.39,
-            pnlPct: -7.17,
+            pnlPct: -7.22,
             allocationPct: 0.01
           }
         ],
@@ -14974,27 +15207,27 @@
               asset: "BTC",
               instId: "BTC-USDC",
               currentPriceUsdc: 76682.3,
-              boughtAmount: 1,
-              boughtUsdc: 80753.9,
-              buyCount: 1,
+              boughtAmount: 1.981237,
+              boughtUsdc: 160211.35,
+              buyCount: 2,
               soldAmount: 0,
               soldUsdc: 0,
               sellCount: 0,
-              netAmount: 1,
-              netUsdcFlow: -80753.9
+              netAmount: 1.981237,
+              netUsdcFlow: -160211.35
             },
             {
               asset: "XRP",
               instId: "XRP-USDC",
               currentPriceUsdc: 1.2458,
               boughtAmount: 5e4,
-              boughtUsdc: 64180.5,
+              boughtUsdc: 64180,
               buyCount: 1,
               soldAmount: 0,
               soldUsdc: 0,
               sellCount: 0,
               netAmount: 5e4,
-              netUsdcFlow: -64180.5
+              netUsdcFlow: -64180
             },
             {
               asset: "ETH",
@@ -15013,14 +15246,14 @@
               asset: "WLD",
               instId: "WLD-USDC",
               currentPriceUsdc: 0.3719,
-              boughtAmount: 186.08,
-              boughtUsdc: 77.62,
+              boughtAmount: 186.27,
+              boughtUsdc: 100,
               buyCount: 1,
               soldAmount: 0,
               soldUsdc: 0,
               sellCount: 0,
-              netAmount: 186.08,
-              netUsdcFlow: -77.62
+              netAmount: 186.27,
+              netUsdcFlow: -100
             },
             {
               asset: "ETC",
@@ -15062,141 +15295,11 @@
               netUsdcFlow: -1e5
             }
           ],
-          totalBoughtUsdc: 368364.29,
+          totalBoughtUsdc: 447843.62,
           totalSoldUsdc: 0
         },
-        orders: [
-          {
-            id: "OKX-1730231857000",
-            instId: "BTC-USDC",
-            asset: "BTC",
-            side: "BUY",
-            orderType: "MARKET",
-            amount: 1,
-            price: 80753.9,
-            usdcValue: 80753.9,
-            feeRate: "0.10%",
-            feeUsdc: 80.75,
-            feeAsset: 1e-3,
-            totalUsdcWithFee: 80834.65,
-            status: "CLOSED",
-            rawState: "filled",
-            statusLabel: "Zamkni\u0119te (Zrealizowane na OKX)",
-            source: "Konto OKX DEMO API",
-            strategyName: "Zlecenie OKX market (BTC-USDC) \u2022 Prowizja: 0.001 BTC",
-            date: "2026-10-29",
-            time: "19:57:37",
-            timestamp: 1730231857e3,
-            exchangeFeedback: {
-              exchange: "OKX Europe (eea.okx.com) \u2014 API v5",
-              mode: "DEMO",
-              code: "0",
-              status: "FILLED (Zrealizowano na gie\u0142dzie OKX)",
-              orderId: "OKX-1730231857000",
-              date: "2026-10-29",
-              time: "19:57:37",
-              instId: "BTC-USDC",
-              asset: "BTC",
-              side: "BUY",
-              orderType: "MARKET",
-              amount: 1,
-              price: 80753.9,
-              usdcValue: 80753.9,
-              feeRate: "0.10%",
-              feeUsdc: 80.75,
-              feeAsset: 1e-3,
-              feeCcy: "BTC",
-              totalUsdcWithFee: 80834.65,
-              strategyName: "Zlecenie OKX market (BTC-USDC) \u2022 Prowizja: 0.001 BTC",
-              strategyMessage: "Za\u0142o\u017Cono strategi\u0119 \u201EZlecenie OKX market (BTC-USDC)\u201D oraz uruchomiono proces KUPNA (BUY) dla pary BTC-USDC.",
-              exchangeMessage: "Gie\u0142da OKX Europe (eea.okx.com) potwierdzi\u0142a dokonanie transakcji #OKX-1730231857000: Kupiono 1.00 BTC po cenie 80 753,90 USDC (Przeliczenie na USDC: 80 753,90 USDC, Fee 0.10%: 80,75 USDC / 0.001 BTC, Rozliczenie ca\u0142kowite: 80 834,65 USDC)."
-            }
-          },
-          {
-            id: "OKX-1729389931000",
-            instId: "WLD-USDC",
-            asset: "WLD",
-            side: "BUY",
-            orderType: "MARKET",
-            amount: 186.08,
-            price: 0.4171,
-            usdcValue: 77.62,
-            feeRate: "0.10%",
-            feeUsdc: 0.08,
-            feeAsset: 0.186,
-            totalUsdcWithFee: 77.7,
-            status: "CLOSED",
-            rawState: "filled",
-            statusLabel: "Zamkni\u0119te (Zrealizowane na OKX)",
-            source: "Konto OKX DEMO API",
-            strategyName: "Zlecenie OKX market (WLD-USDC) \u2022 Prowizja: 0.186 WLD",
-            date: "2026-10-20",
-            time: "02:05:31",
-            timestamp: 1729389931e3,
-            exchangeFeedback: {
-              exchange: "OKX Europe (eea.okx.com) \u2014 API v5",
-              mode: "DEMO",
-              code: "0",
-              status: "FILLED (Zrealizowano na gie\u0142dzie OKX)",
-              orderId: "OKX-1729389931000",
-              date: "2026-10-20",
-              time: "02:05:31",
-              instId: "WLD-USDC",
-              asset: "WLD",
-              side: "BUY",
-              orderType: "MARKET",
-              amount: 186.08,
-              price: 0.4171,
-              usdcValue: 77.62,
-              feeRate: "0.10%",
-              feeUsdc: 0.08,
-              feeAsset: 0.186,
-              feeCcy: "WLD",
-              totalUsdcWithFee: 77.7,
-              strategyName: "Zlecenie OKX market (WLD-USDC) \u2022 Prowizja: 0.186 WLD",
-              strategyMessage: "Za\u0142o\u017Cono strategi\u0119 \u201EZlecenie OKX market (WLD-USDC)\u201D oraz uruchomiono proces KUPNA (BUY) dla pary WLD-USDC.",
-              exchangeMessage: "Gie\u0142da OKX Europe (eea.okx.com) potwierdzi\u0142a dokonanie transakcji #OKX-1729389931000: Kupiono 186.08 WLD po cenie 0,4171 USDC (Przeliczenie na USDC: 77,62 USDC, Fee 0.10%: 0,08 USDC / 0.186 WLD, Rozliczenie ca\u0142kowite: 77,70 USDC)."
-            }
-          }
-        ],
-        portfolioHistory: [
-          {
-            id: "ORD-HIST-OKX-1730231857000",
-            orderId: "OKX-1730231857000",
-            date: "2026-10-29",
-            time: "19:57:37",
-            timestamp: 1730231857e3,
-            action: "Kupno 1.00 BTC @ 80753.90 USDC (BTC-USDC)",
-            side: "BUY",
-            usdcAmount: 80753.9,
-            usdcValue: 80753.9,
-            feeUsdc: 80.75,
-            feeAsset: 1e-3,
-            diffUsdc: 80753.9,
-            totalValueUsdc: 461458.47,
-            asset: "BTC",
-            amount: 1,
-            price: 80753.9
-          },
-          {
-            id: "ORD-HIST-OKX-1729389931000",
-            orderId: "OKX-1729389931000",
-            date: "2026-10-20",
-            time: "02:05:31",
-            timestamp: 1729389931e3,
-            action: "Kupno 186.08 WLD @ 0.4171 USDC (WLD-USDC)",
-            side: "BUY",
-            usdcAmount: 77.62,
-            usdcValue: 77.62,
-            feeUsdc: 0.08,
-            feeAsset: 0.186,
-            diffUsdc: 77.62,
-            totalValueUsdc: 387490.39,
-            asset: "WLD",
-            amount: 186.08,
-            price: 0.4171
-          }
-        ]
+        orders: initialOrders,
+        portfolioHistory: initialPortfolioHistory
       }
     };
     recalculateStateValuations(_standaloneState);
@@ -18882,62 +18985,9 @@
     onCloseWindow,
     onBringToFront
   }) {
-    const canvasRef = (0, import_react10.useRef)(null);
     const executedTradesOnly = (historyList || []).filter(
       (snap) => snap.side === "BUY" || snap.side === "SELL"
     );
-    (0, import_react10.useEffect)(() => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.clearRect(0, 0, w, h);
-      const chronologicalSnapshots = executedTradesOnly.slice().reverse();
-      if (!chronologicalSnapshots || chronologicalSnapshots.length === 0) return;
-      const values = chronologicalSnapshots.map((s) => s.totalValueUsdc);
-      const minVal = Math.min(...values) * 0.995;
-      const maxVal = Math.max(...values) * 1.005 || 1;
-      const padL = 16;
-      const padR = 16;
-      const padT = 24;
-      const padB = 26;
-      const plotW = w - padL - padR;
-      const plotH = h - padT - padB;
-      ctx.strokeStyle = "rgba(255,255,255,0.06)";
-      ctx.lineWidth = 1;
-      for (let i = 0; i <= 3; i++) {
-        const y = padT + plotH / 3 * i;
-        ctx.beginPath();
-        ctx.moveTo(padL, y);
-        ctx.lineTo(w - padR, y);
-        ctx.stroke();
-      }
-      ctx.beginPath();
-      chronologicalSnapshots.forEach((pt, idx) => {
-        const x = padL + (chronologicalSnapshots.length === 1 ? plotW / 2 : idx / (chronologicalSnapshots.length - 1) * plotW);
-        const y = padT + plotH - (pt.totalValueUsdc - minVal) / (maxVal - minVal || 1) * plotH;
-        if (idx === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.strokeStyle = "#bcff2f";
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-      chronologicalSnapshots.forEach((pt, idx) => {
-        const x = padL + (chronologicalSnapshots.length === 1 ? plotW / 2 : idx / (chronologicalSnapshots.length - 1) * plotW);
-        const y = padT + plotH - (pt.totalValueUsdc - minVal) / (maxVal - minVal || 1) * plotH;
-        ctx.fillStyle = "#38bdf8";
-        ctx.beginPath();
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      ctx.fillStyle = "#94a3b8";
-      ctx.font = "11px Inter, sans-serif";
-      ctx.fillText("Krzywa warto\u015Bci Portfela Handlowego (USDC)", padL, 15);
-      const latest = values[values.length - 1];
-      ctx.fillStyle = "#bcff2f";
-      ctx.fillText(`Aktualnie: ${formatUsdc(latest)}`, w - 185, 15);
-    }, [executedTradesOnly, winMeta?.mode]);
     return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
       WindowContainer,
       {
@@ -18951,87 +19001,82 @@
         onBringToFront,
         children: [
           /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "panel-header", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("h2", { children: "\u{1F4C8} Historia Portfela Handlowego (Snapshoty po ka\u017Cdej transakcji kupna lub sprzeda\u017Cy)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("p", { className: "panel-subtitle", children: "Ka\u017Cda autoryzowana transakcja zapisuje stan portfela w czasie wraz z wykresem zmiany warto\u015Bci w USDC" })
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("h2", { children: "\u{1F4C8} Historia Portfela Handlowego (Wszystkie transakcje portfela \u2014 Kupno i Sprzeda\u017C)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("p", { className: "panel-subtitle", children: [
+              "Pe\u0142na historia transakcji portfela z dat\u0105, czasem, kursem wykonania, prowizj\u0105 (Fee) oraz warto\u015Bci\u0105 portfela w USDC (",
+              executedTradesOnly.length,
+              " transakcji)"
+            ] })
           ] }) }),
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "portfolio-history-layout", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "portfolio-curve-box", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
-              "canvas",
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "portfolio-history-layout", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "table-responsive history-snapshots-table", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("table", { className: "data-table", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Data i Czas" }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Wykonana operacja" }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Typ" }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Ilo\u015B\u0107 aktywa" }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Cena jedn. (USDC)" }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Kwota operacji (USDC)" }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Warto\u015B\u0107 Portfela po transakcji (USDC)" }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Exchange Feedback" })
+            ] }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("tbody", { id: "portfolioHistoryTbody", children: executedTradesOnly.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+              "td",
               {
-                id: "portfolioEquityCanvas",
-                ref: canvasRef,
-                width: 500,
-                height: 190
+                colSpan: 8,
+                style: {
+                  textAlign: "center",
+                  color: "var(--text-secondary)",
+                  padding: "14px"
+                },
+                children: "Brak zrealizowanych zlece\u0144 kupna/sprzeda\u017Cy w historii tego portfela."
               }
-            ) }),
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "table-responsive history-snapshots-table", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("table", { className: "data-table", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Data i Czas" }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Wykonana operacja" }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Typ" }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Ilo\u015B\u0107 aktywa" }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Kwota operacji (USDC)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Warto\u015B\u0107 Portfela po transakcji (USDC)" }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Exchange Feedback" })
-              ] }) }),
-              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("tbody", { id: "portfolioHistoryTbody", children: executedTradesOnly.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
-                "td",
-                {
-                  colSpan: 7,
-                  style: {
-                    textAlign: "center",
-                    color: "var(--text-secondary)",
-                    padding: "14px"
-                  },
-                  children: "Brak zrealizowanych zlece\u0144 kupna/sprzeda\u017Cy w historii tego portfela."
-                }
-              ) }) : executedTradesOnly.map((snap) => {
-                const badgeClass = snap.side === "BUY" ? "badge-buy" : "badge-sell";
-                const sideLabel = snap.side === "BUY" ? "KUPNO (BUY)" : "SPRZEDA\u017B (SELL)";
-                const usdcVal = snap.usdcValue ?? snap.usdcAmount ?? 0;
-                const rowKey = `hist-${snap.id}`;
-                const isExpanded = expandedFeedbackIds.has(rowKey);
-                const fb = buildExchangeFeedbackForItem(snap, apiMode);
-                return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react10.default.Fragment, { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { children: snap.date }),
-                      " ",
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("code", { children: snap.time })
-                    ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: snap.action }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: badgeClass, children: sideLabel }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("strong", { children: [
-                      formatQty(snap.amount),
-                      " ",
-                      snap.asset
-                    ] }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: formatUsdc(usdcVal) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { style: { color: "var(--accent-okx)" }, children: formatUsdc(snap.totalValueUsdc) }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
-                      "button",
-                      {
-                        type: "button",
-                        className: `btn btn-feedback-details toggle-exchange-feedback-btn ${isExpanded ? "active" : ""}`,
-                        "data-feedback-key": rowKey,
-                        onClick: () => onToggleFeedbackRow(rowKey),
-                        children: "\u{1F4CB} Szczeg\xF3\u0142y transakcji (Exchange Feedback)"
-                      }
-                    ) })
+            ) }) : executedTradesOnly.map((snap) => {
+              const badgeClass = snap.side === "BUY" ? "badge-buy" : "badge-sell";
+              const sideLabel = snap.side === "BUY" ? "KUPNO (BUY)" : "SPRZEDA\u017B (SELL)";
+              const usdcVal = snap.usdcValue ?? snap.usdcAmount ?? 0;
+              const rowKey = `hist-${snap.id}`;
+              const isExpanded = expandedFeedbackIds.has(rowKey);
+              const fb = buildExchangeFeedbackForItem(snap, apiMode);
+              return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react10.default.Fragment, { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { children: snap.date }),
+                    " ",
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("code", { children: snap.time })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
-                    "tr",
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: snap.action }),
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: badgeClass, children: sideLabel }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("strong", { children: [
+                    formatQty(snap.amount),
+                    " ",
+                    snap.asset
+                  ] }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: formatUnitPrice(snap.price || (snap.amount > 0 ? usdcVal / snap.amount : 1)) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: formatUsdc(usdcVal) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { style: { color: "var(--accent-okx)" }, children: formatUsdc(snap.totalValueUsdc) }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                    "button",
                     {
-                      className: "exchange-feedback-detail-row",
-                      id: `ef-row-${rowKey}`,
-                      hidden: !isExpanded,
-                      children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { colSpan: 7, children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ExchangeFeedbackDetails, { fb }) })
+                      type: "button",
+                      className: `btn btn-feedback-details toggle-exchange-feedback-btn ${isExpanded ? "active" : ""}`,
+                      "data-feedback-key": rowKey,
+                      onClick: () => onToggleFeedbackRow(rowKey),
+                      children: "\u{1F4CB} Szczeg\xF3\u0142y transakcji (Exchange Feedback)"
                     }
-                  )
-                ] }, snap.id);
-              }) })
-            ] }) })
-          ] })
+                  ) })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                  "tr",
+                  {
+                    className: "exchange-feedback-detail-row",
+                    id: `ef-row-${rowKey}`,
+                    hidden: !isExpanded,
+                    children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { colSpan: 8, children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ExchangeFeedbackDetails, { fb }) })
+                  }
+                )
+              ] }, snap.id);
+            }) })
+          ] }) }) })
         ]
       }
     );
