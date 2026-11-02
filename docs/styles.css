@@ -3615,4 +3615,244 @@ body.has-single-window-grid.single-window-minimized .app-shell {
   margin-bottom: 0;
 }
 
+/* ==========================================================================
+   FULL DESKTOP & MOBILE PHONE RESPONSIVENESS + MOBILE BOTTOM QUICK-NAV BAR
+   ========================================================================== */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2500;
+  background: rgba(9, 13, 22, 0.96);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(56, 189, 248, 0.32);
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  justify-content: space-around;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.65);
+}
+
+.mobile-nav-btn {
+  flex: 1 0 auto;
+  min-width: 58px;
+  background: rgba(30, 41, 59, 0.65);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  padding: 5px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.mobile-nav-btn:hover,
+.mobile-nav-btn:active {
+  background: rgba(188, 255, 47, 0.16);
+  border-color: var(--accent-okx);
+  color: var(--accent-okx);
+}
+
+.mobile-nav-icon {
+  font-size: 15px;
+  line-height: 1.1;
+}
+
+.mobile-nav-label {
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 1024px) {
+  .top-controls-grid,
+  .workspace-row.row-agent-and-order,
+  .workspace-row.row-portfolios {
+    grid-template-columns: 1fr !important;
+  }
+
+  .form-row-3 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    display: flex;
+  }
+
+  body {
+    padding-bottom: 68px !important;
+  }
+
+  .app-header {
+    padding: 8px 10px !important;
+  }
+
+  .brand-row {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  .header-quick-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px !important;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .status-pill {
+    font-size: 11px !important;
+    padding: 4px 8px !important;
+  }
+
+  .header-ai-status-group {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .top-menu-dropdown-wrap {
+    width: 100%;
+  }
+
+  .btn-top-window-menu {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .top-window-menu-bar,
+  .top-window-menu-bar.top-menu-size-medium,
+  .top-window-menu-bar.top-menu-size-min {
+    position: fixed !important;
+    left: 6px !important;
+    right: 6px !important;
+    top: 64px !important;
+    width: calc(100vw - 12px) !important;
+    max-width: calc(100vw - 12px) !important;
+    max-height: calc(100vh - 140px) !important;
+    overflow-y: auto !important;
+  }
+
+  .main-container {
+    padding: 8px 8px 80px 8px !important;
+    gap: 10px !important;
+  }
+
+  /* Make floating windows fit mobile phone screens cleanly */
+  .app-window.win-mode-floating,
+  #win-ai-strategies.win-mode-floating.win-size-medium,
+  #win-ai-strategies.win-mode-floating.win-size-small {
+    position: fixed !important;
+    left: 6px !important;
+    right: 6px !important;
+    top: 56px !important;
+    width: calc(100vw - 12px) !important;
+    max-width: calc(100vw - 12px) !important;
+    height: calc(100vh - 130px) !important;
+    max-height: calc(100vh - 130px) !important;
+  }
+
+  .floating-chart-window,
+  .floating-chart-window.size-small,
+  .floating-chart-window.size-medium,
+  .floating-chart-window.size-full {
+    position: fixed !important;
+    left: 4px !important;
+    right: 4px !important;
+    top: 48px !important;
+    width: calc(100vw - 8px) !important;
+    height: calc(100vh - 120px) !important;
+  }
+
+  .window-titlebar {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px !important;
+  }
+
+  .window-controls {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .win-ctrl-btn {
+    padding: 4px 7px !important;
+    font-size: 11px !important;
+  }
+
+  .chat-input-row,
+  .ai-strategy-query-form {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  .chat-input-row input,
+  .chat-input-row button,
+  .ai-strategy-query-form input,
+  .ai-strategy-query-form button {
+    width: 100% !important;
+  }
+
+  .form-row-inline,
+  .form-row-2,
+  .form-row-3,
+  .api-diagnostics-grid,
+  .portfolio-summary-cards {
+    grid-template-columns: 1fr !important;
+  }
+
+  .trade-buttons-bar,
+  .api-btn-group {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100%;
+  }
+
+  .api-btn-group .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 7px 8px !important;
+    font-size: 11.5px !important;
+    white-space: nowrap;
+  }
+
+  .toast-container {
+    bottom: 72px !important;
+    left: 8px !important;
+    right: 8px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .window-titlebar-title {
+    font-size: 12.5px !important;
+  }
+
+  .ai-order-details-grid,
+  .ef-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
 

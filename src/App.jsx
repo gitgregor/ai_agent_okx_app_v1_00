@@ -121,6 +121,33 @@ export function App() {
   topMenuOpenRef.current = topMenuOpen;
   const topMenuSizeRef = useRef(topMenuSize);
   topMenuSizeRef.current = topMenuSize;
+  const lastSessionSyncTsRef = useRef(0);
+
+  // Synchronize AI Chat, AI Strategies, and Executed Session Transactions across Desktop & Mobile Phone
+  useEffect(() => {
+    const sync = appState?.sessionSync;
+    if (!sync || !sync.updatedAt) return;
+    if (sync.updatedAt <= lastSessionSyncTsRef.current) return;
+    lastSessionSyncTsRef.current = sync.updatedAt;
+
+    if (Array.isArray(sync.chatMessages) && sync.chatMessages.length > 0) {
+      setChatMessages((prev) => {
+        if (sync.chatMessages.length >= prev.length) {
+          return sync.chatMessages;
+        }
+        return prev;
+      });
+    }
+    if (sync.currentAiStrategyAnalysis) {
+      setCurrentAiStrategyAnalysis(sync.currentAiStrategyAnalysis);
+    }
+    if (Array.isArray(sync.executedSessionTransactions) && sync.executedSessionTransactions.length > 0) {
+      setExecutedSessionTransactions(sync.executedSessionTransactions);
+    }
+    if (sync.lastExchangeFeedback) {
+      setLastExchangeFeedback(sync.lastExchangeFeedback);
+    }
+  }, [appState?.sessionSync]);
 
   const nextZIndex = useCallback((bonus = 0) => {
     zIndexCounterRef.current += 1;
@@ -1304,6 +1331,87 @@ export function App() {
           </div>
         ))}
       </div>
+
+      {/* MOBILE BOTTOM QUICK-NAVIGATION BAR FOR SMARTPHONES & RESPONSIVE SYNC */}
+      <nav
+        id="mobileQuickNav"
+        className="mobile-bottom-nav"
+        aria-label="Szybka nawigacja mobilna"
+      >
+        <button
+          type="button"
+          className="mobile-nav-btn"
+          onClick={() => setWindowMode('win-ai-chat', 'grid')}
+        >
+          <span className="mobile-nav-icon">💬</span>
+          <span className="mobile-nav-label">Agent AI</span>
+        </button>
+        <button
+          type="button"
+          className="mobile-nav-btn"
+          onClick={handleOpenAiStrategies}
+        >
+          <span className="mobile-nav-icon">🧠</span>
+          <span className="mobile-nav-label">Strategie</span>
+        </button>
+        <button
+          type="button"
+          className="mobile-nav-btn"
+          onClick={() => setWindowMode('win-quick-trade', 'grid')}
+        >
+          <span className="mobile-nav-icon">⚡</span>
+          <span className="mobile-nav-label">Handel</span>
+        </button>
+        <button
+          type="button"
+          className="mobile-nav-btn"
+          onClick={() => {
+            setWindowMode('win-portfolio', 'grid');
+            setWindowMode('win-bought-sold', 'grid');
+          }}
+        >
+          <span className="mobile-nav-icon">💼</span>
+          <span className="mobile-nav-label">Portfel</span>
+        </button>
+        <button
+          type="button"
+          className="mobile-nav-btn"
+          onClick={() => {
+            setWindowMode('win-portfolio-history', 'grid');
+            setWindowMode('win-orders-history', 'grid');
+          }}
+        >
+          <span className="mobile-nav-icon">📜</span>
+          <span className="mobile-nav-label">Historia</span>
+        </button>
+        <button
+          type="button"
+          className="mobile-nav-btn"
+          onClick={() => openAssetChart(chartState.instId || 'BTC-USDC', 'full')}
+        >
+          <span className="mobile-nav-icon">🕯️</span>
+          <span className="mobile-nav-label">Wykres</span>
+        </button>
+        <button
+          type="button"
+          className="mobile-nav-btn"
+          onClick={() => {
+            setWindowMode('win-ctrl-api', 'grid');
+            setApiAccordionOpen(true);
+          }}
+        >
+          <span className="mobile-nav-icon">🔑</span>
+          <span className="mobile-nav-label">IP / API</span>
+        </button>
+        <button
+          type="button"
+          className="mobile-nav-btn"
+          onClick={handleResetAllWindowsGrid}
+        >
+          <span className="mobile-nav-icon">⊞</span>
+          <span className="mobile-nav-label">Wszystkie</span>
+        </button>
+      </nav>
     </>
   );
 }

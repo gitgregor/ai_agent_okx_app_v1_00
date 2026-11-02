@@ -6,11 +6,7 @@
   var __getProtoOf = Object.getPrototypeOf;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
   var __commonJS = (cb, mod) => function __require() {
-    try {
-      return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-    } catch (e) {
-      throw mod = 0, e;
-    }
+    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
   };
   var __copyProps = (to, from, except, desc) => {
     if (from && typeof from === "object" || typeof from === "function") {
@@ -33,19 +29,19 @@
   var require_react_production = __commonJS({
     "node_modules/react/cjs/react.production.js"(exports) {
       "use strict";
-      var REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element");
-      var REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal");
-      var REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment");
-      var REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode");
-      var REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler");
-      var REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer");
-      var REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context");
-      var REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref");
-      var REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense");
-      var REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo");
-      var REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
-      var REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity");
-      var REACT_VIEW_TRANSITION_TYPE = /* @__PURE__ */ Symbol.for("react.view_transition");
+      var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element");
+      var REACT_PORTAL_TYPE = Symbol.for("react.portal");
+      var REACT_FRAGMENT_TYPE = Symbol.for("react.fragment");
+      var REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode");
+      var REACT_PROFILER_TYPE = Symbol.for("react.profiler");
+      var REACT_CONSUMER_TYPE = Symbol.for("react.consumer");
+      var REACT_CONTEXT_TYPE = Symbol.for("react.context");
+      var REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref");
+      var REACT_SUSPENSE_TYPE = Symbol.for("react.suspense");
+      var REACT_MEMO_TYPE = Symbol.for("react.memo");
+      var REACT_LAZY_TYPE = Symbol.for("react.lazy");
+      var REACT_ACTIVITY_TYPE = Symbol.for("react.activity");
+      var REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition");
       var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
       function getIteratorFn(maybeIterable) {
         if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -811,9 +807,9 @@
         p: 0,
         findDOMNode: null
       };
-      var REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal");
-      var REACT_RECOVERABLE_TYPE = /* @__PURE__ */ Symbol.for("react.recoverable");
-      var REACT_OPTIMISTIC_KEY = /* @__PURE__ */ Symbol.for("react.optimistic_key");
+      var REACT_PORTAL_TYPE = Symbol.for("react.portal");
+      var REACT_RECOVERABLE_TYPE = Symbol.for("react.recoverable");
+      var REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key");
       function createPortal$1(children, containerInfo, implementation) {
         var key = 3 < arguments.length && void 0 !== arguments[3] ? arguments[3] : null;
         return {
@@ -1185,31 +1181,33 @@
         return null;
       }
       var assign = Object.assign;
-      var REACT_LEGACY_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.element");
-      var REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element");
-      var REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal");
-      var REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment");
-      var REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode");
-      var REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler");
-      var REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer");
-      var REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context");
-      var REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref");
-      var REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense");
-      var REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list");
-      var REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo");
-      var REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
-      var REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity");
-      var REACT_LEGACY_HIDDEN_TYPE = /* @__PURE__ */ Symbol.for("react.legacy_hidden");
-      var REACT_MEMO_CACHE_SENTINEL = /* @__PURE__ */ Symbol.for("react.memo_cache_sentinel");
-      var REACT_VIEW_TRANSITION_TYPE = /* @__PURE__ */ Symbol.for("react.view_transition");
-      var REACT_RECOVERABLE_TYPE = /* @__PURE__ */ Symbol.for("react.recoverable");
+      var REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element");
+      var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element");
+      var REACT_PORTAL_TYPE = Symbol.for("react.portal");
+      var REACT_FRAGMENT_TYPE = Symbol.for("react.fragment");
+      var REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode");
+      var REACT_PROFILER_TYPE = Symbol.for("react.profiler");
+      var REACT_CONSUMER_TYPE = Symbol.for("react.consumer");
+      var REACT_CONTEXT_TYPE = Symbol.for("react.context");
+      var REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref");
+      var REACT_SUSPENSE_TYPE = Symbol.for("react.suspense");
+      var REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list");
+      var REACT_MEMO_TYPE = Symbol.for("react.memo");
+      var REACT_LAZY_TYPE = Symbol.for("react.lazy");
+      Symbol.for("react.scope");
+      var REACT_ACTIVITY_TYPE = Symbol.for("react.activity");
+      var REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden");
+      Symbol.for("react.tracing_marker");
+      var REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
+      var REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition");
+      var REACT_RECOVERABLE_TYPE = Symbol.for("react.recoverable");
       var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
       function getIteratorFn(maybeIterable) {
         if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
         maybeIterable = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable["@@iterator"];
         return "function" === typeof maybeIterable ? maybeIterable : null;
       }
-      var REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference");
+      var REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
       function getComponentNameFromType(type) {
         if (null == type) return null;
         if ("function" === typeof type)
@@ -14535,8 +14533,8 @@
   var require_react_jsx_runtime_production = __commonJS({
     "node_modules/react/cjs/react-jsx-runtime.production.js"(exports) {
       "use strict";
-      var REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element");
-      var REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment");
+      var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element");
+      var REACT_FRAGMENT_TYPE = Symbol.for("react.fragment");
       function jsxProd(type, config, maybeKey) {
         var key = null;
         void 0 !== maybeKey && (key = "" + maybeKey);
@@ -14636,12 +14634,163 @@
     { instId: "LINK-USDC", base: "LINK", quote: "USDC", name: "Chainlink", price: 11.041, bidPx: 11.048, askPx: 11.052, open24h: 11.391, high24h: 11.429, low24h: 10.988, vol24h: 54395.38, volCcy24h: 612058, change24hPct: -3.07 },
     { instId: "SUI-USDC", base: "SUI", quote: "USDC", name: "Sui Network", price: 0.8677, bidPx: 0.8687, askPx: 0.869, open24h: 0.8947, high24h: 0.908, low24h: 0.8631, vol24h: 952011.95, volCcy24h: 843315, change24hPct: -3.02 }
   ];
-  var _isStandalone = typeof window !== "undefined" && (window.location.hostname.includes("github.io") || window.location.protocol === "file:" || window.location.search.includes("standalone=true"));
+  var LS_CUSTOM_GATEWAY_KEY = "okx_custom_gateway_url_v1";
+  var DEFAULT_HOME_GATEWAYS = [
+    "https://okx-eea-gregor-home-gw.loca.lt",
+    "https://okx-eea-gregor-home-gw-2.loca.lt",
+    "https://okx-eea-gregor-home-gw-3.loca.lt"
+  ];
+  function detectInitialGatewayConfig() {
+    if (typeof window === "undefined") {
+      return { isRemoteHost: false, activeBaseUrl: "", customGatewayUrl: "" };
+    }
+    const params = new URLSearchParams(window.location.search);
+    const urlGateway = params.get("gateway");
+    if (urlGateway && urlGateway.startsWith("http")) {
+      const cleaned = urlGateway.replace(/\/+$/, "");
+      try {
+        localStorage.setItem(LS_CUSTOM_GATEWAY_KEY, cleaned);
+      } catch (e) {
+      }
+    }
+    let savedCustom = "";
+    try {
+      savedCustom = (localStorage.getItem(LS_CUSTOM_GATEWAY_KEY) || "").trim().replace(/\/+$/, "");
+    } catch (e) {
+    }
+    const isRemoteHost = window.location.hostname.includes("github.io") || window.location.protocol === "file:";
+    const forceStandalone = window.location.search.includes("standalone=true");
+    return {
+      isRemoteHost,
+      forceStandalone,
+      activeBaseUrl: isRemoteHost ? savedCustom || DEFAULT_HOME_GATEWAYS[0] : "",
+      customGatewayUrl: savedCustom
+    };
+  }
+  var _gwInit = detectInitialGatewayConfig();
+  var _isStandalone = Boolean(_gwInit.forceStandalone);
+  var _activeApiBaseUrl = _gwInit.activeBaseUrl;
+  var _customGatewayUrl = _gwInit.customGatewayUrl;
+  var _gatewayConnected = !_gwInit.isRemoteHost && !_gwInit.forceStandalone;
+  var _lastGatewayProbeTs = 0;
+  var _gatewayProbeInFlight = null;
   function isStandaloneMode() {
     return _isStandalone;
   }
   function setStandaloneMode(val) {
     _isStandalone = Boolean(val);
+  }
+  function getGatewayConnectionInfo() {
+    return {
+      isRemoteHost: _gwInit.isRemoteHost,
+      gatewayConnected: _gatewayConnected && !_isStandalone,
+      activeApiBaseUrl: _activeApiBaseUrl || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3456"),
+      customGatewayUrl: _customGatewayUrl,
+      defaultGatewayUrl: DEFAULT_HOME_GATEWAYS[0]
+    };
+  }
+  function setCustomGatewayUrl(newUrl) {
+    const cleaned = (newUrl || "").trim().replace(/\/+$/, "");
+    _customGatewayUrl = cleaned;
+    try {
+      if (cleaned) {
+        localStorage.setItem(LS_CUSTOM_GATEWAY_KEY, cleaned);
+      } else {
+        localStorage.removeItem(LS_CUSTOM_GATEWAY_KEY);
+      }
+    } catch (e) {
+    }
+    _activeApiBaseUrl = cleaned || (_gwInit.isRemoteHost ? DEFAULT_HOME_GATEWAYS[0] : "");
+    _isStandalone = false;
+    _lastGatewayProbeTs = 0;
+  }
+  async function fetchWithTimeout(fullUrl, opts = {}, timeoutMs = 4500) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(fullUrl, {
+        ...opts,
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+      return res;
+    } catch (err) {
+      clearTimeout(timer);
+      throw err;
+    }
+  }
+  async function probeHomeGateway(force = false) {
+    if (_gwInit.forceStandalone) return false;
+    const now = Date.now();
+    if (!force && now - _lastGatewayProbeTs < 7e3) {
+      return _gatewayConnected;
+    }
+    if (_gatewayProbeInFlight) return _gatewayProbeInFlight;
+    _lastGatewayProbeTs = now;
+    _gatewayProbeInFlight = (async () => {
+      if (!_gwInit.isRemoteHost && !_customGatewayUrl) {
+        try {
+          const res = await fetchWithTimeout(
+            "/api/state",
+            {
+              method: "GET",
+              headers: { "Accept": "application/json" }
+            },
+            2200
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.config && data.portfolio) {
+              _activeApiBaseUrl = "";
+              _gatewayConnected = true;
+              _isStandalone = false;
+              return true;
+            }
+          }
+        } catch (e) {
+        }
+      }
+      const remoteCandidates = [];
+      if (_customGatewayUrl) remoteCandidates.push(_customGatewayUrl);
+      for (const gw of DEFAULT_HOME_GATEWAYS) {
+        if (!remoteCandidates.includes(gw)) remoteCandidates.push(gw);
+      }
+      try {
+        const winnerBase = await Promise.any(
+          remoteCandidates.map(async (base) => {
+            const res = await fetchWithTimeout(
+              `${base}/api/state`,
+              {
+                method: "GET",
+                headers: {
+                  "Accept": "application/json",
+                  "bypass-tunnel-reminder": "true"
+                }
+              },
+              4200
+            );
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (!data || !data.config || !data.portfolio) {
+              throw new Error("Invalid state payload");
+            }
+            return base;
+          })
+        );
+        _activeApiBaseUrl = winnerBase;
+        _gatewayConnected = true;
+        _isStandalone = false;
+        return true;
+      } catch (e) {
+        _gatewayConnected = false;
+        return false;
+      }
+    })();
+    try {
+      return await _gatewayProbeInFlight;
+    } finally {
+      _gatewayProbeInFlight = null;
+    }
   }
   var _standaloneState = null;
   var latestBrowserOkxTickers = [];
@@ -16037,13 +16186,26 @@
     return JSON.parse(JSON.stringify(_standaloneState));
   }
   async function apiRequest(url, method = "GET", body = null) {
-    if (isStandaloneMode()) {
+    if (_gwInit.forceStandalone) {
       return clientMockEngine(url, method, body);
+    }
+    if (isStandaloneMode()) {
+      probeHomeGateway(false).catch(() => {
+      });
+      if (isStandaloneMode()) {
+        return clientMockEngine(url, method, body);
+      }
     }
     try {
       const forceTickerRefresh = url.startsWith("/api/agent/") || url.startsWith("/api/trade/") || url.startsWith("/api/portfolio/sync");
       await fetchLiveOkxTickersInBrowser(forceTickerRefresh);
-      const opts = { method, headers: { "Content-Type": "application/json" } };
+      const opts = {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "bypass-tunnel-reminder": "true"
+        }
+      };
       if (body && typeof body === "object") {
         const enrichedBody = { ...body };
         if (latestBrowserOkxTickers.length > 0 && (url.startsWith("/api/agent/") || url.startsWith("/api/trade/"))) {
@@ -16053,44 +16215,72 @@
       } else if (body) {
         opts.body = JSON.stringify(body);
       }
-      const res = await fetch(url, opts);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+      let fullUrl = `${_activeApiBaseUrl}${url}`;
+      let res;
+      try {
+        res = await fetchWithTimeout(fullUrl, opts, 6e3);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+      } catch (firstErr) {
+        const recovered = await probeHomeGateway(true);
+        if (!recovered) {
+          throw firstErr;
+        }
+        fullUrl = `${_activeApiBaseUrl}${url}`;
+        res = await fetchWithTimeout(fullUrl, opts, 6e3);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
       }
       const data = await res.json();
+      _gatewayConnected = true;
+      _isStandalone = false;
       const targetState = data?.state || (url.startsWith("/api/state") ? data : null);
-      if (targetState && latestBrowserOkxTickers.length > 0 && !targetState.config?.marketDataStatus?.live) {
-        const map = {};
-        latestBrowserOkxTickers.forEach((t) => {
-          map[t.instId] = t;
-        });
-        if (Array.isArray(targetState.markets)) {
-          targetState.markets.forEach((m) => {
-            const t = map[m.instId] || map[`${m.base}-USDT`];
-            if (t && Number(t.last) > 0) {
-              const last = Number(t.last);
-              const open24h = Number(t.open24h || t.sodUtc0 || last);
-              m.price = last;
-              m.bidPx = Number(t.bidPx || last);
-              m.askPx = Number(t.askPx || last);
-              m.open24h = open24h > 0 ? open24h : last;
-              m.high24h = Number(t.high24h || last);
-              m.low24h = Number(t.low24h || last);
-              m.change24hPct = m.open24h > 0 ? Number(((last - m.open24h) / m.open24h * 100).toFixed(2)) : 0;
-            }
+      if (targetState) {
+        if (latestBrowserOkxTickers.length > 0 && !targetState.config?.marketDataStatus?.live) {
+          const map = {};
+          latestBrowserOkxTickers.forEach((t) => {
+            map[t.instId] = t;
+          });
+          if (Array.isArray(targetState.markets)) {
+            targetState.markets.forEach((m) => {
+              const t = map[m.instId] || map[`${m.base}-USDT`];
+              if (t && Number(t.last) > 0) {
+                const last = Number(t.last);
+                const open24h = Number(t.open24h || t.sodUtc0 || last);
+                m.price = last;
+                m.bidPx = Number(t.bidPx || last);
+                m.askPx = Number(t.askPx || last);
+                m.open24h = open24h > 0 ? open24h : last;
+                m.high24h = Number(t.high24h || last);
+                m.low24h = Number(t.low24h || last);
+                m.change24hPct = m.open24h > 0 ? Number(((last - m.open24h) / m.open24h * 100).toFixed(2)) : 0;
+              }
+            });
+          }
+          recalculateStateValuations(targetState);
+          fetch(`${_activeApiBaseUrl}/api/market/tickers`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "bypass-tunnel-reminder": "true" },
+            body: JSON.stringify({ tickers: latestBrowserOkxTickers })
+          }).catch(() => {
           });
         }
-        recalculateStateValuations(targetState);
-        fetch("/api/market/tickers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tickers: latestBrowserOkxTickers })
-        }).catch(() => {
-        });
+        if (!_standaloneState) initStandaloneState();
+        if (_standaloneState && targetState.portfolio) {
+          _standaloneState.config = { ..._standaloneState.config, ...targetState.config };
+          _standaloneState.portfolio = JSON.parse(JSON.stringify(targetState.portfolio));
+          _standaloneState.activeTradeOrder = targetState.activeTradeOrder || null;
+          if (targetState.sessionSync) {
+            _standaloneState.sessionSync = JSON.parse(JSON.stringify(targetState.sessionSync));
+          }
+          saveStandaloneState();
+        }
       }
       return data;
     } catch (err) {
-      console.warn("API call failed; switching to standalone client engine:", err);
+      _gatewayConnected = false;
       setStandaloneMode(true);
       return clientMockEngine(url, method, body);
     }
@@ -16529,6 +16719,9 @@
     const isDemo = (cfg?.apiMode || "demo") === "demo";
     const activeConn = cfg?.apiConnection || { mode: "demo", connected: true };
     const isAiActive = cfg?.aiStatus === "active";
+    const gwInfo = getGatewayConnectionInfo();
+    const remoteGw = cfg?.remoteGateway || {};
+    const isGatewayReady = Boolean(remoteGw.active || gwInfo.gatewayConnected);
     const dockedTopCount = windowsRegistry.filter((w) => w.mode === "docked-top").length;
     const dockedSidebarCount = windowsRegistry.filter((w) => w.mode === "docked-sidebar").length;
     const topWins = windowsRegistry.filter((w) => w.isTopCtrl);
@@ -16578,6 +16771,17 @@
               title: "Kliknij, aby otworzy\u0107 okno Kluczy API",
               onClick: onOpenApiKeysWindow,
               children: activeConn.connected ? `\u{1F511} KLUCZE API (${activeConn.mode.toUpperCase()}): POD\u0141\u0104CZONE` : `\u26A0\uFE0F KLUCZE API (${activeConn.mode.toUpperCase()}): NIEPOD\u0141\u0104CZONE`
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+            "span",
+            {
+              id: "headerMobileGatewayBadge",
+              className: `status-pill ${isGatewayReady ? "api-connected" : "mode-demo"}`,
+              style: { cursor: "pointer" },
+              title: "Brama Domowa IP (OKX Whitelist) \u2014 zapewnia dzia\u0142anie kluczy API na telefonie poza domem (LTE/5G) oraz pe\u0142n\u0105 synchronizacj\u0119 Desktop \u21C4 Telefon. Kliknij po szczeg\xF3\u0142y i kod QR.",
+              onClick: onOpenApiKeysWindow,
+              children: isGatewayReady ? `\u{1F4F1} BRAMA IP (WHITELIST): AKTYWNA${remoteGw.homePublicIp && remoteGw.homePublicIp !== "Wykrywanie IP..." ? ` (${remoteGw.homePublicIp})` : ""}` : "\u{1F4F1} BRAMA IP: TRYB MOBILNY"
             }
           ),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "header-ai-status-group", id: "headerAiStatusGroup", children: [
@@ -17087,6 +17291,37 @@
     onCloseWindow,
     onBringToFront
   }) {
+    const gwInfo = getGatewayConnectionInfo();
+    const remoteGw = cfg?.remoteGateway || {};
+    const activeTunnelUrl = remoteGw.tunnelUrl || gwInfo.customGatewayUrl || gwInfo.defaultGatewayUrl || "https://okx-eea-gregor-home-gw.loca.lt";
+    const mobilePairedUrl = `https://gitgregor.github.io/ai_agent_okx_app_v1_00/?gateway=${encodeURIComponent(
+      activeTunnelUrl
+    )}`;
+    const [customGwInput, setCustomGwInput] = (0, import_react4.useState)(
+      gwInfo.customGatewayUrl || activeTunnelUrl
+    );
+    const [gwCopyMsg, setGwCopyMsg] = (0, import_react4.useState)("");
+    const handleCopyMobileLink = () => {
+      try {
+        navigator.clipboard.writeText(mobilePairedUrl);
+        setGwCopyMsg("\u2705 Skopiowano link mobilny z Bram\u0105 IP!");
+        setTimeout(() => setGwCopyMsg(""), 3500);
+      } catch (e) {
+        setGwCopyMsg("Skopiuj adres r\u0119cznie z pola powy\u017Cej.");
+      }
+    };
+    const handleReconnectGateway = async () => {
+      setCustomGatewayUrl(customGwInput);
+      setGwCopyMsg("\u23F3 \u0141\u0105czenie z Bram\u0105 Domow\u0105 IP...");
+      const ok = await probeHomeGateway(true);
+      if (ok) {
+        setGwCopyMsg("\u2705 Po\u0142\u0105czono z Bram\u0105 Domow\u0105 IP (Whitelist OKX aktywny)!");
+        if (onManualSyncOkx) onManualSyncOkx();
+      } else {
+        setGwCopyMsg("\u26A0\uFE0F Nie uda\u0142o si\u0119 po\u0142\u0105czy\u0107 z tunelem \u2014 upewnij si\u0119, \u017Ce serwer na PC w domu jest w\u0142\u0105czony.");
+      }
+      setTimeout(() => setGwCopyMsg(""), 4500);
+    };
     const topWinsInGrid = windowsRegistry.filter(
       (w) => w.isTopCtrl && (w.mode === "grid" || w.mode === "minimized-inline")
     );
@@ -17247,6 +17482,14 @@
                             className: `mini-conn-pill ${liveConn.connected ? "ok" : "err"}`,
                             children: liveConn.connected ? `LIVE API: \u{1F7E2} Pod\u0142\u0105czone (${liveConn.keyPreview || "***"})` : `LIVE API: \u{1F534} Niepod\u0142\u0105czone (${liveConn.reasonCode === "MISSING_ALL_KEYS" ? "Brak kluczy Live" : liveConn.reasonCode || "Brak kluczy"})`
                           }
+                        ),
+                        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                          "span",
+                          {
+                            id: "pillStatusHomeGateway",
+                            className: `mini-conn-pill ${remoteGw.active || gwInfo.gatewayConnected ? "ok" : "err"}`,
+                            children: remoteGw.active || gwInfo.gatewayConnected ? `\u{1F4F1} Brama Domowa IP (Whitelist): \u{1F7E2} Aktywna (${remoteGw.homePublicIp || "Domowy PC"})` : "\u{1F4F1} Brama Domowa IP: \u{1F7E1} Tryb Mobilny / Cache"
+                          }
                         )
                       ] })
                     ]
@@ -17297,6 +17540,172 @@
                       }
                     )
                   ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+                    "div",
+                    {
+                      id: "mobileIpGatewayPanel",
+                      className: "api-diag-box diag-ok",
+                      style: { marginBottom: "12px", border: "1px solid rgba(16, 185, 129, 0.45)" },
+                      children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "diag-header", style: { flexWrap: "wrap", gap: "8px" }, children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("strong", { children: "\u{1F4F1} Brama Domowa IP (OKX IP Whitelist) & Synchronizacja Desktop \u21C4 Telefon poza domem" }),
+                          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "diag-badge ok", children: remoteGw.active || gwInfo.gatewayConnected ? "AKTYWNA BRAMA IP WHITELIST" : "GOTOWA DO PO\u0141\u0104CZENIA" })
+                        ] }),
+                        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("p", { className: "diag-reason", style: { marginTop: "6px", lineHeight: 1.45 }, children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("strong", { children: "Rozwi\u0105zanie problemu zmiennego IP w telefonie kom\xF3rkowym (LTE / 5G / Wi-Fi poza domem):" }),
+                          " ",
+                          "Gie\u0142da OKX sprawdza adres IP urz\u0105dzenia podpisuj\u0105cego klucze API (HMAC-SHA256). Tw\xF3j komputer w domu (",
+                          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("code", { children: "node server/index.js" }),
+                          ") posiada sta\u0142y adres IP wpisany na bia\u0142\u0105 list\u0119 OKX (",
+                          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("strong", { children: remoteGw.homePublicIp || "Domowe IP" }),
+                          ") i automatycznie wystawia szyfrowany tunel HTTPS Bramy Domowej (",
+                          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("code", { children: activeTunnelUrl }),
+                          "). Gdy wychodzisz z telefonem z domu, aplikacja mobilna \u0142\u0105czy si\u0119 z Twoj\u0105 Bram\u0105 Domow\u0105 i wykonuje wszystkie operacje na OKX ze stacjonarnego adresu IP z Whitelisty oraz w 100% synchronizuje portfel, czat AI, strategie i histori\u0119 w czasie rzeczywistym!"
+                        ] }),
+                        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+                          "div",
+                          {
+                            style: {
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: "12px",
+                              alignItems: "center",
+                              marginTop: "10px",
+                              padding: "10px",
+                              borderRadius: "8px",
+                              background: "rgba(15, 23, 42, 0.65)",
+                              border: "1px solid rgba(148, 163, 184, 0.2)"
+                            },
+                            children: [
+                              /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { flex: "1 1 260px", minWidth: "220px" }, children: [
+                                /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { fontSize: "0.78rem", color: "#94a3b8", marginBottom: "4px" }, children: [
+                                  "\u{1F517} ",
+                                  /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("strong", { children: "Link na telefon (automatycznie \u0142\u0105czy z domowym IP Whitelist):" })
+                                ] }),
+                                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                                  "input",
+                                  {
+                                    type: "text",
+                                    id: "mobilePairedUrlInput",
+                                    readOnly: true,
+                                    value: mobilePairedUrl,
+                                    style: {
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      fontSize: "0.78rem",
+                                      borderRadius: "6px",
+                                      border: "1px solid rgba(56, 189, 248, 0.4)",
+                                      background: "#090d16",
+                                      color: "#38bdf8",
+                                      marginBottom: "8px"
+                                    }
+                                  }
+                                ),
+                                /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { fontSize: "0.76rem", color: "#94a3b8", marginBottom: "4px" }, children: [
+                                  "\u{1F310} ",
+                                  /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("strong", { children: "Adres tunelu Bramy Domowej IP (mo\u017Cesz zmieni\u0107 lub od\u015Bwie\u017Cy\u0107):" })
+                                ] }),
+                                /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { display: "flex", gap: "6px", flexWrap: "wrap" }, children: [
+                                  /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                                    "input",
+                                    {
+                                      type: "text",
+                                      id: "customGatewayUrlInput",
+                                      value: customGwInput,
+                                      onChange: (e) => setCustomGwInput(e.target.value),
+                                      placeholder: "https://okx-eea-gregor-home-gw.loca.lt",
+                                      style: {
+                                        flex: "1 1 180px",
+                                        padding: "6px 8px",
+                                        fontSize: "0.78rem",
+                                        borderRadius: "6px",
+                                        border: "1px solid rgba(148, 163, 184, 0.3)",
+                                        background: "#090d16",
+                                        color: "#f8fafc"
+                                      }
+                                    }
+                                  ),
+                                  /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                                    "button",
+                                    {
+                                      type: "button",
+                                      id: "btnCopyMobileGatewayLink",
+                                      className: "btn btn-outline-sm",
+                                      onClick: handleCopyMobileLink,
+                                      children: "\u{1F4CB} Kopiuj Link na Telefon"
+                                    }
+                                  ),
+                                  /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                                    "button",
+                                    {
+                                      type: "button",
+                                      id: "btnReconnectHomeGateway",
+                                      className: "btn btn-primary-sm",
+                                      onClick: handleReconnectGateway,
+                                      children: "\u{1F504} Po\u0142\u0105cz z Bram\u0105 IP"
+                                    }
+                                  )
+                                ] }),
+                                gwCopyMsg && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                                  "div",
+                                  {
+                                    style: {
+                                      marginTop: "6px",
+                                      fontSize: "0.78rem",
+                                      color: "#10b981",
+                                      fontWeight: 600
+                                    },
+                                    children: gwCopyMsg
+                                  }
+                                )
+                              ] }),
+                              /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+                                "div",
+                                {
+                                  style: {
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    background: "#ffffff",
+                                    padding: "6px",
+                                    borderRadius: "8px",
+                                    minWidth: "108px"
+                                  },
+                                  title: "Zeskanuj aparatem telefonu, aby otworzy\u0107 zsynchronizowan\u0105 aplikacj\u0119 po\u0142\u0105czon\u0105 z domowym IP Whitelist",
+                                  children: [
+                                    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                                      "img",
+                                      {
+                                        src: `https://api.qrserver.com/v1/create-qr-code/?size=96x96&data=${encodeURIComponent(
+                                          mobilePairedUrl
+                                        )}`,
+                                        alt: "Kod QR aplikacji mobilnej OKX z Bram\u0105 IP",
+                                        width: "96",
+                                        height: "96",
+                                        style: { display: "block", borderRadius: "4px" }
+                                      }
+                                    ),
+                                    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                                      "span",
+                                      {
+                                        style: {
+                                          fontSize: "0.66rem",
+                                          color: "#0f172a",
+                                          fontWeight: 700,
+                                          marginTop: "3px"
+                                        },
+                                        children: "\u{1F4F1} Zeskanuj telefonem"
+                                      }
+                                    )
+                                  ]
+                                }
+                              )
+                            ]
+                          }
+                        )
+                      ]
+                    }
+                  ),
                   /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("form", { id: "apiKeyForm", className: "accordion-form", onSubmit: onSubmitApiKeys, children: [
                     /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "form-row-inline", children: [
                       /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("label", { children: [
@@ -20658,6 +21067,30 @@
     topMenuOpenRef.current = topMenuOpen;
     const topMenuSizeRef = (0, import_react13.useRef)(topMenuSize);
     topMenuSizeRef.current = topMenuSize;
+    const lastSessionSyncTsRef = (0, import_react13.useRef)(0);
+    (0, import_react13.useEffect)(() => {
+      const sync = appState?.sessionSync;
+      if (!sync || !sync.updatedAt) return;
+      if (sync.updatedAt <= lastSessionSyncTsRef.current) return;
+      lastSessionSyncTsRef.current = sync.updatedAt;
+      if (Array.isArray(sync.chatMessages) && sync.chatMessages.length > 0) {
+        setChatMessages((prev) => {
+          if (sync.chatMessages.length >= prev.length) {
+            return sync.chatMessages;
+          }
+          return prev;
+        });
+      }
+      if (sync.currentAiStrategyAnalysis) {
+        setCurrentAiStrategyAnalysis(sync.currentAiStrategyAnalysis);
+      }
+      if (Array.isArray(sync.executedSessionTransactions) && sync.executedSessionTransactions.length > 0) {
+        setExecutedSessionTransactions(sync.executedSessionTransactions);
+      }
+      if (sync.lastExchangeFeedback) {
+        setLastExchangeFeedback(sync.lastExchangeFeedback);
+      }
+    }, [appState?.sessionSync]);
     const nextZIndex = (0, import_react13.useCallback)((bonus = 0) => {
       zIndexCounterRef.current += 1;
       return zIndexCounterRef.current + bonus;
@@ -21669,7 +22102,122 @@
           onClearDrawingsToast: (instId) => showToast(`\u{1F5D1}\uFE0F Wyczyszczono rysunki na wykresie ${instId}.`)
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { id: "toastContainer", className: "toast-container", children: toasts.map((t) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "toast", children: t.msg }, t.id)) })
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { id: "toastContainer", className: "toast-container", children: toasts.map((t) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "toast", children: t.msg }, t.id)) }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+        "nav",
+        {
+          id: "mobileQuickNav",
+          className: "mobile-bottom-nav",
+          "aria-label": "Szybka nawigacja mobilna",
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+              "button",
+              {
+                type: "button",
+                className: "mobile-nav-btn",
+                onClick: () => setWindowMode("win-ai-chat", "grid"),
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4AC}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Agent AI" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+              "button",
+              {
+                type: "button",
+                className: "mobile-nav-btn",
+                onClick: handleOpenAiStrategies,
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F9E0}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Strategie" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+              "button",
+              {
+                type: "button",
+                className: "mobile-nav-btn",
+                onClick: () => setWindowMode("win-quick-trade", "grid"),
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u26A1" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Handel" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+              "button",
+              {
+                type: "button",
+                className: "mobile-nav-btn",
+                onClick: () => {
+                  setWindowMode("win-portfolio", "grid");
+                  setWindowMode("win-bought-sold", "grid");
+                },
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4BC}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Portfel" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+              "button",
+              {
+                type: "button",
+                className: "mobile-nav-btn",
+                onClick: () => {
+                  setWindowMode("win-portfolio-history", "grid");
+                  setWindowMode("win-orders-history", "grid");
+                },
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4DC}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Historia" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+              "button",
+              {
+                type: "button",
+                className: "mobile-nav-btn",
+                onClick: () => openAssetChart(chartState.instId || "BTC-USDC", "full"),
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F56F}\uFE0F" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Wykres" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+              "button",
+              {
+                type: "button",
+                className: "mobile-nav-btn",
+                onClick: () => {
+                  setWindowMode("win-ctrl-api", "grid");
+                  setApiAccordionOpen(true);
+                },
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F511}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "IP / API" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+              "button",
+              {
+                type: "button",
+                className: "mobile-nav-btn",
+                onClick: handleResetAllWindowsGrid,
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u229E" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Wszystkie" })
+                ]
+              }
+            )
+          ]
+        }
+      )
     ] });
   }
 

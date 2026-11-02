@@ -116,6 +116,14 @@ class OkxEeaTradingEngine {
         skills: ['okx-cex-market', 'okx-cex-trade', 'okx-cex-portfolio', 'okx-cex-bot'],
         endpoint: '/api/mcp',
         siteFlag: '--site eea'
+      },
+      remoteGateway: {
+        active: false,
+        tunnelUrl: 'https://okx-eea-gregor-home-gw.loca.lt',
+        homePublicIp: 'Wykrywanie IP...',
+        mobileAppUrl: 'https://gitgregor.github.io/ai_agent_okx_app_v1_00/',
+        statusLabel: 'Inicjalizacja tunelu Bramy Domowej IP (OKX Whitelist)...',
+        lastConnectedAt: null
       }
     };
 
@@ -205,6 +213,13 @@ class OkxEeaTradingEngine {
     };
 
     this.activeTradeOrder = null;
+    this.sessionSync = {
+      chatMessages: [],
+      currentAiStrategyAnalysis: null,
+      executedSessionTransactions: [],
+      lastExchangeFeedback: null,
+      updatedAt: Date.now()
+    };
 
     // 1. Load saved API keys & session orders from disk
     this._loadSavedKeys();
@@ -215,24 +230,39 @@ class OkxEeaTradingEngine {
     this._initLiveOkxData();
   }
 
+  setGatewayStatus(statusUpdate = {}) {
+    this.config.remoteGateway = {
+      ...this.config.remoteGateway,
+      ...statusUpdate
+    };
+  }
+
   _loadSessionOrders() {
     try {
       if (fs.existsSync(SESSION_ORDERS_FILE_PATH)) {
         const saved = JSON.parse(fs.readFileSync(SESSION_ORDERS_FILE_PATH, 'utf8'));
         if (Array.isArray(saved.demo)) this.portfolios.demo.sessionOrders = saved.demo;
         if (Array.isArray(saved.live)) this.portfolios.live.sessionOrders = saved.live;
+        if (saved.sessionSync && typeof saved.sessionSync === 'object') {
+          this.sessionSync = {
+            ...this.sessionSync,
+            ...saved.sessionSync
+          };
+        }
       }
     } catch (e) {}
   }
 
   _saveSessionOrders() {
     try {
+      this.sessionSync.updatedAt = Date.now();
       fs.writeFileSync(
         SESSION_ORDERS_FILE_PATH,
         JSON.stringify(
           {
             demo: this.portfolios.demo.sessionOrders || [],
-            live: this.portfolios.live.sessionOrders || []
+            live: this.portfolios.live.sessionOrders || [],
+            sessionSync: this.sessionSync
           },
           null,
           2
@@ -523,7 +553,19 @@ class OkxEeaTradingEngine {
     }
   }
 
+  async _detectPublicIp() {
+    try {
+      const res = await this._httpsRequestJson('https://api.ipify.org', '/?format=json', 'GET');
+      if (res.data && res.data.ip) {
+        this.config.remoteGateway.homePublicIp = res.data.ip;
+      }
+    } catch (e) {
+      // Keep default label if offline
+    }
+  }
+
   async _initLiveOkxData() {
+    this._detectPublicIp().catch(() => {});
     await this.fetchRealOkxTickers();
     this._seedInitialSnapshotIfEmpty();
 
@@ -1326,9 +1368,11 @@ class OkxEeaTradingEngine {
           demo: demoConnection,
           live: liveConnection
         },
-        mcpServer: this.config.mcpServer
+        mcpServer: this.config.mcpServer,
+        remoteGateway: this.config.remoteGateway
       },
       activeTradeOrder: this.activeTradeOrder,
+      sessionSync: this.sessionSync,
       markets: marketsList,
       portfolio: activePortfolio
     };
@@ -1653,6 +1697,29 @@ class OkxEeaTradingEngine {
 
     portfolio.sessionOrders.unshift(orderRecord);
     portfolio.orders.unshift(orderRecord);
+
+    // Sync executed transaction & feedback across Desktop and Mobile sessions
+    this.sessionSync.lastExchangeFeedback = exchangeFeedback;
+    this.sessionSync.executedSessionTransactions = [
+      { ...exchangeFeedback, collapsed: false },
+      ...(this.sessionSync.executedSessionTransactions || []).filter((t) => t.orderId !== exchangeFeedback.orderId)
+    ].slice(0, 30);
+    this.sessionSync.chatMessages = [
+      ...(this.sessionSync.chatMessages || []),
+      {
+        id: `exec-${finalOrderId}-${Date.now()}`,
+        role: 'assistant',
+        text: [
+          `✅ **KOMUNIKAT ZWROTNY Z GIEŁDY OKX EUROPE (EXCHANGE FEEDBACK) — #${exchangeFeedback.orderId}:**`,
+          `- **Założenie strategii i proces:** ${exchangeFeedback.strategyMessage}`,
+          `- **Potwierdzenie z giełdy:** ${exchangeFeedback.exchangeMessage}`,
+          `- 💾 *Rezultat został zapisany w historii transakcji i historii portfela — dostępny po naciśnięciu klawisza **Szczegóły transakcji (Exchange Feedback)**.*`
+        ].join('\n'),
+        orderId: exchangeFeedback.orderId,
+        isExecutedTx: true
+      }
+    ].slice(-40);
+
     this._saveSessionOrders();
     this._reconcilePortfolioTransactions(mode, portfolio.orders);
 
@@ -1911,12 +1978,29 @@ class OkxEeaTradingEngine {
       `👇 Kliknij przycisk **Potwierdź** w karcie zlecenia powyżej, aby natychmiast zrealizować transakcję na giełdzie.`
     ].join('\n');
 
+    this.sessionSync.chatMessages = [
+      ...(this.sessionSync.chatMessages || []),
+      {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        text
+      },
+      {
+        id: `ai-${Date.now() + 1}`,
+        role: 'assistant',
+        text: reply,
+        orderId: proposed.activeTradeOrder?.id,
+        isPendingTx: true
+      }
+    ].slice(-40);
+    this._saveSessionOrders();
+
     return {
       ok: true,
       reply,
       mcpCalls,
       activeTradeOrder: proposed.activeTradeOrder,
-      state: proposed.state
+      state: this.getState()
     };
   }
 
@@ -2186,12 +2270,30 @@ class OkxEeaTradingEngine {
       `👇 Możesz od razu kliknąć **Potwierdź**, aby zrealizować tę strategię kupna na giełdzie OKX.`
     ].join('\n');
 
+    this.sessionSync.currentAiStrategyAnalysis = analysis;
+    this.sessionSync.chatMessages = [
+      ...(this.sessionSync.chatMessages || []),
+      {
+        id: `strat-user-${Date.now()}`,
+        role: 'user',
+        text: `[AI Strategies] ${rawQuery}`
+      },
+      {
+        id: `strat-ai-${Date.now() + 1}`,
+        role: 'assistant',
+        text: reply,
+        orderId: proposed.activeTradeOrder?.id,
+        isPendingTx: true
+      }
+    ].slice(-40);
+    this._saveSessionOrders();
+
     return {
       ok: true,
       analysis,
       reply,
       activeTradeOrder: proposed.activeTradeOrder,
-      state: proposed.state
+      state: this.getState()
     };
   }
 

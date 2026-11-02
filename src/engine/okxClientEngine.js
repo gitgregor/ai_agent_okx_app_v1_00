@@ -66,11 +66,51 @@ export const DEFAULT_STANDALONE_MARKETS = [
   { instId: 'SUI-USDC', base: 'SUI', quote: 'USDC', name: 'Sui Network', price: 0.8677, bidPx: 0.8687, askPx: 0.8690, open24h: 0.8947, high24h: 0.9080, low24h: 0.8631, vol24h: 952011.95, volCcy24h: 843315, change24hPct: -3.02 }
 ];
 
-let _isStandalone =
-  typeof window !== 'undefined' &&
-  (window.location.hostname.includes('github.io') ||
-    window.location.protocol === 'file:' ||
-    window.location.search.includes('standalone=true'));
+const LS_CUSTOM_GATEWAY_KEY = 'okx_custom_gateway_url_v1';
+const DEFAULT_HOME_GATEWAYS = [
+  'https://okx-eea-gregor-home-gw.loca.lt',
+  'https://okx-eea-gregor-home-gw-2.loca.lt',
+  'https://okx-eea-gregor-home-gw-3.loca.lt'
+];
+
+function detectInitialGatewayConfig() {
+  if (typeof window === 'undefined') {
+    return { isRemoteHost: false, activeBaseUrl: '', customGatewayUrl: '' };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const urlGateway = params.get('gateway');
+  if (urlGateway && urlGateway.startsWith('http')) {
+    const cleaned = urlGateway.replace(/\/+$/, '');
+    try {
+      localStorage.setItem(LS_CUSTOM_GATEWAY_KEY, cleaned);
+    } catch (e) {}
+  }
+  let savedCustom = '';
+  try {
+    savedCustom = (localStorage.getItem(LS_CUSTOM_GATEWAY_KEY) || '').trim().replace(/\/+$/, '');
+  } catch (e) {}
+
+  const isRemoteHost =
+    window.location.hostname.includes('github.io') ||
+    window.location.protocol === 'file:';
+
+  const forceStandalone = window.location.search.includes('standalone=true');
+
+  return {
+    isRemoteHost,
+    forceStandalone,
+    activeBaseUrl: isRemoteHost ? (savedCustom || DEFAULT_HOME_GATEWAYS[0]) : '',
+    customGatewayUrl: savedCustom
+  };
+}
+
+const _gwInit = detectInitialGatewayConfig();
+let _isStandalone = Boolean(_gwInit.forceStandalone);
+let _activeApiBaseUrl = _gwInit.activeBaseUrl;
+let _customGatewayUrl = _gwInit.customGatewayUrl;
+let _gatewayConnected = !_gwInit.isRemoteHost && !_gwInit.forceStandalone;
+let _lastGatewayProbeTs = 0;
+let _gatewayProbeInFlight = null;
 
 export function isStandaloneMode() {
   return _isStandalone;
@@ -78,6 +118,126 @@ export function isStandaloneMode() {
 
 export function setStandaloneMode(val) {
   _isStandalone = Boolean(val);
+}
+
+export function getGatewayConnectionInfo() {
+  return {
+    isRemoteHost: _gwInit.isRemoteHost,
+    gatewayConnected: _gatewayConnected && !_isStandalone,
+    activeApiBaseUrl: _activeApiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3456'),
+    customGatewayUrl: _customGatewayUrl,
+    defaultGatewayUrl: DEFAULT_HOME_GATEWAYS[0]
+  };
+}
+
+export function setCustomGatewayUrl(newUrl) {
+  const cleaned = (newUrl || '').trim().replace(/\/+$/, '');
+  _customGatewayUrl = cleaned;
+  try {
+    if (cleaned) {
+      localStorage.setItem(LS_CUSTOM_GATEWAY_KEY, cleaned);
+    } else {
+      localStorage.removeItem(LS_CUSTOM_GATEWAY_KEY);
+    }
+  } catch (e) {}
+  _activeApiBaseUrl = cleaned || (_gwInit.isRemoteHost ? DEFAULT_HOME_GATEWAYS[0] : '');
+  _isStandalone = false;
+  _lastGatewayProbeTs = 0;
+}
+
+async function fetchWithTimeout(fullUrl, opts = {}, timeoutMs = 4500) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(fullUrl, {
+      ...opts,
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    return res;
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
+}
+
+export async function probeHomeGateway(force = false) {
+  if (_gwInit.forceStandalone) return false;
+  const now = Date.now();
+  if (!force && now - _lastGatewayProbeTs < 7000) {
+    return _gatewayConnected;
+  }
+  if (_gatewayProbeInFlight) return _gatewayProbeInFlight;
+
+  _lastGatewayProbeTs = now;
+  _gatewayProbeInFlight = (async () => {
+    // 1. If running on local PC / LAN, check local relative origin first
+    if (!_gwInit.isRemoteHost && !_customGatewayUrl) {
+      try {
+        const res = await fetchWithTimeout(
+          '/api/state',
+          {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+          },
+          2200
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.config && data.portfolio) {
+            _activeApiBaseUrl = '';
+            _gatewayConnected = true;
+            _isStandalone = false;
+            return true;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 2. Probe all remote Home IP Gateway candidates in parallel so the active tunnel responds in <300ms
+    const remoteCandidates = [];
+    if (_customGatewayUrl) remoteCandidates.push(_customGatewayUrl);
+    for (const gw of DEFAULT_HOME_GATEWAYS) {
+      if (!remoteCandidates.includes(gw)) remoteCandidates.push(gw);
+    }
+
+    try {
+      const winnerBase = await Promise.any(
+        remoteCandidates.map(async (base) => {
+          const res = await fetchWithTimeout(
+            `${base}/api/state`,
+            {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'bypass-tunnel-reminder': 'true'
+              }
+            },
+            4200
+          );
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          if (!data || !data.config || !data.portfolio) {
+            throw new Error('Invalid state payload');
+          }
+          return base;
+        })
+      );
+      _activeApiBaseUrl = winnerBase;
+      _gatewayConnected = true;
+      _isStandalone = false;
+      return true;
+    } catch (e) {
+      _gatewayConnected = false;
+      return false;
+    }
+  })();
+
+  try {
+    return await _gatewayProbeInFlight;
+  } finally {
+    _gatewayProbeInFlight = null;
+  }
 }
 
 let _standaloneState = null;
@@ -1613,8 +1773,15 @@ export async function clientMockEngine(url, method = 'GET', body = null) {
 }
 
 export async function apiRequest(url, method = 'GET', body = null) {
-  if (isStandaloneMode()) {
+  if (_gwInit.forceStandalone) {
     return clientMockEngine(url, method, body);
+  }
+  if (isStandaloneMode()) {
+    // Periodically check in the background if the Home IP Gateway came back online
+    probeHomeGateway(false).catch(() => {});
+    if (isStandaloneMode()) {
+      return clientMockEngine(url, method, body);
+    }
   }
   try {
     const forceTickerRefresh =
@@ -1623,7 +1790,13 @@ export async function apiRequest(url, method = 'GET', body = null) {
       url.startsWith('/api/portfolio/sync');
     await fetchLiveOkxTickersInBrowser(forceTickerRefresh);
 
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    const opts = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'bypass-tunnel-reminder': 'true'
+      }
+    };
     if (body && typeof body === 'object') {
       const enrichedBody = { ...body };
       if (latestBrowserOkxTickers.length > 0 && (url.startsWith('/api/agent/') || url.startsWith('/api/trade/'))) {
@@ -1634,45 +1807,77 @@ export async function apiRequest(url, method = 'GET', body = null) {
       opts.body = JSON.stringify(body);
     }
 
-    const res = await fetch(url, opts);
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
+    let fullUrl = `${_activeApiBaseUrl}${url}`;
+    let res;
+    try {
+      res = await fetchWithTimeout(fullUrl, opts, 6000);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+    } catch (firstErr) {
+      // If on remote mobile host (github.io) and primary gateway tunnel URL didn't respond, probe alternative gateway tunnels
+      const recovered = await probeHomeGateway(true);
+      if (!recovered) {
+        throw firstErr;
+      }
+      fullUrl = `${_activeApiBaseUrl}${url}`;
+      res = await fetchWithTimeout(fullUrl, opts, 6000);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
     }
+
     const data = await res.json();
+    _gatewayConnected = true;
+    _isStandalone = false;
 
     const targetState = data?.state || (url.startsWith('/api/state') ? data : null);
-    if (targetState && latestBrowserOkxTickers.length > 0 && !targetState.config?.marketDataStatus?.live) {
-      const map = {};
-      latestBrowserOkxTickers.forEach((t) => {
-        map[t.instId] = t;
-      });
-      if (Array.isArray(targetState.markets)) {
-        targetState.markets.forEach((m) => {
-          const t = map[m.instId] || map[`${m.base}-USDT`];
-          if (t && Number(t.last) > 0) {
-            const last = Number(t.last);
-            const open24h = Number(t.open24h || t.sodUtc0 || last);
-            m.price = last;
-            m.bidPx = Number(t.bidPx || last);
-            m.askPx = Number(t.askPx || last);
-            m.open24h = open24h > 0 ? open24h : last;
-            m.high24h = Number(t.high24h || last);
-            m.low24h = Number(t.low24h || last);
-            m.change24hPct = m.open24h > 0 ? Number((((last - m.open24h) / m.open24h) * 100).toFixed(2)) : 0;
-          }
+    if (targetState) {
+      if (latestBrowserOkxTickers.length > 0 && !targetState.config?.marketDataStatus?.live) {
+        const map = {};
+        latestBrowserOkxTickers.forEach((t) => {
+          map[t.instId] = t;
         });
+        if (Array.isArray(targetState.markets)) {
+          targetState.markets.forEach((m) => {
+            const t = map[m.instId] || map[`${m.base}-USDT`];
+            if (t && Number(t.last) > 0) {
+              const last = Number(t.last);
+              const open24h = Number(t.open24h || t.sodUtc0 || last);
+              m.price = last;
+              m.bidPx = Number(t.bidPx || last);
+              m.askPx = Number(t.askPx || last);
+              m.open24h = open24h > 0 ? open24h : last;
+              m.high24h = Number(t.high24h || last);
+              m.low24h = Number(t.low24h || last);
+              m.change24hPct = m.open24h > 0 ? Number((((last - m.open24h) / m.open24h) * 100).toFixed(2)) : 0;
+            }
+          });
+        }
+        recalculateStateValuations(targetState);
+        fetch(`${_activeApiBaseUrl}/api/market/tickers`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'bypass-tunnel-reminder': 'true' },
+          body: JSON.stringify({ tickers: latestBrowserOkxTickers })
+        }).catch(() => {});
       }
-      recalculateStateValuations(targetState);
-      fetch('/api/market/tickers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tickers: latestBrowserOkxTickers })
-      }).catch(() => {});
+
+      // Mirror live Home Gateway state into local cache so mobile phone stays 100% synced even if offline later
+      if (!_standaloneState) initStandaloneState();
+      if (_standaloneState && targetState.portfolio) {
+        _standaloneState.config = { ..._standaloneState.config, ...targetState.config };
+        _standaloneState.portfolio = JSON.parse(JSON.stringify(targetState.portfolio));
+        _standaloneState.activeTradeOrder = targetState.activeTradeOrder || null;
+        if (targetState.sessionSync) {
+          _standaloneState.sessionSync = JSON.parse(JSON.stringify(targetState.sessionSync));
+        }
+        saveStandaloneState();
+      }
     }
 
     return data;
   } catch (err) {
-    console.warn('API call failed; switching to standalone client engine:', err);
+    _gatewayConnected = false;
     setStandaloneMode(true);
     return clientMockEngine(url, method, body);
   }

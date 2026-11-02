@@ -1,6 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { WindowContainer } from './WindowContainer';
-import { formatUsdc } from '../engine/okxClientEngine';
+import {
+  formatUsdc,
+  getGatewayConnectionInfo,
+  setCustomGatewayUrl,
+  probeHomeGateway
+} from '../engine/okxClientEngine';
 
 export function ControlWindows({
   windowsRegistry,
@@ -30,6 +35,43 @@ export function ControlWindows({
   onCloseWindow,
   onBringToFront
 }) {
+  const gwInfo = getGatewayConnectionInfo();
+  const remoteGw = cfg?.remoteGateway || {};
+  const activeTunnelUrl =
+    remoteGw.tunnelUrl ||
+    gwInfo.customGatewayUrl ||
+    gwInfo.defaultGatewayUrl ||
+    'https://okx-eea-gregor-home-gw.loca.lt';
+  const mobilePairedUrl = `https://gitgregor.github.io/ai_agent_okx_app_v1_00/?gateway=${encodeURIComponent(
+    activeTunnelUrl
+  )}`;
+  const [customGwInput, setCustomGwInput] = useState(
+    gwInfo.customGatewayUrl || activeTunnelUrl
+  );
+  const [gwCopyMsg, setGwCopyMsg] = useState('');
+
+  const handleCopyMobileLink = () => {
+    try {
+      navigator.clipboard.writeText(mobilePairedUrl);
+      setGwCopyMsg('✅ Skopiowano link mobilny z Bramą IP!');
+      setTimeout(() => setGwCopyMsg(''), 3500);
+    } catch (e) {
+      setGwCopyMsg('Skopiuj adres ręcznie z pola powyżej.');
+    }
+  };
+
+  const handleReconnectGateway = async () => {
+    setCustomGatewayUrl(customGwInput);
+    setGwCopyMsg('⏳ Łączenie z Bramą Domową IP...');
+    const ok = await probeHomeGateway(true);
+    if (ok) {
+      setGwCopyMsg('✅ Połączono z Bramą Domową IP (Whitelist OKX aktywny)!');
+      if (onManualSyncOkx) onManualSyncOkx();
+    } else {
+      setGwCopyMsg('⚠️ Nie udało się połączyć z tunelem — upewnij się, że serwer na PC w domu jest włączony.');
+    }
+    setTimeout(() => setGwCopyMsg(''), 4500);
+  };
   const topWinsInGrid = windowsRegistry.filter(
     (w) => w.isTopCtrl && (w.mode === 'grid' || w.mode === 'minimized-inline')
   );
@@ -198,6 +240,14 @@ export function ControlWindows({
                       : liveConn.reasonCode || 'Brak kluczy'
                   })`}
             </span>
+            <span
+              id="pillStatusHomeGateway"
+              className={`mini-conn-pill ${remoteGw.active || gwInfo.gatewayConnected ? 'ok' : 'err'}`}
+            >
+              {remoteGw.active || gwInfo.gatewayConnected
+                ? `📱 Brama Domowa IP (Whitelist): 🟢 Aktywna (${remoteGw.homePublicIp || 'Domowy PC'})`
+                : '📱 Brama Domowa IP: 🟡 Tryb Mobilny / Cache'}
+            </span>
           </div>
         </div>
 
@@ -236,6 +286,143 @@ export function ControlWindows({
               <p id="diagReasonLive" className="diag-reason">
                 {liveConn.connected ? liveConn.reason : `Powód: ${liveConn.reason}`}
               </p>
+            </div>
+          </div>
+
+          <div
+            id="mobileIpGatewayPanel"
+            className="api-diag-box diag-ok"
+            style={{ marginBottom: '12px', border: '1px solid rgba(16, 185, 129, 0.45)' }}
+          >
+            <div className="diag-header" style={{ flexWrap: 'wrap', gap: '8px' }}>
+              <strong>
+                📱 Brama Domowa IP (OKX IP Whitelist) & Synchronizacja Desktop ⇄ Telefon poza domem
+              </strong>
+              <span className="diag-badge ok">
+                {remoteGw.active || gwInfo.gatewayConnected
+                  ? 'AKTYWNA BRAMA IP WHITELIST'
+                  : 'GOTOWA DO POŁĄCZENIA'}
+              </span>
+            </div>
+            <p className="diag-reason" style={{ marginTop: '6px', lineHeight: 1.45 }}>
+              <strong>Rozwiązanie problemu zmiennego IP w telefonie komórkowym (LTE / 5G / Wi-Fi poza domem):</strong>{' '}
+              Giełda OKX sprawdza adres IP urządzenia podpisującego klucze API (HMAC-SHA256). Twój komputer w domu (<code>node server/index.js</code>) posiada stały adres IP wpisany na białą listę OKX (<strong>{remoteGw.homePublicIp || 'Domowe IP'}</strong>) i automatycznie wystawia szyfrowany tunel HTTPS Bramy Domowej (<code>{activeTunnelUrl}</code>). Gdy wychodzisz z telefonem z domu, aplikacja mobilna łączy się z Twoją Bramą Domową i wykonuje wszystkie operacje na OKX ze stacjonarnego adresu IP z Whitelisty oraz w 100% synchronizuje portfel, czat AI, strategie i historię w czasie rzeczywistym!
+            </p>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '12px',
+                alignItems: 'center',
+                marginTop: '10px',
+                padding: '10px',
+                borderRadius: '8px',
+                background: 'rgba(15, 23, 42, 0.65)',
+                border: '1px solid rgba(148, 163, 184, 0.2)'
+              }}
+            >
+              <div style={{ flex: '1 1 260px', minWidth: '220px' }}>
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '4px' }}>
+                  🔗 <strong>Link na telefon (automatycznie łączy z domowym IP Whitelist):</strong>
+                </div>
+                <input
+                  type="text"
+                  id="mobilePairedUrlInput"
+                  readOnly
+                  value={mobilePairedUrl}
+                  style={{
+                    width: '100%',
+                    padding: '6px 8px',
+                    fontSize: '0.78rem',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(56, 189, 248, 0.4)',
+                    background: '#090d16',
+                    color: '#38bdf8',
+                    marginBottom: '8px'
+                  }}
+                />
+                <div style={{ fontSize: '0.76rem', color: '#94a3b8', marginBottom: '4px' }}>
+                  🌐 <strong>Adres tunelu Bramy Domowej IP (możesz zmienić lub odświeżyć):</strong>
+                </div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    id="customGatewayUrlInput"
+                    value={customGwInput}
+                    onChange={(e) => setCustomGwInput(e.target.value)}
+                    placeholder="https://okx-eea-gregor-home-gw.loca.lt"
+                    style={{
+                      flex: '1 1 180px',
+                      padding: '6px 8px',
+                      fontSize: '0.78rem',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(148, 163, 184, 0.3)',
+                      background: '#090d16',
+                      color: '#f8fafc'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    id="btnCopyMobileGatewayLink"
+                    className="btn btn-outline-sm"
+                    onClick={handleCopyMobileLink}
+                  >
+                    📋 Kopiuj Link na Telefon
+                  </button>
+                  <button
+                    type="button"
+                    id="btnReconnectHomeGateway"
+                    className="btn btn-primary-sm"
+                    onClick={handleReconnectGateway}
+                  >
+                    🔄 Połącz z Bramą IP
+                  </button>
+                </div>
+                {gwCopyMsg && (
+                  <div
+                    style={{
+                      marginTop: '6px',
+                      fontSize: '0.78rem',
+                      color: '#10b981',
+                      fontWeight: 600
+                    }}
+                  >
+                    {gwCopyMsg}
+                  </div>
+                )}
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  background: '#ffffff',
+                  padding: '6px',
+                  borderRadius: '8px',
+                  minWidth: '108px'
+                }}
+                title="Zeskanuj aparatem telefonu, aby otworzyć zsynchronizowaną aplikację połączoną z domowym IP Whitelist"
+              >
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=96x96&data=${encodeURIComponent(
+                    mobilePairedUrl
+                  )}`}
+                  alt="Kod QR aplikacji mobilnej OKX z Bramą IP"
+                  width="96"
+                  height="96"
+                  style={{ display: 'block', borderRadius: '4px' }}
+                />
+                <span
+                  style={{
+                    fontSize: '0.66rem',
+                    color: '#0f172a',
+                    fontWeight: 700,
+                    marginTop: '3px'
+                  }}
+                >
+                  📱 Zeskanuj telefonem
+                </span>
+              </div>
             </div>
           </div>
 

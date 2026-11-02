@@ -20,13 +20,16 @@ const MIME_TYPES = {
 };
 
 function sendJson(res, status, data) {
+  const bodyStr = JSON.stringify(data);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
+    'Content-Length': Buffer.byteLength(bodyStr, 'utf8'),
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+    'Access-Control-Allow-Headers': 'Content-Type, bypass-tunnel-reminder, ngrok-skip-browser-warning, Authorization, X-Requested-With',
+    'Access-Control-Max-Age': '86400'
   });
-  res.end(JSON.stringify(data));
+  res.end(bodyStr);
 }
 
 function readJsonBody(req) {
@@ -48,10 +51,13 @@ function readJsonBody(req) {
 
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, {
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Content-Length': '0',
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
+      'Access-Control-Allow-Headers': 'Content-Type, bypass-tunnel-reminder, ngrok-skip-browser-warning, Authorization, X-Requested-With',
+      'Access-Control-Max-Age': '86400'
     });
     return res.end();
   }
@@ -143,6 +149,19 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, result);
     }
 
+    // 6B. Toggle transaction collapse state in synchronized session
+    if (pathname === '/api/session/toggle-tx' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const orderId = body.orderId;
+      if (orderId && engine.sessionSync && Array.isArray(engine.sessionSync.executedSessionTransactions)) {
+        engine.sessionSync.executedSessionTransactions = engine.sessionSync.executedSessionTransactions.map((tx) =>
+          tx.orderId === orderId ? { ...tx, collapsed: !tx.collapsed } : tx
+        );
+        engine._saveSessionOrders();
+      }
+      return sendJson(res, 200, { ok: true, state: engine.getState() });
+    }
+
     // 7. Stop trading button
     if (pathname === '/api/trade/stop' && req.method === 'POST') {
       const result = engine.stopTrading();
@@ -212,11 +231,85 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+const GATEWAY_SUBDOMAINS = [
+  'okx-eea-gregor-home-gw',
+  'okx-eea-gregor-home-gw-2',
+  'okx-eea-gregor-home-gw-3'
+];
+
+let activeTunnelInstance = null;
+let reconnectingTunnel = false;
+
+async function startHomeIpGatewayTunnel(subdomainIndex = 0) {
+  if (reconnectingTunnel) return;
+  reconnectingTunnel = true;
+
+  try {
+    const localtunnel = require('localtunnel');
+    const desiredSubdomain = GATEWAY_SUBDOMAINS[subdomainIndex % GATEWAY_SUBDOMAINS.length];
+
+    const tunnel = await localtunnel({
+      port: Number(PORT),
+      local_host: '127.0.0.1',
+      subdomain: desiredSubdomain
+    });
+
+    activeTunnelInstance = tunnel;
+    reconnectingTunnel = false;
+
+    const assignedUrl = tunnel.url || `https://${desiredSubdomain}.loca.lt`;
+    const isExactMatch = assignedUrl.includes(desiredSubdomain);
+
+    engine.setGatewayStatus({
+      active: true,
+      tunnelUrl: assignedUrl,
+      mobileAppUrl: `https://gitgregor.github.io/ai_agent_okx_app_v1_00/?gateway=${encodeURIComponent(assignedUrl)}`,
+      statusLabel: `AKTYWNA BRAMA DOMOWEGO IP (${assignedUrl.replace('https://', '')}) — Telefon działa poza domem przez Whitelist IP`,
+      lastConnectedAt: new Date().toTimeString().slice(0, 8)
+    });
+
+    console.log(`🌐 [Brama Domowa IP / OKX Whitelist] Tunel mobilny aktywny: ${assignedUrl}`);
+    console.log(`📱 [Telefon poza domem] Link zsynchronizowany: https://gitgregor.github.io/ai_agent_okx_app_v1_00/`);
+
+    // If localtunnel gave a random subdomain because desiredSubdomain was still releasing, try next candidate in 12s
+    if (!isExactMatch && subdomainIndex < GATEWAY_SUBDOMAINS.length - 1) {
+      setTimeout(() => {
+        try {
+          tunnel.close();
+        } catch (e) {}
+      }, 12000);
+    }
+
+    tunnel.on('close', () => {
+      engine.setGatewayStatus({
+        active: false,
+        statusLabel: 'Ponowne łączenie tunelu Bramy Domowej IP...'
+      });
+      activeTunnelInstance = null;
+      setTimeout(() => startHomeIpGatewayTunnel((subdomainIndex + 1) % GATEWAY_SUBDOMAINS.length), 3000);
+    });
+
+    tunnel.on('error', () => {
+      try {
+        tunnel.close();
+      } catch (e) {}
+    });
+  } catch (err) {
+    reconnectingTunnel = false;
+    engine.setGatewayStatus({
+      active: false,
+      statusLabel: `Ponawianie tunelu Bramy Domowej IP (${err.message || 'retry'})...`
+    });
+    setTimeout(() => startHomeIpGatewayTunnel((subdomainIndex + 1) % GATEWAY_SUBDOMAINS.length), 5000);
+  }
+}
+
 server.listen(PORT, () => {
   console.log(`===================================================================`);
   console.log(`🚀 OKX Europe (eea.okx.com) AI Agent & MCP Trading Server uruchomiony!`);
-  console.log(`🌐 Adres aplikacji: http://localhost:${PORT}`);
+  console.log(`🌐 Adres aplikacji (Desktop): http://localhost:${PORT}`);
   console.log(`🔌 Serwer MCP (okx-trade-mcp): http://localhost:${PORT}/api/mcp`);
   console.log(`📊 Domyślny tryb: DEMO | Status Agenta AI: DEZAKTYWOWANY`);
   console.log(`===================================================================`);
+  startHomeIpGatewayTunnel(0);
 });

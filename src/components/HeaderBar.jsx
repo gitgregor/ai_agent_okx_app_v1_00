@@ -1,6 +1,6 @@
 import React from 'react';
 import { getModeLabelPl } from './WindowContainer';
-import { formatUnitPrice, formatRawPrice } from '../engine/okxClientEngine';
+import { formatUnitPrice, formatRawPrice, getGatewayConnectionInfo } from '../engine/okxClientEngine';
 
 export function HeaderBar({
   cfg,
@@ -26,6 +26,9 @@ export function HeaderBar({
   const isDemo = (cfg?.apiMode || 'demo') === 'demo';
   const activeConn = cfg?.apiConnection || { mode: 'demo', connected: true };
   const isAiActive = cfg?.aiStatus === 'active';
+  const gwInfo = getGatewayConnectionInfo();
+  const remoteGw = cfg?.remoteGateway || {};
+  const isGatewayReady = Boolean(remoteGw.active || gwInfo.gatewayConnected);
 
   const dockedTopCount = windowsRegistry.filter((w) => w.mode === 'docked-top').length;
   const dockedSidebarCount = windowsRegistry.filter((w) => w.mode === 'docked-sidebar').length;
@@ -76,6 +79,17 @@ export function HeaderBar({
               {activeConn.connected
                 ? `🔑 KLUCZE API (${activeConn.mode.toUpperCase()}): PODŁĄCZONE`
                 : `⚠️ KLUCZE API (${activeConn.mode.toUpperCase()}): NIEPODŁĄCZONE`}
+            </span>
+            <span
+              id="headerMobileGatewayBadge"
+              className={`status-pill ${isGatewayReady ? 'api-connected' : 'mode-demo'}`}
+              style={{ cursor: 'pointer' }}
+              title="Brama Domowa IP (OKX Whitelist) — zapewnia działanie kluczy API na telefonie poza domem (LTE/5G) oraz pełną synchronizację Desktop ⇄ Telefon. Kliknij po szczegóły i kod QR."
+              onClick={onOpenApiKeysWindow}
+            >
+              {isGatewayReady
+                ? `📱 BRAMA IP (WHITELIST): AKTYWNA${remoteGw.homePublicIp && remoteGw.homePublicIp !== 'Wykrywanie IP...' ? ` (${remoteGw.homePublicIp})` : ''}`
+                : '📱 BRAMA IP: TRYB MOBILNY'}
             </span>
 
             <div className="header-ai-status-group" id="headerAiStatusGroup">
