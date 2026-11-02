@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
   <title>OKX Europe — AI Agent Crypto Trading</title>
-  <link rel="stylesheet" href="./styles.css?v=20261102v10" />
+  <link rel="stylesheet" href="./styles.css?v=20261102v11" />
 </head>
 <body>
   <!-- KOMPAKTOWY JEDNOLINIOWY GÓRNY PASEK NAWIGACJI (BEZ LOGO I TYTUŁU DLA MAKSYMALNEGO MIEJSCA NA EKRANIE) -->
@@ -38,7 +38,7 @@
             aria-expanded="false"
             title="Kliknij, aby otworzyć lub zamknąć okno Menu Górne Okien"
           >
-            🗔 Menu Górne Okien <span id="topMenuDockedCount" class="dock-count-badge">10</span> <span class="chevron">▼</span>
+            🗔 Menu Górne Okien <span id="topMenuDockedCount" class="dock-count-badge">11</span> <span class="chevron">▼</span>
           </button>
 
           <!-- PRZESUWNE OKNO: WYWOŁAJ LUB SCHOWAJ OKNA Z MENU GÓRNEGO (WERSJA MINIMALNA, MEDIUM, FULL + ZAMKNIĘCIE) -->
@@ -112,9 +112,9 @@
         </div>
       </div>
 
-      <!-- Pełna lista wszystkich 10 okien ze sterowaniem -->
+      <!-- Pełna lista wszystkich 11 okien ze sterowaniem -->
       <div class="sidebar-section">
-        <div class="sidebar-section-label">WSZYSTKIE OKNA APLIKACJI (10)</div>
+        <div class="sidebar-section-label">WSZYSTKIE OKNA APLIKACJI (11)</div>
         <div id="sidebarAllWindowsList" class="sidebar-windows-list">
           <!-- Renderowane dynamicznie -->
         </div>
@@ -378,6 +378,7 @@
               <span class="window-mode-badge" data-mode-badge="win-ai-chat">W Menu Górnym</span>
             </div>
             <div class="window-titlebar-controls">
+              <button type="button" class="win-ctrl-btn btn-titlebar-ai-strategies open-ai-strategies-btn" title="Otwórz okno AI Strategies ( możliwości Agenta AI, przykłady zapytań oraz Analiza i Strategia Kupna z OKX )">🧠 AI Strategies</button>
               <button type="button" class="win-ctrl-btn" data-win-id="win-ai-chat" data-win-action="grid" title="Osadź w siatce głównej">⊞ Siatka</button>
               <button type="button" class="win-ctrl-btn" data-win-id="win-ai-chat" data-win-action="minimized-inline" title="Minimalizuj okno">—</button>
               <button type="button" class="win-ctrl-btn" data-win-id="win-ai-chat" data-win-action="floating-small" title="Zmniejsz do małego okna przesuwnego">🗗 Małe</button>
@@ -390,10 +391,13 @@
           </div>
 
           <div class="window-content-body">
-            <div class="panel-header">
+            <div class="panel-header ai-chat-top-header">
               <div>
                 <p class="panel-subtitle">Napisz czego chcesz — AI stworzy strategię i przygotuje transakcję do autoryzacji</p>
               </div>
+              <button type="button" id="btnOpenAiStrategies" class="btn btn-ai-strategies open-ai-strategies-btn" title="Otwórz przesuwne okno AI Strategies: sprawdź co potrafi Agent AI, o co można pytać i wygeneruj strategię kupna dla wybranego waloru">
+                🧠 AI Strategies
+              </button>
             </div>
 
             <!-- Pole wprowadzania wiadomości do Agenta AI -->
@@ -415,7 +419,139 @@
               <div class="chat-bubble assistant">
                 <div class="bubble-meta">OKX EEA AI Agent</div>
                 <div class="bubble-text">
-                  Wpisz swoje polecenie i naciśnij <strong>Wyślij do AI ➤</strong> — poniżej pojawi się pełne zestawienie zlecenia (wraz z prowizją Fee, datą i przeliczeniem na USDC) oraz jeden przycisk <strong>Potwierdź</strong> do natychmiastowej realizacji na giełdzie.
+                  Wpisz swoje polecenie i naciśnij <strong>Wyślij do AI ➤</strong> — poniżej pojawi się pełne zestawienie zlecenia (wraz z prowizją Fee, datą i przeliczeniem na USDC) oraz jeden przycisk <strong>Potwierdź</strong> do natychmiastowej realizacji na giełdzie. Kliknij klawisz <strong>🧠 AI Strategies</strong> na górze okna, aby zobaczyć możliwości Agenta AI i wygenerować pełną analizę oraz strategię kupna z OKX.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- OKNO 4B: AI STRATEGIES — MOŻLIWOŚCI AGENTA AI, ZAPYTANIA ORAZ ANALIZA I STRATEGIA KUPNA Z OKX -->
+        <div
+          class="panel-card panel-ai-strategies app-window win-mode-docked"
+          id="win-ai-strategies"
+          data-window-id="win-ai-strategies"
+          data-window-title="🧠 AI Strategies"
+          data-window-icon="🧠"
+        >
+          <div class="window-titlebar" data-drag-window="win-ai-strategies" title="Przeciągnij myszką lub palcem, aby przesunąć okno AI Strategies">
+            <div class="window-titlebar-left">
+              <span class="window-drag-grip">⠿</span>
+              <span class="window-titlebar-name">🧠 AI Strategies — Możliwości Agenta AI &amp; Analiza Strategii Kupna OKX</span>
+              <span class="window-mode-badge" data-mode-badge="win-ai-strategies">W Menu Górnym</span>
+            </div>
+            <div class="window-titlebar-controls">
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ai-strategies" data-win-action="grid" title="Osadź w siatce głównej">⊞ Siatka</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ai-strategies" data-win-action="minimized-inline" title="Minimalizuj okno">—</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ai-strategies" data-win-action="floating-small" title="Zmniejsz do małego okna przesuwnego">🗗 Małe</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ai-strategies" data-win-action="floating-medium" title="Zmniejsz do średniego okna przesuwnego">🗗 Średnie</button>
+              <button type="button" class="win-ctrl-btn" data-win-id="win-ai-strategies" data-win-action="fullscreen" title="Otwórz okno na cały ekran">⛶ Cały ekran</button>
+              <button type="button" class="win-ctrl-btn dock-btn active" data-win-id="win-ai-strategies" data-win-action="docked-top" title="Zwróć okno do menu na górze">🔼 Menu</button>
+              <button type="button" class="win-ctrl-btn dock-btn" data-win-id="win-ai-strategies" data-win-action="docked-sidebar" title="Zwróć okno do sidebaru z lewej">◀ Sidebar</button>
+              <button type="button" class="win-ctrl-btn close-win-btn" data-win-id="win-ai-strategies" data-win-action="docked-top" title="Zamknij okno">✕</button>
+            </div>
+          </div>
+
+          <div class="window-content-body">
+            <!-- GÓRNA SEKCJA: POLE INPUT DO GENEROWANIA KONKRETNEJ STRATEGII KUPNA I ANALIZY AGENTA AI Z OKX -->
+            <div class="ai-strat-generator-box">
+              <div class="ai-strat-gen-header">
+                <div>
+                  <h3>🎯 Wygeneruj Konkretną Strategię Kupna — Analiza Agenta AI z OKX (<code>eea.okx.com</code>)</h3>
+                  <p class="panel-subtitle">Wpisz nazwę waloru lub swoje zapytanie — Agent AI pobierze bieżące dane rynkowe z OKX (kurs Spot, zmienność 24h, RSI, EMA, VWAP, wsparcia S1/S2) i opracuje kompletną strategię kupna (Spot, DCA 3-transzowe, Grid, TP/SL) wraz z gotowym zleceniem.</p>
+                </div>
+                <span class="ai-strat-engine-badge">@okx_ai/okx-trade-mcp v5</span>
+              </div>
+
+              <form id="aiStrategyForm" class="ai-strat-input-row">
+                <input
+                  type="text"
+                  id="aiStrategyInput"
+                  placeholder="Wpisz walor lub zapytanie, np. 'BTC', 'Kup ETH za 2500 USDC', 'Strategia kupna SOL DCA', 'Analiza kupna XRP'..."
+                  autocomplete="off"
+                />
+                <button type="submit" id="btnGenerateAiStrategy" class="btn btn-primary btn-generate-strat">
+                  🧠 Stwórz strategię kupna OKX AI ➤
+                </button>
+              </form>
+
+              <div class="ai-strat-asset-pills">
+                <span class="asset-pills-label">Szybka analiza waloru OKX:</span>
+                <button type="button" class="strat-asset-chip" data-strat-asset="BTC">BTC</button>
+                <button type="button" class="strat-asset-chip" data-strat-asset="ETH">ETH</button>
+                <button type="button" class="strat-asset-chip" data-strat-asset="SOL">SOL</button>
+                <button type="button" class="strat-asset-chip" data-strat-asset="XRP">XRP</button>
+                <button type="button" class="strat-asset-chip" data-strat-asset="WLD">WLD</button>
+                <button type="button" class="strat-asset-chip" data-strat-asset="ETC">ETC</button>
+                <button type="button" class="strat-asset-chip" data-strat-asset="OKB">OKB</button>
+                <button type="button" class="strat-asset-chip" data-strat-asset="ADA">ADA</button>
+                <button type="button" class="strat-asset-chip" data-strat-asset="DOGE">DOGE</button>
+                <button type="button" class="strat-asset-chip" data-strat-asset="AVAX">AVAX</button>
+                <button type="button" class="strat-asset-chip" data-strat-asset="LINK">LINK</button>
+                <button type="button" class="strat-asset-chip" data-strat-asset="SUI">SUI</button>
+              </div>
+            </div>
+
+            <!-- KONTENER NA WYNIK ANALIZY AGENTA AI Z OKX I KONKRETNĄ STRATEGIĘ KUPNA -->
+            <div id="aiStrategyResultContainer" class="ai-strategy-result-container" hidden></div>
+
+            <!-- SEKCJA INFORMACYJNA: CO TEN AGENT POTRAFI, JAKIE ZAPYTANIA I O CO MOŻNA PYTAĆ -->
+            <div class="ai-strat-capabilities-grid">
+              <!-- KOLUMNA 1: CO POTRAFI AGENT AI Z OKX -->
+              <div class="ai-strat-info-card">
+                <h4>🤖 Co potrafi Agent AI z OKX (<code>okx/agent-trade-kit</code>)?</h4>
+                <ul class="ai-capabilities-list">
+                  <li>
+                    <strong>📊 Analiza Rynkowa i Techniczna OKX Spot (<code>okx-cex-market</code>):</strong>
+                    Analizuje na żywo kursy Spot z <code>eea.okx.com</code>, zmienność dobową 24h (High / Low / Volume), spread Bid/Ask, położenie ceny względem <strong>VWAP</strong>, średnich kroczących <strong>EMA 20 / EMA 50</strong> oraz oscylatora <strong>RSI (14)</strong>.
+                  </li>
+                  <li>
+                    <strong>🧠 Budowa Konkretnych Strategii Kupna (<code>okx-cex-bot</code>):</strong>
+                    Tworzy spersonalizowane strategie zakupu:
+                    <br/>• <strong>Spot DCA (3 transze uśredniające)</strong> — wejście 40% po cenie rynkowej + 35% na wsparciu S1 (-2.0%) + 25% na wsparciu S2 (-4.5%),
+                    <br/>• <strong>OKX Spot Grid Bot</strong> — wyznacza dolne i górne pasmo siatki oraz gęstość poziomów,
+                    <br/>• <strong>Momentum Breakout &amp; Dip Buy</strong> — wyznacza dokładne cele <strong>Take-Profit (TP1, TP2, TP3)</strong> oraz poziom obronny <strong>Stop-Loss (SL)</strong>.
+                  </li>
+                  <li>
+                    <strong>💼 Audyt Portfela i Kontrola Ryzyka (<code>okx-cex-portfolio</code>):</strong>
+                    Sprawdza Twoje dostępne środki <code>USDC</code> w portfelu OKX Demo/Live, dotychczasową ilość i średnią cenę zakupu danego waloru oraz oblicza stosunek Zysk/Ryzyko (<code>Risk/Reward Ratio</code>).
+                  </li>
+                  <li>
+                    <strong>⚡ Kalkulacja Kosztów, Fee (0.10%) i Realizacja 1-Klawiszem (<code>okx-cex-trade</code>):</strong>
+                    Każdą wygenerowaną strategię kupna od razu przelicza na <code>USDC</code> z uwzględnieniem prowizji giełdowej <code>Fee 0.10%</code> i udostępnia przycisk <strong>Potwierdź</strong>, który realizuje transakcję na giełdzie i zapisuje <em>Exchange Feedback</em> w historii.
+                  </li>
+                </ul>
+              </div>
+
+              <!-- KOLUMNA 2: JAKIE ZAPYTANIA I O CO MOŻNA PYTAĆ (KLIKALNE PRZYKŁADY) -->
+              <div class="ai-strat-info-card">
+                <h4>💬 Jakie zapytania obsługuje i o co można pytać? <span class="small-muted">(Kliknij zapytanie, aby uruchomić analizę)</span></h4>
+
+                <div class="ai-query-category">
+                  <div class="ai-query-cat-title">1. Konkretna strategia kupna dla wybranego waloru i kwoty:</div>
+                  <div class="ai-query-examples">
+                    <button type="button" class="ai-sample-query-btn" data-strat-query="Stwórz strategię kupna dla BTC za 2500 USDC">„Stwórz strategię kupna dla BTC za 2500 USDC”</button>
+                    <button type="button" class="ai-sample-query-btn" data-strat-query="Zrób analizę i strategię kupna DCA dla ETH za 1800 USDC">„Zrób analizę i strategię kupna DCA dla ETH za 1800 USDC”</button>
+                    <button type="button" class="ai-sample-query-btn" data-strat-query="Strategia kupna SOL za 1200 USDC z poziomami Take-Profit i Stop-Loss">„Strategia kupna SOL za 1200 USDC z poziomami Take-Profit i Stop-Loss”</button>
+                  </div>
+                </div>
+
+                <div class="ai-query-category">
+                  <div class="ai-query-cat-title">2. Analiza techniczna OKX, wsparcia S1/S2 oraz cele cenowe:</div>
+                  <div class="ai-query-examples">
+                    <button type="button" class="ai-sample-query-btn" data-strat-query="Przeanalizuj XRP na giełdzie OKX i przygotuj strategię akumulacji za 1500 USDC">„Przeanalizuj XRP na giełdzie OKX i przygotuj strategię akumulacji za 1500 USDC”</button>
+                    <button type="button" class="ai-sample-query-btn" data-strat-query="Analiza agenta AI z OKX dla WLD — strategia kupna 1000 WLD">„Analiza agenta AI z OKX dla WLD — strategia kupna 1000 WLD”</button>
+                    <button type="button" class="ai-sample-query-btn" data-strat-query="Zbuduj strategię Spot Grid dla AVAX za 1000 USDC">„Zbuduj strategię Spot Grid dla AVAX za 1000 USDC”</button>
+                  </div>
+                </div>
+
+                <div class="ai-query-category">
+                  <div class="ai-query-cat-title">3. Szybkie zlecenia kupna na określoną ilość waloru:</div>
+                  <div class="ai-query-examples">
+                    <button type="button" class="ai-sample-query-btn" data-strat-query="Strategia kupna 0.05 BTC po kursie rynkowym OKX">„Strategia kupna 0.05 BTC po kursie rynkowym OKX”</button>
+                    <button type="button" class="ai-sample-query-btn" data-strat-query="Strategia kupna 50 LINK za USDC z analizą wsparcia i oporu">„Strategia kupna 50 LINK za USDC z analizą wsparcia i oporu”</button>
+                    <button type="button" class="ai-sample-query-btn" data-strat-query="Strategia kupna 500 SUI w oparciu o analizę OKX Momentum">„Strategia kupna 500 SUI w oparciu o analizę OKX Momentum”</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -963,6 +1099,6 @@
   <!-- POWIADOMIENIE TOAST -->
   <div id="toastContainer" class="toast-container"></div>
 
-  <script src="./app.js?v=20261102v10"></script>
+  <script src="./app.js?v=20261102v11"></script>
 </body>
 </html>

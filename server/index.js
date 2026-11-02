@@ -101,6 +101,13 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, result);
     }
 
+    // 4B. AI Agent OKX Buy Strategy & Deep Market Analysis
+    if (pathname === '/api/agent/strategy' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = engine.generateAiBuyStrategy(body.query || body.message || 'BTC');
+      return sendJson(res, 200, result);
+    }
+
     // 5. Propose trade order (sets status to "Czekam na start zlecenia" and opens Authorization Pop-up)
     if (pathname === '/api/trade/propose' && req.method === 'POST') {
       const body = await readJsonBody(req);

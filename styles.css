@@ -3038,3 +3038,436 @@ body.has-single-window-grid.single-window-minimized .app-shell {
   background: #080b11 !important;
   padding: 10px 14px !important;
 }
+
+/* ==========================================================================
+   AI STRATEGIES WINDOW (#win-ai-strategies) & BUTTON IN AI AGENT WINDOW
+   ========================================================================== */
+.ai-chat-top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-ai-strategies {
+  background: linear-gradient(135deg, #bcff2f 0%, #38bdf8 100%);
+  color: #090b10;
+  font-weight: 800;
+  font-size: 12.5px;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.28);
+  transition: transform 0.14s, filter 0.15s, box-shadow 0.15s;
+}
+
+.btn-ai-strategies:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(188, 255, 47, 0.38);
+}
+
+.btn-titlebar-ai-strategies {
+  background: rgba(188, 255, 47, 0.18) !important;
+  color: var(--accent-okx) !important;
+  border-color: var(--accent-okx) !important;
+  font-weight: 800 !important;
+}
+
+.btn-titlebar-ai-strategies:hover {
+  background: var(--accent-okx) !important;
+  color: #090b10 !important;
+}
+
+/* Make AI Strategies floating medium window spacious and resizable */
+#win-ai-strategies.win-mode-floating.win-size-medium {
+  width: 880px;
+  height: 640px;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 24px);
+}
+
+#win-ai-strategies.win-mode-floating.win-size-small {
+  width: 540px;
+  height: 440px;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 24px);
+}
+
+.ai-strat-generator-box {
+  background: linear-gradient(145deg, #111827 0%, #0b0f19 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.45);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.ai-strat-gen-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.ai-strat-gen-header h3 {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.ai-strat-engine-badge {
+  background: rgba(188, 255, 47, 0.14);
+  color: var(--accent-okx);
+  border: 1px solid rgba(188, 255, 47, 0.4);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.ai-strat-input-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.ai-strat-input-row input {
+  flex: 1;
+  min-width: 240px;
+  padding: 10px 14px;
+  background: #070a10;
+  border: 1px solid var(--border-highlight);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.ai-strat-input-row input:focus {
+  outline: none;
+  border-color: var(--accent-okx);
+  box-shadow: 0 0 0 2px rgba(188, 255, 47, 0.18);
+}
+
+.btn-generate-strat {
+  background: var(--accent-okx);
+  color: #090b10;
+  font-weight: 800;
+  padding: 10px 18px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-generate-strat:hover {
+  filter: brightness(1.08);
+}
+
+.ai-strat-asset-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.asset-pills-label {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.strat-asset-chip {
+  background: #161f30;
+  color: #e2e8f0;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.14s;
+}
+
+.strat-asset-chip:hover {
+  border-color: var(--accent-okx);
+  color: var(--accent-okx);
+  background: rgba(188, 255, 47, 0.1);
+}
+
+/* AI STRATEGY ANALYSIS REPORT */
+.ai-strategy-result-container {
+  margin-bottom: 16px;
+}
+
+.ai-strategy-result-container[hidden] {
+  display: none !important;
+}
+
+.okx-ai-analysis-report {
+  background: #0c111c;
+  border: 1.5px solid var(--accent-okx);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: 0 8px 26px rgba(188, 255, 47, 0.1);
+}
+
+.okx-ai-report-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.okx-ai-report-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.okx-ai-signal-pill {
+  display: inline-block;
+  align-self: flex-start;
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+
+.okx-ai-report-title-group h4 {
+  font-size: 14px;
+  color: #ffffff;
+}
+
+.okx-ai-report-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.okx-ai-rationale-banner {
+  background: rgba(56, 189, 248, 0.08);
+  border-left: 3px solid var(--accent-blue);
+  padding: 9px 12px;
+  border-radius: 5px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  line-height: 1.48;
+  color: #e2e8f0;
+}
+
+.okx-ai-rationale-banner p {
+  margin-top: 4px;
+}
+
+.okx-ai-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.okx-ai-metric-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.okx-ai-metric-card span {
+  font-size: 10.5px;
+  color: var(--text-secondary);
+}
+
+.okx-ai-metric-card strong {
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.okx-ai-metric-card em.pos {
+  color: var(--buy-green);
+  font-style: normal;
+}
+
+.okx-ai-metric-card em.neg {
+  color: var(--sell-red);
+  font-style: normal;
+}
+
+.okx-ai-plans-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .okx-ai-plans-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.okx-ai-plan-box {
+  background: #101726;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.okx-ai-plan-box h5 {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--accent-okx);
+  margin-bottom: 8px;
+}
+
+.compact-strat-table th,
+.compact-strat-table td {
+  padding: 6px 8px !important;
+  font-size: 11.5px !important;
+}
+
+.okx-ai-plan-summary-line {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+  font-size: 11.5px;
+  color: #cbd5e1;
+}
+
+.okx-ai-side-kv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.okx-ai-side-kv-list .kv-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+}
+
+.okx-ai-side-kv-list .kv-row span {
+  color: var(--text-secondary);
+}
+
+.okx-ai-side-kv-list .kv-row strong {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* AI CAPABILITIES & SAMPLE QUERIES SECTION */
+.ai-strat-capabilities-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .ai-strat-capabilities-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ai-strat-info-card {
+  background: #0e1420;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 13px 15px;
+}
+
+.ai-strat-info-card h4 {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--accent-blue);
+  margin-bottom: 10px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ai-capabilities-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 12px;
+  line-height: 1.48;
+  color: #cbd5e1;
+}
+
+.ai-capabilities-list li {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.ai-capabilities-list li strong {
+  color: #f8fafc;
+}
+
+.ai-query-category {
+  margin-bottom: 10px;
+}
+
+.ai-query-cat-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent-okx);
+  margin-bottom: 6px;
+}
+
+.ai-query-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ai-sample-query-btn {
+  text-align: left;
+  background: #131c2c;
+  color: #e2e8f0;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.14s;
+}
+
+.ai-sample-query-btn:hover {
+  border-color: var(--accent-okx);
+  background: rgba(188, 255, 47, 0.1);
+  color: #ffffff;
+}
+

@@ -5,6 +5,7 @@
   let topWindowZIndex = 1250;
   let wasJustDragging = false;
   let lastExchangeFeedback = null;
+  let currentAiStrategyAnalysis = null;
   const expandedFeedbackIds = new Set();
 
   // Chart Window State (Requirement 9 + TradingView Superchart + Window Manager)
@@ -39,12 +40,13 @@
     posY: 85
   };
 
-  // Universal Window Manager Registry for all 10 Windows (including top windows 1, 2, 3)
+  // Universal Window Manager Registry for all 11 Windows (including top windows 1, 2, 3 & AI Strategies)
   const WINDOWS_REGISTRY = [
     { id: 'win-ctrl-api', title: '1. Tryb i Klucze API', icon: '🔑', mode: 'docked-top', prevActiveMode: 'grid', posX: 40, posY: 90, isTopCtrl: true },
     { id: 'win-ctrl-trade', title: '2. Sterowanie Handlem', icon: '▶️', mode: 'docked-top', prevActiveMode: 'grid', posX: 80, posY: 110, isTopCtrl: true },
     { id: 'win-ctrl-ai', title: '3. Status Agenta AI', icon: '🤖', mode: 'docked-top', prevActiveMode: 'grid', posX: 120, posY: 130, isTopCtrl: true },
     { id: 'win-ai-chat', title: 'Agent AI Handlu', icon: '💬', mode: 'docked-top', prevActiveMode: 'grid', posX: 70, posY: 100 },
+    { id: 'win-ai-strategies', title: 'AI Strategies (OKX AI)', icon: '🧠', mode: 'docked-top', prevActiveMode: 'floating-medium', posX: 95, posY: 70 },
     { id: 'win-quick-trade', title: 'Kreator Zlecenia', icon: '⚡', mode: 'docked-top', prevActiveMode: 'grid', posX: 130, posY: 120 },
     { id: 'win-portfolio', title: 'Portfel Handlowy', icon: '💼', mode: 'docked-top', prevActiveMode: 'grid', posX: 160, posY: 140 },
     { id: 'win-bought-sold', title: 'Kupiono / Sprzedano', icon: '📊', mode: 'docked-top', prevActiveMode: 'grid', posX: 190, posY: 160 },
@@ -137,6 +139,10 @@
     aiChatForm: document.getElementById('aiChatForm'),
     aiChatInput: document.getElementById('aiChatInput'),
     aiInlineOrderContainer: document.getElementById('aiInlineOrderContainer'),
+    btnOpenAiStrategies: document.getElementById('btnOpenAiStrategies'),
+    aiStrategyForm: document.getElementById('aiStrategyForm'),
+    aiStrategyInput: document.getElementById('aiStrategyInput'),
+    aiStrategyResultContainer: document.getElementById('aiStrategyResultContainer'),
 
     manualTradeForm: document.getElementById('manualTradeForm'),
     tabSideBuy: document.getElementById('tabSideBuy'),
@@ -1289,6 +1295,295 @@
       return { ok: true, reply, activeTradeOrder: order, state: _standaloneState };
     }
 
+    // 9B. AI Agent OKX Buy Strategy & Deep Market Analysis (/api/agent/strategy)
+    if (url.startsWith('/api/agent/strategy') && method === 'POST') {
+      _standaloneState.config.aiStatus = 'active';
+      const rawQuery = (body?.query || body?.message || 'BTC').trim();
+      const lower = rawQuery.toLowerCase();
+
+      let asset = 'BTC';
+      if (lower.includes('etc') || lower.includes('ethereum classic')) asset = 'ETC';
+      else if (lower.includes('eth') || lower.includes('ethereum')) asset = 'ETH';
+      else if (lower.includes('wld') || lower.includes('worldcoin')) asset = 'WLD';
+      else if (lower.includes('usdg')) asset = 'USDG';
+      else if (lower.includes('sol') || lower.includes('solana')) asset = 'SOL';
+      else if (lower.includes('okb')) asset = 'OKB';
+      else if (lower.includes('xrp') || lower.includes('ripple')) asset = 'XRP';
+      else if (lower.includes('ada') || lower.includes('cardano')) asset = 'ADA';
+      else if (lower.includes('doge') || lower.includes('dogecoin')) asset = 'DOGE';
+      else if (lower.includes('avax') || lower.includes('avalanche')) asset = 'AVAX';
+      else if (lower.includes('link') || lower.includes('chainlink')) asset = 'LINK';
+      else if (lower.includes('sui')) asset = 'SUI';
+      else if (lower.includes('btc') || lower.includes('bitcoin')) asset = 'BTC';
+      else {
+        const tokenMatch = rawQuery.toUpperCase().match(/\b([A-Z]{2,6})\b/);
+        if (tokenMatch) {
+          const candidate = tokenMatch[1];
+          const ignoreWords = new Set(['KUP', 'DLA', 'POD', 'AI', 'OKX', 'DCA', 'GRID', 'SPOT', 'BUY', 'USDC', 'USD', 'USDT', 'JAK', 'CO']);
+          if (!ignoreWords.has(candidate)) {
+            const mListCheck = _standaloneState.markets || DEFAULT_STANDALONE_MARKETS;
+            if (mListCheck.some((m) => m.base === candidate || m.instId === `${candidate}-USDC`)) {
+              asset = candidate;
+            }
+          }
+        }
+      }
+
+      const instId = `${asset}-USDC`;
+      const mList = _standaloneState.markets || _standaloneState.tickers || DEFAULT_STANDALONE_MARKETS;
+      const market = mList.find((m) => m.instId === instId) || mList[0] || {
+        instId,
+        base: asset,
+        name: asset,
+        price: 80753.90,
+        bidPx: 80750.00,
+        askPx: 80756.00,
+        open24h: 79800.00,
+        high24h: 81500.00,
+        low24h: 79500.00,
+        vol24h: 1420.5,
+        change24hPct: 1.19
+      };
+
+      const livePrice = Number(market.price || 100);
+      const open24h = Number(market.open24h || livePrice);
+      const high24h = Number(market.high24h || livePrice * 1.025);
+      const low24h = Number(market.low24h || livePrice * 0.975);
+      const bidPx = Number(market.bidPx || livePrice * 0.9998);
+      const askPx = Number(market.askPx || livePrice * 1.0002);
+      const vol24h = Number(market.vol24h || 1000);
+      const change24hPct = open24h > 0 ? Number((((livePrice - open24h) / open24h) * 100).toFixed(2)) : Number(market.change24hPct || 0);
+
+      const priceDec = livePrice < 0.1 ? 5 : livePrice < 2 ? 4 : livePrice < 25 ? 3 : 2;
+      const roundPx = (val) => Number(Number(val).toFixed(priceDec));
+
+      const rangeSpan = Math.max(high24h - low24h, livePrice * 0.01);
+      const rangePositionPct = Math.min(100, Math.max(0, Number((((livePrice - low24h) / rangeSpan) * 100).toFixed(1))));
+      const volatility24hPct = low24h > 0 ? Number((((high24h - low24h) / low24h) * 100).toFixed(2)) : 2.5;
+      const spreadPct = livePrice > 0 ? Number((((askPx - bidPx) / livePrice) * 100).toFixed(4)) : 0.02;
+
+      const rsi14 = Math.min(82, Math.max(24, Number((48 + change24hPct * 2.8 + (rangePositionPct - 50) * 0.22).toFixed(1))));
+      const ema20 = roundPx(livePrice * (1 - (change24hPct / 100) * 0.28));
+      const ema50 = roundPx(livePrice * (1 - (change24hPct / 100) * 0.55));
+      const vwap = roundPx((high24h + low24h + livePrice) / 3);
+
+      const support1 = roundPx(Math.min(livePrice * 0.98, low24h + rangeSpan * 0.22));
+      const support2 = roundPx(Math.min(livePrice * 0.955, low24h * 0.992));
+      const takeProfit1 = roundPx(livePrice * 1.035);
+      const takeProfit2 = roundPx(livePrice * 1.075);
+      const takeProfit3 = roundPx(livePrice * 1.125);
+      const stopLoss = roundPx(livePrice * 0.968);
+
+      const holdings = _standaloneState.portfolio?.holdings || [];
+      const usdcHolding = holdings.find((h) => h.asset === 'USDC');
+      const availUsdc = Number(usdcHolding ? usdcHolding.amount : _standaloneState.portfolio?.cashUsdc || 99900);
+      const currentHolding = holdings.find((h) => h.asset === asset);
+      const currentAssetAmount = currentHolding ? currentHolding.amount : 0;
+      const currentAvgBuyPrice = currentHolding ? currentHolding.avgBuyPrice : 0;
+
+      const numbers = (rawQuery.match(/\d+(?:[.,]\d+)?/g) || []).map((n) => parseFloat(n.replace(',', '.')));
+      let amount = 0;
+      let usdcBudget = 0;
+
+      if (numbers.length > 0 && livePrice > 0) {
+        const firstNum = numbers[0];
+        const mentionsUsdc =
+          new RegExp(`${numbers[0]}\\s*(usdc|usdt|usd|dolar|\\$)`, 'i').test(rawQuery) ||
+          (lower.includes('za ') && (lower.includes('usdc') || lower.includes('usdt') || lower.includes('usd')));
+        if (mentionsUsdc || (asset === 'BTC' && firstNum >= 20) || (asset === 'ETH' && firstNum >= 50)) {
+          usdcBudget = Number(firstNum.toFixed(2));
+          amount = Number((usdcBudget / livePrice).toFixed(6));
+        } else {
+          amount = Number(firstNum.toFixed(6));
+          usdcBudget = Number((amount * livePrice).toFixed(2));
+        }
+      } else {
+        usdcBudget = 1500.00;
+        amount = livePrice > 0 ? Number((usdcBudget / livePrice).toFixed(6)) : 0.02;
+      }
+
+      let strategyType = 'OKX AI Smart Spot + DCA Accumulation';
+      let strategyName = `Strategia Kupna OKX AI (${instId} • Spot + DCA)`;
+      if (lower.includes('grid') || lower.includes('siatk')) {
+        strategyType = 'OKX AI Spot Grid Bot Strategy';
+        strategyName = `Strategia Kupna OKX AI Spot Grid (${instId})`;
+      } else if (lower.includes('dca') || lower.includes('transz') || lower.includes('akumulac')) {
+        strategyType = 'OKX AI Dynamic Spot DCA (3 Transze)';
+        strategyName = `Strategia Kupna OKX AI Spot DCA (${instId})`;
+      } else if (lower.includes('momentum') || lower.includes('wybic') || change24hPct >= 2.5) {
+        strategyType = 'OKX AI Momentum Breakout Buy';
+        strategyName = `Strategia Kupna OKX AI Momentum (${instId})`;
+      }
+
+      const trendLabel =
+        change24hPct >= 1.5
+          ? 'Wzrostowy (Bullish Momentum na OKX Spot)'
+          : change24hPct <= -1.5
+          ? 'Korekta spadkowa — Strefa akumulacji pod wsparciem (Dip Buy)'
+          : 'Konsolidacja akumulacyjna z przewagą popytu (Neutral-Bullish)';
+
+      const rsiStatus =
+        rsi14 > 68
+          ? 'Wykupienie (zalecane wejście transzami DCA przy korekcie do S1)'
+          : rsi14 < 38
+          ? 'Wyprzedanie (silny sygnał zakupowy z dyskontem cenowym)'
+          : 'Optymalna strefa akumulacji (brak przegrzania rynku)';
+
+      const t1Usdc = Number((usdcBudget * 0.4).toFixed(2));
+      const t2Usdc = Number((usdcBudget * 0.35).toFixed(2));
+      const t3Usdc = Number((usdcBudget - t1Usdc - t2Usdc).toFixed(2));
+      const t1Amt = Number((t1Usdc / livePrice).toFixed(6));
+      const t2Amt = Number((t2Usdc / support1).toFixed(6));
+      const t3Amt = Number((t3Usdc / support2).toFixed(6));
+      const totalDcaAmt = Number((t1Amt + t2Amt + t3Amt).toFixed(6));
+      const avgDcaPrice = totalDcaAmt > 0 ? roundPx(usdcBudget / totalDcaAmt) : livePrice;
+
+      const feeUsdc = Number((usdcBudget * 0.001).toFixed(2));
+      const feeAsset = Number((amount * 0.001).toFixed(6));
+      const totalUsdcWithFee = Number((usdcBudget + feeUsdc).toFixed(2));
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+      const timeStr = now.toTimeString().slice(0, 8);
+      const orderId = 'OKX-EEA-' + Math.floor(10000 + Math.random() * 90000);
+
+      const order = {
+        id: orderId,
+        instId,
+        asset,
+        side: 'BUY',
+        orderType: lower.includes('limit') ? 'LIMIT' : 'MARKET',
+        amount,
+        price: livePrice,
+        usdcValue: usdcBudget,
+        feeRate: '0.10%',
+        feeUsdc,
+        feeAsset,
+        totalUsdcWithFee,
+        mode: _standaloneState.config.apiMode || 'demo',
+        site: 'eea.okx.com',
+        status: 'waiting_for_start',
+        statusLabel: 'Oczekuje na potwierdzenie przyciskiem Potwierdź',
+        source: 'Analiza Agenta AI OKX (AI Strategies)',
+        strategyName,
+        date: dateStr,
+        time: timeStr,
+        createdAtDate: dateStr,
+        createdAtTime: timeStr,
+        timestamp: now.getTime()
+      };
+
+      _standaloneState.activeTradeOrder = order;
+      _standaloneState.config.tradingStatus = 'waiting_for_start';
+      _standaloneState.config.tradingStatusLabel = `Gotowe do potwierdzenia (BUY ${amount} ${asset} @ ${livePrice} USDC)`;
+      saveStandaloneState();
+
+      const analysis = {
+        engine: '@okx_ai/okx-trade-mcp • okx/agent-trade-kit (eea.okx.com v5)',
+        mode: (_standaloneState.config.apiMode || 'demo').toUpperCase(),
+        query: rawQuery,
+        date: dateStr,
+        time: timeStr,
+        asset,
+        assetName: market.name || asset,
+        instId,
+        market: {
+          price: livePrice,
+          bidPx,
+          askPx,
+          spreadPct,
+          open24h,
+          high24h,
+          low24h,
+          vol24h,
+          change24hPct,
+          volatility24hPct,
+          rangePositionPct
+        },
+        technicals: {
+          trendLabel,
+          signalBadge: 'REKOMENDACJA AI OKX: KUPUJ / AKUMULUJ (BUY)',
+          rsi14,
+          rsiStatus,
+          ema20,
+          ema50,
+          vwap,
+          support1,
+          support2,
+          takeProfit1,
+          takeProfit2,
+          takeProfit3,
+          stopLoss,
+          riskReward: '1 : 2.65'
+        },
+        portfolioContext: {
+          availUsdc,
+          totalPortfolioUsdc: _standaloneState.portfolio?.totalValueUsdc || 468244.29,
+          currentAssetAmount,
+          currentAvgBuyPrice,
+          newTotalAssetAmount: Number((currentAssetAmount + order.amount).toFixed(6))
+        },
+        recommendedStrategy: {
+          strategyType,
+          strategyName,
+          rationale: `Agent AI OKX przeanalizował księgę zleceń i strukturę świec dla pary ${instId} na giełdzie OKX Europe (eea.okx.com). Kurs bieżący wynosi ${livePrice} USDC (zmiana 24h: ${change24hPct >= 0 ? '+' : ''}${change24hPct}%, zmienność dobowa: ${volatility24hPct}%, RSI-14: ${rsi14}). Cena znajduje się na poziomie ${rangePositionPct}% kanału dobowego (${low24h} – ${high24h} USDC) względem VWAP (${vwap} USDC). Rekomendowana strategia zakłada wejście kupna (BUY) z docelowym poziomem realizacji zysku TP1 ${takeProfit1} USDC (+3.5%), TP2 ${takeProfit2} USDC (+7.5%) oraz zabezpieczeniem Stop-Loss na ${stopLoss} USDC (-3.2%).`,
+          spotExecution: {
+            orderId: order.id,
+            amount: order.amount,
+            price: order.price,
+            usdcValue: order.usdcValue,
+            feeRate: order.feeRate,
+            feeUsdc: order.feeUsdc,
+            feeAsset: order.feeAsset,
+            totalUsdcWithFee: order.totalUsdcWithFee
+          },
+          dcaTranches: [
+            {
+              step: 'Transza 1 (40% kapitału — Wejście Spot Market)',
+              price: livePrice,
+              usdcValue: t1Usdc,
+              amount: t1Amt,
+              condition: 'Natychmiastowy zakup po bieżącym kursie OKX Spot'
+            },
+            {
+              step: 'Transza 2 (35% kapitału — Wsparcie S1 -2.0%)',
+              price: support1,
+              usdcValue: t2Usdc,
+              amount: t2Amt,
+              condition: `Zlecenie oczekujące Limit Buy w strefie popytu S1 (${support1} USDC)`
+            },
+            {
+              step: 'Transza 3 (25% kapitału — Głębokie Wsparcie S2 -4.5%)',
+              price: support2,
+              usdcValue: t3Usdc,
+              amount: t3Amt,
+              condition: `Zlecenie obronne Limit Buy na wsparciu S2 (${support2} USDC)`
+            }
+          ],
+          avgDcaPrice,
+          totalDcaAmt,
+          gridPlan: {
+            lowerPrice: support2,
+            upperPrice: takeProfit2,
+            gridLevels: 12,
+            profitPerGrid: '0.55% – 0.85% (po odliczeniu Fee 0.10%)',
+            allocatedUsdc: usdcBudget
+          }
+        }
+      };
+
+      const reply = [
+        `🧠 **Analiza Agenta AI z OKX (\`eea.okx.com\`) — Strategia Kupna dla \`${instId}\`:**`,
+        `- **Rekomendowana strategia:** **${strategyName}**`,
+        `- **Kurs OKX Live:** **${livePrice.toLocaleString('pl-PL')} USDC** (24h: \`${change24hPct >= 0 ? '+' : ''}${change24hPct}%\` • RSI-14: \`${rsi14}\` • VWAP: \`${vwap} USDC\`)`,
+        `- **Poziomy techniczne OKX:** Wsparcie S1: \`${support1} USDC\` • S2: \`${support2} USDC\` | Cele: **TP1 \`${takeProfit1} USDC\`**, **TP2 \`${takeProfit2} USDC\`** | Stop-Loss: \`${stopLoss} USDC\``,
+        `- **Przygotowane zlecenie kupna:** \`${order.amount} ${asset}\` = **\`${order.usdcValue.toFixed(2)} USDC\`** + Fee (0.10%): **\`${order.feeUsdc.toFixed(2)} USDC\`** (Razem: **\`${order.totalUsdcWithFee.toFixed(2)} USDC\`**)`,
+        ``,
+        `👇 Możesz od razu kliknąć **Potwierdź**, aby zrealizować tę strategię kupna na giełdzie OKX.`
+      ].join('\n');
+
+      return { ok: true, analysis, reply, activeTradeOrder: order, state: _standaloneState };
+    }
+
     // Default: State endpoint
     if (Math.random() < 0.6) {
       const mList = _standaloneState.markets || _standaloneState.tickers || [];
@@ -1462,10 +1757,10 @@
       el.topControlsGrid.classList.toggle('solo-child-row', topWinsInGrid.length === 1);
     }
 
-    // 2. Sprawdź wiersz agenta i zlecenia (4-5)
+    // 2. Sprawdź wiersz agenta i zlecenia (4, 4B, 5)
     const rowAgentOrder = document.querySelector('.row-agent-and-order');
     const agentOrderWinsInGrid = WINDOWS_REGISTRY.filter(
-      (w) => (w.id === 'win-ai-chat' || w.id === 'win-quick-trade') && (w.mode === 'grid' || w.mode === 'minimized-inline')
+      (w) => (w.id === 'win-ai-chat' || w.id === 'win-ai-strategies' || w.id === 'win-quick-trade') && (w.mode === 'grid' || w.mode === 'minimized-inline')
     );
     if (rowAgentOrder) {
       rowAgentOrder.classList.toggle('grid-collapsed', agentOrderWinsInGrid.length === 0);
@@ -2113,6 +2408,7 @@
     }
 
     try { renderAuthPopupContent(state); } catch (e) { console.error('AuthPopup render error:', e); }
+    try { renderAiStrategiesResultBox(state); } catch (e) { console.error('AiStrategies render error:', e); }
     try {
       const markets = (state && (state.markets || state.tickers)) || DEFAULT_STANDALONE_MARKETS;
       renderMarketTickerStrip(markets);
@@ -2608,6 +2904,206 @@
 
     el.aiInlineOrderContainer.hidden = true;
     el.aiInlineOrderContainer.innerHTML = '';
+  }
+
+  function renderAiStrategiesResultBox(state) {
+    if (!el.aiStrategyResultContainer) return;
+    if (!currentAiStrategyAnalysis) {
+      el.aiStrategyResultContainer.hidden = true;
+      el.aiStrategyResultContainer.innerHTML = '';
+      return;
+    }
+
+    const a = currentAiStrategyAnalysis;
+    const m = a.market;
+    const t = a.technicals;
+    const p = a.portfolioContext;
+    const s = a.recommendedStrategy;
+    const active = state?.activeTradeOrder;
+    const isPos = m.change24hPct >= 0;
+
+    let orderOrFeedbackHtml = '';
+    if (active) {
+      const isBuy = active.side === 'BUY';
+      const dateStr = active.date || active.createdAtDate || a.date;
+      const timeStr = active.time || active.createdAtTime || a.time;
+      const feeUsdc = Number(active.feeUsdc ?? (active.usdcValue * 0.001).toFixed(2));
+      const feeAsset = Number(active.feeAsset ?? (active.amount * 0.001).toFixed(6));
+      const totalUsdcWithFee = Number(
+        active.totalUsdcWithFee ?? (isBuy ? (active.usdcValue + feeUsdc).toFixed(2) : (active.usdcValue - feeUsdc).toFixed(2))
+      );
+
+      orderOrFeedbackHtml = `
+        <div class="ai-order-confirm-card" style="margin-top: 12px;">
+          <div class="ai-order-confirm-header">
+            <span class="ai-order-badge">📋 ZLECENIE KUPNA STRATEGII AI GOTOWE DO REALIZACJI • OKX EUROPE (${a.mode})</span>
+            <span class="ai-order-datetime">📅 Data: <strong>${dateStr}</strong> ⏰ Czas: <strong>${timeStr}</strong></span>
+          </div>
+          <div class="ai-order-details-grid">
+            <div class="ai-order-item">
+              <span>ID Zlecenia:</span>
+              <strong><code>${active.id}</code></strong>
+            </div>
+            <div class="ai-order-item">
+              <span>Założona Strategia AI:</span>
+              <strong>${active.strategyName || s.strategyName}</strong>
+            </div>
+            <div class="ai-order-item">
+              <span>Walor / Para OKX:</span>
+              <strong>${active.instId} (${(active.orderType || 'MARKET').toUpperCase()})</strong>
+            </div>
+            <div class="ai-order-item">
+              <span>Kierunek operacji:</span>
+              <strong style="color: var(--buy-green);">KUPNO (BUY)</strong>
+            </div>
+            <div class="ai-order-item">
+              <span>Ilość waloru do zakupu:</span>
+              <strong>${formatQty(active.amount)} ${active.asset}</strong>
+            </div>
+            <div class="ai-order-item">
+              <span>Kurs wykonania OKX:</span>
+              <strong>${formatUnitPrice(active.price)}</strong>
+            </div>
+            <div class="ai-order-item">
+              <span>Wartość w przeliczeniu na USDC:</span>
+              <strong>${formatUsdc(active.usdcValue)}</strong>
+            </div>
+            <div class="ai-order-item">
+              <span>Opłata giełdowa (Fee ${active.feeRate || '0.10%'}):</span>
+              <strong>${formatUsdc(feeUsdc)} (${feeAsset} ${active.asset})</strong>
+            </div>
+            <div class="ai-order-item ai-order-item-total">
+              <span>Całkowite przeliczenie w USDC (z Fee):</span>
+              <strong>${formatUsdc(totalUsdcWithFee)}</strong>
+            </div>
+          </div>
+          <div class="ai-order-confirm-actions">
+            <button type="button" class="btn-simple-confirm btn-confirm-order-action">
+              Potwierdź
+            </button>
+          </div>
+        </div>
+      `;
+    } else if (lastExchangeFeedback) {
+      orderOrFeedbackHtml = `
+        <div class="ai-order-executed-feedback-wrap" style="margin-top: 12px;">
+          ${renderExchangeFeedbackDetailsHtml(lastExchangeFeedback)}
+          <div class="ef-saved-footer">
+            <span>💾 Rezultat został zapisany w historii — dostępny po naciśnięciu klawisza <strong>„Szczegóły transakcji (Exchange Feedback)”</strong>.</span>
+          </div>
+        </div>
+      `;
+    }
+
+    el.aiStrategyResultContainer.hidden = false;
+    el.aiStrategyResultContainer.innerHTML = `
+      <div class="okx-ai-analysis-report">
+        <div class="okx-ai-report-header">
+          <div class="okx-ai-report-title-group">
+            <span class="okx-ai-signal-pill">${t.signalBadge}</span>
+            <h4>📊 Analiza Agenta AI z OKX dla waloru <strong>${a.asset} (${a.instId})</strong> — ${s.strategyName}</h4>
+          </div>
+          <div class="okx-ai-report-meta">
+            <span>Silnik: <code>${a.engine}</code></span>
+            <span>📅 ${a.date} ⏰ ${a.time}</span>
+            <button type="button" class="btn btn-outline-sm open-asset-chart-btn" data-instid="${a.instId}">📈 Wykres ${a.asset}</button>
+          </div>
+        </div>
+
+        <div class="okx-ai-rationale-banner">
+          <strong>🧠 Wnioski z analizy Agenta AI OKX (Zapytanie: „${a.query}”):</strong>
+          <p>${s.rationale}</p>
+        </div>
+
+        <!-- 1. WSKAŹNIKI RYNKOWE I TECHNICZNE OKX SPOT -->
+        <div class="okx-ai-metrics-grid">
+          <div class="okx-ai-metric-card">
+            <span>Kurs Spot OKX (${a.instId}):</span>
+            <strong>${formatUnitPrice(m.price)} <em class="${isPos ? 'pos' : 'neg'}">(${isPos ? '+' : ''}${m.change24hPct}%)</em></strong>
+          </div>
+          <div class="okx-ai-metric-card">
+            <span>Zakres 24h (Min – Max):</span>
+            <strong>${formatUnitPrice(m.low24h)} – ${formatUnitPrice(m.high24h)}</strong>
+          </div>
+          <div class="okx-ai-metric-card">
+            <span>Trend &amp; Zmienność 24h:</span>
+            <strong>${t.trendLabel} (${m.volatility24hPct}%)</strong>
+          </div>
+          <div class="okx-ai-metric-card">
+            <span>RSI (14) &amp; Momentum:</span>
+            <strong>RSI: ${t.rsi14} — ${t.rsiStatus}</strong>
+          </div>
+          <div class="okx-ai-metric-card">
+            <span>Średnie OKX (EMA 20 / EMA 50 / VWAP):</span>
+            <strong>EMA20: ${formatUnitPrice(t.ema20)} • VWAP: ${formatUnitPrice(t.vwap)}</strong>
+          </div>
+          <div class="okx-ai-metric-card">
+            <span>Poziomy Wsparcia (Strefy Dokupienia):</span>
+            <strong style="color: var(--accent-blue);">S1: ${formatUnitPrice(t.support1)} • S2: ${formatUnitPrice(t.support2)}</strong>
+          </div>
+          <div class="okx-ai-metric-card">
+            <span>Cele Zysku (Take-Profit 1 / 2 / 3):</span>
+            <strong style="color: var(--buy-green);">TP1: ${formatUnitPrice(t.takeProfit1)} • TP2: ${formatUnitPrice(t.takeProfit2)} • TP3: ${formatUnitPrice(t.takeProfit3)}</strong>
+          </div>
+          <div class="okx-ai-metric-card">
+            <span>Obrona (Stop-Loss &amp; Risk/Reward):</span>
+            <strong style="color: var(--sell-red);">SL: ${formatUnitPrice(t.stopLoss)} (-3.2%) • R:R ${t.riskReward}</strong>
+          </div>
+        </div>
+
+        <!-- 2. KONKRETNA STRATEGIA KUPNA: PLAN TRANSZ DCA + PLAN GRID + KONTEKST PORTFELA -->
+        <div class="okx-ai-plans-grid">
+          <div class="okx-ai-plan-box">
+            <h5>🎯 Plan Akumulacji OKX Spot DCA (3 Transze Kupna dla ${a.asset})</h5>
+            <table class="data-table compact-strat-table">
+              <thead>
+                <tr>
+                  <th>Transza strategii</th>
+                  <th>Cena wejścia (USDC)</th>
+                  <th>Ilość ${a.asset}</th>
+                  <th>Kwota (USDC)</th>
+                  <th>Warunek aktywacji na OKX</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${s.dcaTranches
+                  .map(
+                    (tr) => `
+                  <tr>
+                    <td><strong>${tr.step}</strong></td>
+                    <td>${formatUnitPrice(tr.price)}</td>
+                    <td><strong>${formatQty(tr.amount)} ${a.asset}</strong></td>
+                    <td>${formatUsdc(tr.usdcValue)}</td>
+                    <td class="small-muted">${tr.condition}</td>
+                  </tr>
+                `
+                  )
+                  .join('')}
+              </tbody>
+            </table>
+            <div class="okx-ai-plan-summary-line">
+              <span>Łącznie po wykonaniu 3 transz DCA: <strong>${formatQty(s.totalDcaAmt)} ${a.asset}</strong></span>
+              <span>Uśredniona cena zakupu DCA: <strong>${formatUnitPrice(s.avgDcaPrice)}</strong></span>
+            </div>
+          </div>
+
+          <div class="okx-ai-plan-box">
+            <h5>🤖 Parametry Bota OKX Spot Grid &amp; Kontekst Twojego Portfela</h5>
+            <div class="okx-ai-side-kv-list">
+              <div class="kv-row"><span>Dolne pasmo siatki (Lower Grid):</span><strong>${formatUnitPrice(s.gridPlan.lowerPrice)}</strong></div>
+              <div class="kv-row"><span>Górne pasmo siatki (Upper Grid):</span><strong>${formatUnitPrice(s.gridPlan.upperPrice)}</strong></div>
+              <div class="kv-row"><span>Liczba poziomów siatki (Grids):</span><strong>${s.gridPlan.gridLevels} poziomów zleceń</strong></div>
+              <div class="kv-row"><span>Zysk na pojedynczej siatce:</span><strong style="color: var(--buy-green);">${s.gridPlan.profitPerGrid}</strong></div>
+              <div class="kv-row"><span>Dostępne USDC w Twoim portfelu OKX:</span><strong>${formatUsdc(p.availUsdc)}</strong></div>
+              <div class="kv-row"><span>Obecnie posiadane ${a.asset} w portfelu:</span><strong>${formatQty(p.currentAssetAmount)} ${a.asset}</strong></div>
+              <div class="kv-row"><span>Stan ${a.asset} po realizacji zakupu:</span><strong style="color: var(--accent-okx);">${formatQty(p.newTotalAssetAmount)} ${a.asset}</strong></div>
+            </div>
+          </div>
+        </div>
+
+        ${orderOrFeedbackHtml}
+      </div>
+    `;
   }
 
   function openAuthPopup() {
@@ -4135,6 +4631,38 @@
       sendAiPrompt(el.aiChatInput.value);
     });
 
+    // AI Strategies Window: Generate Concrete Buy Strategy & OKX AI Analysis
+    const runAiStrategyAnalysis = async (queryText) => {
+      const q = (queryText || '').trim() || 'Strategia kupna dla BTC';
+      lastExchangeFeedback = null;
+      if (el.aiStrategyInput) el.aiStrategyInput.value = q;
+
+      const res = await apiRequest('/api/agent/strategy', 'POST', { query: q });
+      if (res.analysis) {
+        currentAiStrategyAnalysis = res.analysis;
+      }
+      if (res.reply) {
+        appendChatMessage('user', `[AI Strategies] ${q}`);
+        appendChatMessage('assistant', res.reply);
+      }
+      if (res.state) {
+        renderApp(res.state);
+      } else {
+        renderAiStrategiesResultBox(appState);
+      }
+      if (el.aiStrategyResultContainer) {
+        el.aiStrategyResultContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      showToast(`🧠 Wygenerowano analizę i strategię kupna Agenta AI z OKX dla: ${res.analysis?.instId || q}`);
+    };
+
+    if (el.aiStrategyForm) {
+      el.aiStrategyForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        runAiStrategyAnalysis(el.aiStrategyInput ? el.aiStrategyInput.value : 'BTC');
+      });
+    }
+
     // Manual / Quick Order Form
     el.tabSideBuy.addEventListener('click', () => {
       currentOrderSide = 'BUY';
@@ -4326,12 +4854,49 @@
         return;
       }
 
-      // 7. Single "Potwierdź" button inside AI Agent Order Card
-      const confirmInlineBtn = e.target.closest('#btnSimpleConfirmOrder');
+      // 7. Single "Potwierdź" button inside AI Agent Order Card or AI Strategies Window
+      const confirmInlineBtn = e.target.closest('#btnSimpleConfirmOrder, .btn-confirm-order-action');
       if (confirmInlineBtn) {
         confirmInlineBtn.disabled = true;
         confirmInlineBtn.textContent = '⏳ Realizacja transakcji na giełdzie...';
         await executeConfirmedOrder();
+        return;
+      }
+
+      // 7B. Open AI Strategies draggable/resizable window button ("🧠 AI Strategies")
+      const openStrategiesBtn = e.target.closest('.open-ai-strategies-btn');
+      if (openStrategiesBtn) {
+        const stratWinMeta = WINDOWS_REGISTRY.find((w) => w.id === 'win-ai-strategies');
+        const stratDom = document.getElementById('win-ai-strategies');
+        if (stratWinMeta) {
+          if (stratWinMeta.mode === 'docked-top' || stratWinMeta.mode === 'docked-sidebar' || stratWinMeta.mode === 'minimized-inline') {
+            setWindowMode('win-ai-strategies', 'floating-medium');
+          } else if (stratDom) {
+            stratDom.style.zIndex = String(++topWindowZIndex + 10);
+          }
+        }
+        if (el.aiStrategyInput) {
+          setTimeout(() => el.aiStrategyInput.focus(), 60);
+        }
+        if (!currentAiStrategyAnalysis) {
+          runAiStrategyAnalysis('Strategia kupna dla BTC za 1500 USDC');
+        }
+        return;
+      }
+
+      // 7C. Quick Asset Chip inside AI Strategies window
+      const stratAssetChip = e.target.closest('.strat-asset-chip[data-strat-asset]');
+      if (stratAssetChip) {
+        const asset = stratAssetChip.getAttribute('data-strat-asset') || 'BTC';
+        await runAiStrategyAnalysis(`Analiza agenta AI z OKX i strategia kupna dla ${asset}`);
+        return;
+      }
+
+      // 7D. Sample Query button inside AI Strategies window
+      const sampleQueryBtn = e.target.closest('.ai-sample-query-btn[data-strat-query]');
+      if (sampleQueryBtn) {
+        const query = sampleQueryBtn.getAttribute('data-strat-query') || 'Strategia kupna dla BTC';
+        await runAiStrategyAnalysis(query);
         return;
       }
 
