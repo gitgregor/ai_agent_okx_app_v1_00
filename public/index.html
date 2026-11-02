@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
   <title>OKX Europe — AI Agent Crypto Trading</title>
-  <link rel="stylesheet" href="./styles.css?v=20261031v8" />
+  <link rel="stylesheet" href="./styles.css?v=20261102v10" />
 </head>
 <body>
   <!-- KOMPAKTOWY JEDNOLINIOWY GÓRNY PASEK NAWIGACJI (BEZ LOGO I TYTUŁU DLA MAKSYMALNEGO MIEJSCA NA EKRANIE) -->
@@ -392,38 +392,7 @@
           <div class="window-content-body">
             <div class="panel-header">
               <div>
-                <h2>🤖 Agent AI Handlu OKX Europe</h2>
                 <p class="panel-subtitle">Napisz czego chcesz — AI stworzy strategię i przygotuje transakcję do autoryzacji</p>
-              </div>
-            </div>
-
-            <!-- Pasek ostrzeżenia gdy Agent AI jest dezaktywowany (domyślnie) -->
-            <div id="aiDeactivatedBanner" class="ai-deactivated-banner">
-              <div>
-                <strong>🔒 Agent AI jest domyślnie DEZAKTYWOWANY.</strong>
-                <span>Aktywuj Agenta AI, aby generować strategie i wystawiać zlecenia.</span>
-              </div>
-              <button type="button" id="quickActivateAiBtn" class="btn btn-accent-sm">⚡ Aktywuj Agenta AI teraz</button>
-            </div>
-
-            <!-- Szybkie podpowiedzi poleceń (Quick Prompts) -->
-            <div class="quick-prompts-bar">
-              <span class="quick-prompts-label">Przykładowe polecenia:</span>
-              <button type="button" class="prompt-chip" data-prompt="Kup 0.05 BTC po cenie rynkowej w strategii akumulacji">Kup 0.05 BTC (Market)</button>
-              <button type="button" class="prompt-chip" data-prompt="Stwórz strategię DCA na ETH za 1500 USDC">Strategia DCA ETH za 1500 USDC</button>
-              <button type="button" class="prompt-chip" data-prompt="Kup SOL za 950 USDC pod wybicie momentum">Momentum SOL za 950 USDC</button>
-              <button type="button" class="prompt-chip" data-prompt="Sprzedaj 0.03 BTC i zrealizuj zysk do USDC">Sprzedaj 0.03 BTC do USDC</button>
-              <button type="button" class="prompt-chip" data-prompt="Sprzedaj 1.0 ETH po cenie rynkowej">Sprzedaj 1.0 ETH</button>
-            </div>
-
-            <!-- Historia rozmowy z Agentem AI -->
-            <div class="chat-messages" id="chatMessages">
-              <div class="chat-bubble assistant">
-                <div class="bubble-meta">OKX EEA AI Agent</div>
-                <div class="bubble-text">
-                  Witaj! Domyślnie pracujemy w trybie <strong>DEMO</strong>, a Agent AI jest <strong>dezaktywowany</strong>.<br/>
-                  Każde okno (w tym górne okna 1–3) możesz <strong>zminimalizować (—)</strong>, <strong>zamknąć (✕)</strong>, <strong>otworzyć na cały ekran (⛶)</strong> lub <strong>zmniejszyć do okna przesuwnego (🗗 Przesuwne)</strong> i dowolnie przeciągać myszką za pasek tytułowy!
-                </div>
               </div>
             </div>
 
@@ -437,6 +406,19 @@
               />
               <button type="submit" class="btn btn-primary">Wyślij do AI ➤</button>
             </form>
+
+            <!-- Karta zlecenia ze wszystkimi szczegółami (w tym Fee, Data, Przeliczenie na USDC) i prostym klawiszem Potwierdź oraz Komunikatem Zwrotnym z Giełdy (Exchange Feedback) -->
+            <div id="aiInlineOrderContainer" class="ai-inline-order-container" hidden></div>
+
+            <!-- Historia rozmowy z Agentem AI -->
+            <div class="chat-messages" id="chatMessages">
+              <div class="chat-bubble assistant">
+                <div class="bubble-meta">OKX EEA AI Agent</div>
+                <div class="bubble-text">
+                  Wpisz swoje polecenie i naciśnij <strong>Wyślij do AI ➤</strong> — poniżej pojawi się pełne zestawienie zlecenia (wraz z prowizją Fee, datą i przeliczeniem na USDC) oraz jeden przycisk <strong>Potwierdź</strong> do natychmiastowej realizacji na giełdzie.
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -735,6 +717,7 @@
                     <th>Ilość aktywa</th>
                     <th>Kwota operacji (USDC)</th>
                     <th>Wartość Portfela po transakcji (USDC)</th>
+                    <th>Exchange Feedback</th>
                   </tr>
                 </thead>
                 <tbody id="portfolioHistoryTbody">
@@ -799,7 +782,7 @@
                   <th>Wartość (USDC)</th>
                   <th>Strategia / Źródło</th>
                   <th>Status zlecenia</th>
-                  <th>Wykres aktywa &amp; Akcje</th>
+                  <th>Szczegóły Transakcji (Exchange Feedback) &amp; Wykres</th>
                 </tr>
               </thead>
               <tbody id="ordersHistoryTbody">
@@ -811,82 +794,6 @@
       </section>
 
     </main>
-  </div>
-
-  <!-- ======================================================================================== -->
-  <!-- PUNKT 4: POP-UP AUTORYZACJI I STATUSU HANDLU (ZAMYKANY KRZYŻYKIEM ✕ + CAŁY EKRAN/PRZESUWNY) -->
-  <!-- ======================================================================================== -->
-  <div id="tradeAuthModalOverlay" class="modal-overlay" hidden>
-    <div id="authPopupDialog" class="modal-dialog auth-popup-dialog" role="dialog" aria-modal="true" aria-labelledby="authPopupTitle">
-      <!-- Pasek sterowania oknem pop-upa (Przesuwne / Cały ekran / Zamknij ✕) -->
-      <div id="authPopupDragHeader" class="popup-window-bar" title="Przeciągnij okno pop-up">
-        <span class="window-drag-grip">⠿ Pop-up Autoryzacji (Przeciągnij, aby przesunąć)</span>
-        <div class="popup-win-btns">
-          <button type="button" id="btnPopupToggleFullscreen" class="win-ctrl-btn" title="Przełącz cały ekran / zmniejszone okno przesuwne">⛶ Cały ekran</button>
-          <button type="button" id="closeAuthPopupBtn" class="modal-close-x-inline" aria-label="Zamknij okno pop-up" title="Zamknij pop-up">✕</button>
-        </div>
-      </div>
-
-      <div class="auth-popup-header">
-        <span class="auth-popup-badge" id="popupModeBadge">OKX EUROPE • DEMO</span>
-        <h3 id="authPopupTitle">Autoryzacja i Status Zlecenia Handlowego</h3>
-      </div>
-
-      <!-- Pasek statusu zlecenia wewnątrz pop-upa -->
-      <div id="popupStatusBanner" class="popup-status-banner status-waiting">
-        <div class="status-icon" id="popupStatusIcon">⏳</div>
-        <div class="status-texts">
-          <span class="status-caption">AKTUALNY STATUS HANDLU:</span>
-          <strong id="popupStatusMainText">Czekam na start zlecenia</strong>
-        </div>
-      </div>
-
-      <!-- Szczegóły zlecenia oczekującego lub realizowanego -->
-      <div id="popupOrderDetailsBox" class="popup-order-details">
-        <div class="detail-row">
-          <span>ID Zlecenia:</span>
-          <strong id="popupOrderId">—</strong>
-        </div>
-        <div class="detail-row">
-          <span>Strategia / Źródło:</span>
-          <strong id="popupOrderStrategy">—</strong>
-        </div>
-        <div class="detail-row">
-          <span>Para handlowa:</span>
-          <strong id="popupOrderPair">BTC-USDC</strong>
-        </div>
-        <div class="detail-row">
-          <span>Kierunek operacji:</span>
-          <strong id="popupOrderSide">KUPNO (BUY)</strong>
-        </div>
-        <div class="detail-row">
-          <span>Ilość aktywa:</span>
-          <strong id="popupOrderAmount">0.0000 BTC</strong>
-        </div>
-        <div class="detail-row">
-          <span>Cena jednostkowa:</span>
-          <strong id="popupOrderPrice">0.00 USDC</strong>
-        </div>
-        <div class="detail-row highlight-row">
-          <span>Wartość całkowita w przeliczeniu na USDC:</span>
-          <strong id="popupOrderUsdc">0.00 USDC</strong>
-        </div>
-      </div>
-
-      <p id="popupInstructionText" class="popup-instruction">
-        Zlecenie oczekuje na Twoją autoryzację. Wciśnij poniższy przycisk <strong>START</strong>, aby rozpocząć handel i zrealizować transakcję.
-      </p>
-
-      <!-- Przyciski akcji wewnątrz Pop-upa -->
-      <div class="popup-actions">
-        <button type="button" id="popupConfirmStartBtn" class="btn-popup-start">
-          🚀 START — Potwierdź i Uruchom Realizację Zlecenia
-        </button>
-        <button type="button" id="popupStopCancelBtn" class="btn btn-danger-outline">
-          ⏹ Stop / Anuluj zlecenie
-        </button>
-      </div>
-    </div>
   </div>
 
   <!-- ======================================================================================== -->
@@ -1056,6 +963,6 @@
   <!-- POWIADOMIENIE TOAST -->
   <div id="toastContainer" class="toast-container"></div>
 
-  <script src="./app.js?v=20261031v9"></script>
+  <script src="./app.js?v=20261102v10"></script>
 </body>
 </html>

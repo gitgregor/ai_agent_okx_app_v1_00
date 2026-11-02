@@ -4,6 +4,8 @@
   let currentOrderFilter = 'ALL';
   let topWindowZIndex = 1250;
   let wasJustDragging = false;
+  let lastExchangeFeedback = null;
+  const expandedFeedbackIds = new Set();
 
   // Chart Window State (Requirement 9 + TradingView Superchart + Window Manager)
   const chartState = {
@@ -134,6 +136,7 @@
     chatMessages: document.getElementById('chatMessages'),
     aiChatForm: document.getElementById('aiChatForm'),
     aiChatInput: document.getElementById('aiChatInput'),
+    aiInlineOrderContainer: document.getElementById('aiInlineOrderContainer'),
 
     manualTradeForm: document.getElementById('manualTradeForm'),
     tabSideBuy: document.getElementById('tabSideBuy'),
@@ -309,7 +312,8 @@
       localStorage.removeItem('okx_standalone_state_v1');
       localStorage.removeItem('okx_standalone_state_v2');
       localStorage.removeItem('okx_standalone_state_v3');
-      const saved = localStorage.getItem('okx_standalone_state_v4');
+      localStorage.removeItem('okx_standalone_state_v4');
+      const saved = localStorage.getItem('okx_standalone_state_v5');
       if (saved) {
         _standaloneState = JSON.parse(saved);
         if (
@@ -616,10 +620,14 @@
             instId: 'BTC-USDC',
             asset: 'BTC',
             side: 'BUY',
-            orderType: 'market',
+            orderType: 'MARKET',
             amount: 1.00,
             price: 80753.90,
             usdcValue: 80753.90,
+            feeRate: '0.10%',
+            feeUsdc: 80.75,
+            feeAsset: 0.001,
+            totalUsdcWithFee: 80834.65,
             status: 'CLOSED',
             rawState: 'filled',
             statusLabel: 'Zamknięte (Zrealizowane na OKX)',
@@ -627,17 +635,45 @@
             strategyName: 'Zlecenie OKX market (BTC-USDC) • Prowizja: 0.001 BTC',
             date: '2026-10-29',
             time: '19:57:37',
-            timestamp: 1730231857000
+            timestamp: 1730231857000,
+            exchangeFeedback: {
+              exchange: 'OKX Europe (eea.okx.com) — API v5',
+              mode: 'DEMO',
+              code: '0',
+              status: 'FILLED (Zrealizowano na giełdzie OKX)',
+              orderId: 'OKX-1730231857000',
+              date: '2026-10-29',
+              time: '19:57:37',
+              instId: 'BTC-USDC',
+              asset: 'BTC',
+              side: 'BUY',
+              orderType: 'MARKET',
+              amount: 1.00,
+              price: 80753.90,
+              usdcValue: 80753.90,
+              feeRate: '0.10%',
+              feeUsdc: 80.75,
+              feeAsset: 0.001,
+              feeCcy: 'BTC',
+              totalUsdcWithFee: 80834.65,
+              strategyName: 'Zlecenie OKX market (BTC-USDC) • Prowizja: 0.001 BTC',
+              strategyMessage: 'Założono strategię „Zlecenie OKX market (BTC-USDC)” oraz uruchomiono proces KUPNA (BUY) dla pary BTC-USDC.',
+              exchangeMessage: 'Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #OKX-1730231857000: Kupiono 1.00 BTC po cenie 80 753,90 USDC (Przeliczenie na USDC: 80 753,90 USDC, Fee 0.10%: 80,75 USDC / 0.001 BTC, Rozliczenie całkowite: 80 834,65 USDC).'
+            }
           },
           {
             id: 'OKX-1729389931000',
             instId: 'WLD-USDC',
             asset: 'WLD',
             side: 'BUY',
-            orderType: 'market',
+            orderType: 'MARKET',
             amount: 186.08,
             price: 0.4171,
             usdcValue: 77.62,
+            feeRate: '0.10%',
+            feeUsdc: 0.08,
+            feeAsset: 0.186,
+            totalUsdcWithFee: 77.70,
             status: 'CLOSED',
             rawState: 'filled',
             statusLabel: 'Zamknięte (Zrealizowane na OKX)',
@@ -645,7 +681,31 @@
             strategyName: 'Zlecenie OKX market (WLD-USDC) • Prowizja: 0.186 WLD',
             date: '2026-10-20',
             time: '02:05:31',
-            timestamp: 1729389931000
+            timestamp: 1729389931000,
+            exchangeFeedback: {
+              exchange: 'OKX Europe (eea.okx.com) — API v5',
+              mode: 'DEMO',
+              code: '0',
+              status: 'FILLED (Zrealizowano na giełdzie OKX)',
+              orderId: 'OKX-1729389931000',
+              date: '2026-10-20',
+              time: '02:05:31',
+              instId: 'WLD-USDC',
+              asset: 'WLD',
+              side: 'BUY',
+              orderType: 'MARKET',
+              amount: 186.08,
+              price: 0.4171,
+              usdcValue: 77.62,
+              feeRate: '0.10%',
+              feeUsdc: 0.08,
+              feeAsset: 0.186,
+              feeCcy: 'WLD',
+              totalUsdcWithFee: 77.70,
+              strategyName: 'Zlecenie OKX market (WLD-USDC) • Prowizja: 0.186 WLD',
+              strategyMessage: 'Założono strategię „Zlecenie OKX market (WLD-USDC)” oraz uruchomiono proces KUPNA (BUY) dla pary WLD-USDC.',
+              exchangeMessage: 'Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #OKX-1729389931000: Kupiono 186.08 WLD po cenie 0,4171 USDC (Przeliczenie na USDC: 77,62 USDC, Fee 0.10%: 0,08 USDC / 0.186 WLD, Rozliczenie całkowite: 77,70 USDC).'
+            }
           }
         ],
         portfolioHistory: [
@@ -657,7 +717,10 @@
             timestamp: 1730231857000,
             action: 'Kupno 1.00 BTC @ 80753.90 USDC (BTC-USDC)',
             side: 'BUY',
+            usdcAmount: 80753.90,
             usdcValue: 80753.90,
+            feeUsdc: 80.75,
+            feeAsset: 0.001,
             diffUsdc: 80753.90,
             totalValueUsdc: 468244.29,
             asset: 'BTC',
@@ -672,7 +735,10 @@
             timestamp: 1729389931000,
             action: 'Kupno 186.08 WLD @ 0.4171 USDC (WLD-USDC)',
             side: 'BUY',
+            usdcAmount: 77.62,
             usdcValue: 77.62,
+            feeUsdc: 0.08,
+            feeAsset: 0.186,
             diffUsdc: 77.62,
             totalValueUsdc: 387490.39,
             asset: 'WLD',
@@ -689,7 +755,7 @@
   function saveStandaloneState() {
     try {
       if (_standaloneState) {
-        localStorage.setItem('okx_standalone_state_v4', JSON.stringify(_standaloneState));
+        localStorage.setItem('okx_standalone_state_v5', JSON.stringify(_standaloneState));
       }
     } catch (e) {}
   }
@@ -846,60 +912,107 @@
     // 4. Trade Propose
     if (url.startsWith('/api/trade/propose') && method === 'POST') {
       const instId = body?.instId || 'BTC-USDC';
-      const side = (body?.side || 'BUY').toUpperCase();
-      const amount = Number(body?.amount || 0.01);
-      const price = Number(body?.price || 80000);
       const [asset] = instId.split('-');
-      const usdcVal = Number((amount * price).toFixed(2));
-      const orderId = 'ORD-' + Date.now();
+      const mList = _standaloneState.markets || _standaloneState.tickers || DEFAULT_STANDALONE_MARKETS;
+      const market = mList.find((m) => m.instId === instId) || mList[0] || { price: 80753.90 };
+      const side = (body?.side || 'BUY').toUpperCase();
+      const isBuy = side !== 'SELL';
+      const orderType = (body?.orderType || 'MARKET').toUpperCase();
+      const execPrice = orderType === 'LIMIT' && body?.limitPrice ? Number(body.limitPrice) : Number(body?.price || market.price || 80000);
+      let amount = Number(body?.amount || 0);
+      let usdcVal = Number(body?.usdcAmount || 0);
+      if (amount <= 0 && usdcVal > 0 && execPrice > 0) {
+        amount = Number((usdcVal / execPrice).toFixed(6));
+      } else if (amount > 0 && execPrice > 0) {
+        usdcVal = Number((amount * execPrice).toFixed(2));
+      } else {
+        usdcVal = 500;
+        amount = execPrice > 0 ? Number((usdcVal / execPrice).toFixed(6)) : 0.01;
+      }
+      const feeUsdc = Number((usdcVal * 0.001).toFixed(2));
+      const feeAsset = Number((amount * 0.001).toFixed(6));
+      const totalUsdcWithFee = isBuy ? Number((usdcVal + feeUsdc).toFixed(2)) : Number((usdcVal - feeUsdc).toFixed(2));
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+      const timeStr = now.toTimeString().slice(0, 8);
+      const orderId = 'OKX-EEA-' + Math.floor(10000 + Math.random() * 90000);
       const order = {
         id: orderId,
         instId,
         asset,
         side,
-        orderType: body?.orderType || 'limit',
+        orderType,
         amount,
-        price,
+        price: execPrice,
         usdcValue: usdcVal,
-        status: 'PENDING_START',
-        statusLabel: 'Oczekuje na zatwierdzenie START',
-        source: 'Agent AI (GitHub Pages)',
-        strategyName: `Zlecenie ${side} ${asset} (${orderId})`,
-        date: new Date().toISOString().slice(0, 10),
-        time: new Date().toTimeString().slice(0, 8),
-        timestamp: Date.now()
+        feeRate: '0.10%',
+        feeUsdc,
+        feeAsset,
+        totalUsdcWithFee,
+        status: 'waiting_for_start',
+        statusLabel: 'Oczekuje na potwierdzenie przyciskiem Potwierdź',
+        source: body?.source || 'Agent AI (OKX EEA)',
+        strategyName: body?.strategyName || `Strategia Spot ${side} ${asset} (${instId})`,
+        date: dateStr,
+        time: timeStr,
+        createdAtDate: dateStr,
+        createdAtTime: timeStr,
+        timestamp: now.getTime()
       };
       _standaloneState.activeTradeOrder = order;
-      _standaloneState.config.tradingStatus = 'waiting_auth';
-      _standaloneState.config.tradingStatusLabel = 'Oczekiwanie na autoryzację START';
+      _standaloneState.config.tradingStatus = 'waiting_for_start';
+      _standaloneState.config.tradingStatusLabel = `Gotowe do potwierdzenia (${side} ${amount} ${asset} @ ${execPrice} USDC)`;
       saveStandaloneState();
-      return { ok: true, order, state: _standaloneState };
+      return { ok: true, order, activeTradeOrder: order, state: _standaloneState };
     }
 
     // 5. Trade Authorize
     if (url.startsWith('/api/trade/authorize') && method === 'POST') {
       const order = _standaloneState.activeTradeOrder;
-      if (!order) return { ok: false, error: 'Brak zlecenia do autoryzacji' };
-      order.status = 'CLOSED';
-      order.statusLabel = 'Zamknięte (Zrealizowane symulacyjnie)';
-      _standaloneState.portfolio.orders.unshift(order);
+      if (!order) return { ok: false, error: 'Brak zlecenia do potwierdzenia' };
 
-      const newTotal = Number((_standaloneState.portfolio.totalValueUsdc + (order.side === 'BUY' ? 0 : 0)).toFixed(2));
-      _standaloneState.portfolio.portfolioHistory.unshift({
-        id: 'ORD-HIST-' + order.id,
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+      const timeStr = now.toTimeString().slice(0, 8);
+      const isBuy = order.side === 'BUY';
+      const feeUsdc = order.feeUsdc ?? Number((order.usdcValue * 0.001).toFixed(2));
+      const feeAsset = order.feeAsset ?? Number((order.amount * 0.001).toFixed(6));
+      const totalUsdcWithFee = order.totalUsdcWithFee ?? (isBuy ? Number((order.usdcValue + feeUsdc).toFixed(2)) : Number((order.usdcValue - feeUsdc).toFixed(2)));
+
+      const exchangeFeedback = {
+        exchange: 'OKX Europe (eea.okx.com) — API v5',
+        mode: (_standaloneState.config.apiMode || 'demo').toUpperCase(),
+        code: '0',
+        status: 'FILLED (Zrealizowano na giełdzie OKX Europe)',
         orderId: order.id,
-        date: order.date,
-        time: order.time,
-        timestamp: order.timestamp,
-        action: `${order.side === 'BUY' ? 'Kupno' : 'Sprzedaż'} ${order.amount} ${order.asset} @ ${order.price} USDC (${order.instId})`,
-        side: order.side,
-        usdcValue: order.usdcValue,
-        diffUsdc: order.usdcValue,
-        totalValueUsdc: newTotal,
+        date: dateStr,
+        time: timeStr,
+        instId: order.instId,
         asset: order.asset,
+        side: order.side,
+        orderType: order.orderType || 'MARKET',
         amount: order.amount,
-        price: order.price
-      });
+        price: order.price,
+        usdcValue: order.usdcValue,
+        feeRate: '0.10%',
+        feeUsdc,
+        feeAsset,
+        feeCcy: isBuy ? order.asset : 'USDC',
+        totalUsdcWithFee,
+        strategyName: order.strategyName,
+        strategyMessage: `Założono strategię „${order.strategyName}” oraz uruchomiono proces ${isBuy ? 'KUPNA (BUY)' : 'SPRZEDAŻY (SELL)'} dla pary ${order.instId}.`,
+        exchangeMessage: `Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #${order.id}: ${isBuy ? 'Kupiono' : 'Sprzedano'} ${order.amount} ${order.asset} po kursie ${order.price} USDC (Przeliczenie na USDC: ${order.usdcValue.toFixed(2)} USDC, Fee 0.10%: ${feeUsdc.toFixed(2)} USDC / ${feeAsset} ${order.asset}, Rozliczenie całkowite: ${totalUsdcWithFee.toFixed(2)} USDC).`
+      };
+
+      order.date = dateStr;
+      order.time = timeStr;
+      order.feeRate = '0.10%';
+      order.feeUsdc = feeUsdc;
+      order.feeAsset = feeAsset;
+      order.totalUsdcWithFee = totalUsdcWithFee;
+      order.status = 'CLOSED';
+      order.statusLabel = 'Zamknięte (Zrealizowane na OKX)';
+      order.exchangeFeedback = exchangeFeedback;
 
       let holding = _standaloneState.portfolio.holdings.find((h) => h.asset === order.asset);
       if (!holding) {
@@ -919,25 +1032,112 @@
         };
         _standaloneState.portfolio.holdings.push(holding);
       }
-      if (order.side === 'BUY') {
+
+      const usdcHolding = _standaloneState.portfolio.holdings.find((h) => h.asset === 'USDC');
+      if (isBuy) {
         holding.amount = Number((holding.amount + order.amount).toFixed(6));
         holding.availAmount = holding.amount;
-        _standaloneState.portfolio.cashUsdc = Math.max(
-          0,
-          Number((_standaloneState.portfolio.cashUsdc - order.usdcValue).toFixed(2))
-        );
+        if (usdcHolding) {
+          usdcHolding.amount = Math.max(0, Number((usdcHolding.amount - order.usdcValue).toFixed(2)));
+          usdcHolding.availAmount = usdcHolding.amount;
+          usdcHolding.usdcValue = Number((usdcHolding.amount * (usdcHolding.priceUsdc || 1)).toFixed(2));
+        }
       } else {
         holding.amount = Math.max(0, Number((holding.amount - order.amount).toFixed(6)));
         holding.availAmount = holding.amount;
-        _standaloneState.portfolio.cashUsdc = Number((_standaloneState.portfolio.cashUsdc + order.usdcValue).toFixed(2));
+        if (usdcHolding) {
+          usdcHolding.amount = Number((usdcHolding.amount + order.usdcValue).toFixed(2));
+          usdcHolding.availAmount = usdcHolding.amount;
+          usdcHolding.usdcValue = Number((usdcHolding.amount * (usdcHolding.priceUsdc || 1)).toFixed(2));
+        }
       }
       holding.usdcValue = Number((holding.amount * holding.priceUsdc).toFixed(2));
 
+      // Update Ledger (Panel 2)
+      if (_standaloneState.portfolio.ledger && Array.isArray(_standaloneState.portfolio.ledger.items)) {
+        let lItem = _standaloneState.portfolio.ledger.items.find((i) => i.asset === order.asset);
+        if (!lItem) {
+          lItem = {
+            asset: order.asset,
+            instId: order.instId,
+            currentPriceUsdc: order.price,
+            boughtAmount: 0,
+            boughtUsdc: 0,
+            buyCount: 0,
+            soldAmount: 0,
+            soldUsdc: 0,
+            sellCount: 0,
+            netAmount: 0,
+            netUsdcFlow: 0
+          };
+          _standaloneState.portfolio.ledger.items.unshift(lItem);
+        }
+        if (isBuy) {
+          lItem.boughtAmount = Number((lItem.boughtAmount + order.amount).toFixed(6));
+          lItem.boughtUsdc = Number((lItem.boughtUsdc + order.usdcValue).toFixed(2));
+          lItem.buyCount += 1;
+          _standaloneState.portfolio.ledger.totalBoughtUsdc = Number(
+            (_standaloneState.portfolio.ledger.totalBoughtUsdc + order.usdcValue).toFixed(2)
+          );
+        } else {
+          lItem.soldAmount = Number((lItem.soldAmount + order.amount).toFixed(6));
+          lItem.soldUsdc = Number((lItem.soldUsdc + order.usdcValue).toFixed(2));
+          lItem.sellCount += 1;
+          _standaloneState.portfolio.ledger.totalSoldUsdc = Number(
+            (_standaloneState.portfolio.ledger.totalSoldUsdc + order.usdcValue).toFixed(2)
+          );
+        }
+        lItem.netAmount = Number((lItem.boughtAmount - lItem.soldAmount).toFixed(6));
+        lItem.netUsdcFlow = Number((lItem.soldUsdc - lItem.boughtUsdc).toFixed(2));
+      }
+
+      // Recalculate total portfolio value
+      const isCashAsset = (ccy) => ccy === 'USDC' || ccy === 'USDT' || ccy === 'USD' || ccy === 'USDG';
+      const newTotal = Number(
+        _standaloneState.portfolio.holdings.reduce((sum, h) => sum + (h.usdcValue || 0), 0).toFixed(2)
+      );
+      const newCash = Number(
+        _standaloneState.portfolio.holdings
+          .filter((h) => isCashAsset(h.asset))
+          .reduce((sum, h) => sum + (h.usdcValue || 0), 0)
+          .toFixed(2)
+      );
+      _standaloneState.portfolio.totalValueUsdc = newTotal;
+      _standaloneState.portfolio.cashUsdc = newCash;
+      _standaloneState.portfolio.cryptoValueUsdc = Number(Math.max(0, newTotal - newCash).toFixed(2));
+
+      _standaloneState.portfolio.orders.unshift(order);
+      _standaloneState.portfolio.portfolioHistory.unshift({
+        id: 'ORD-HIST-' + order.id,
+        orderId: order.id,
+        date: order.date,
+        time: order.time,
+        timestamp: now.getTime(),
+        action: `${isBuy ? 'Kupno' : 'Sprzedaż'} ${order.amount} ${order.asset} @ ${order.price} USDC (${order.strategyName || order.instId})`,
+        side: order.side,
+        usdcAmount: order.usdcValue,
+        usdcValue: order.usdcValue,
+        feeUsdc,
+        feeAsset,
+        diffUsdc: order.usdcValue,
+        totalValueUsdc: newTotal,
+        asset: order.asset,
+        amount: order.amount,
+        price: order.price,
+        exchangeFeedback
+      });
+
       _standaloneState.activeTradeOrder = null;
-      _standaloneState.config.tradingStatus = 'idle';
-      _standaloneState.config.tradingStatusLabel = 'Gotowy — brak oczekującego zlecenia';
+      _standaloneState.config.tradingStatus = 'in_progress';
+      _standaloneState.config.tradingStatusLabel = `Zrealizowano: ${isBuy ? 'KUPIONO' : 'SPRZEDANO'} ${order.amount} ${order.asset} @ ${order.price} USDC`;
       saveStandaloneState();
-      return { ok: true, state: _standaloneState };
+      return {
+        ok: true,
+        message: exchangeFeedback.exchangeMessage,
+        exchangeFeedback,
+        executedOrder: order,
+        state: _standaloneState
+      };
     }
 
     // 6. Trade Stop
@@ -946,7 +1146,7 @@
       _standaloneState.config.tradingStatus = 'idle';
       _standaloneState.config.tradingStatusLabel = 'Gotowy — brak oczekującego zlecenia';
       saveStandaloneState();
-      return { ok: true, state: _standaloneState };
+      return { ok: true, message: 'Wycofano oczekujące zlecenie.', state: _standaloneState };
     }
 
     // 7. Orders cancel
@@ -957,7 +1157,7 @@
         order.statusLabel = 'Zamknięte (Anulowane)';
       }
       saveStandaloneState();
-      return { ok: true, state: _standaloneState };
+      return { ok: true, message: 'Zlecenie anulowane.', state: _standaloneState };
     }
 
     // 8. Orders activate
@@ -965,26 +1165,128 @@
       const order = _standaloneState.portfolio.orders.find((o) => o.id === body?.orderId);
       if (order) {
         _standaloneState.activeTradeOrder = order;
-        _standaloneState.config.tradingStatus = 'waiting_auth';
-        _standaloneState.config.tradingStatusLabel = 'Oczekiwanie na autoryzację START';
+        _standaloneState.config.tradingStatus = 'waiting_for_start';
+        _standaloneState.config.tradingStatusLabel = 'Gotowe do potwierdzenia przyciskiem Potwierdź';
       }
       saveStandaloneState();
       return { ok: true, order, state: _standaloneState };
     }
 
-    // 9. Agent Chat
+    // 9. Agent Chat — Creates full order with Fee, Date, USDC conversion & ready for 1-click Potwierdź
     if (url.startsWith('/api/agent/chat') && method === 'POST') {
-      const msg = (body?.message || '').toLowerCase();
-      let reply =
-        'Jestem Agentem AI OKX Europe. Twoje zapytanie zostało przetworzone. Portfel oraz zlecenia działają w trybie bezpiecznym z pełną zgodnością MiCA.';
-      if (msg.includes('portfel') || msg.includes('stan') || msg.includes('bilans')) {
-        reply = `Twój portfel zawiera obecnie ${_standaloneState.portfolio.cashUsdc.toLocaleString('pl-PL')} USDC wolnych środków oraz pozycje w BTC i WLD. Łączna wartość portfela to ok. ${_standaloneState.portfolio.totalValueUsdc.toLocaleString('pl-PL')} USDC.`;
-      } else if (msg.includes('kup') || msg.includes('buy') || msg.includes('zlecenie')) {
-        reply = `Przygotowałem analizę i propozycję zlecenia dla rynku OKX. Przejdź do Okna 4 (Trading i Szybkie Zlecenia) lub kliknij START w oknie autoryzacji, aby zrealizować transakcję.`;
-      } else if (msg.includes('analiz') || msg.includes('rynek') || msg.includes('trend')) {
-        reply = `Analiza wskaźników OKX (RSI, Bollinger Bands, EMA): Rynek kryptowalut znajduje się w fazie konsolidacji z lekką tendencją wzrostową. Wolumeny transakcyjne na parze BTC-USDC są stabilne.`;
+      _standaloneState.config.aiStatus = 'active';
+      const text = (body?.message || '').trim();
+      const lower = text.toLowerCase();
+
+      let asset = 'BTC';
+      if (lower.includes('etc') || lower.includes('ethereum classic')) asset = 'ETC';
+      else if (lower.includes('eth') || lower.includes('ethereum')) asset = 'ETH';
+      else if (lower.includes('wld') || lower.includes('worldcoin')) asset = 'WLD';
+      else if (lower.includes('usdg')) asset = 'USDG';
+      else if (lower.includes('sol') || lower.includes('solana')) asset = 'SOL';
+      else if (lower.includes('okb')) asset = 'OKB';
+      else if (lower.includes('xrp') || lower.includes('ripple')) asset = 'XRP';
+      else if (lower.includes('ada') || lower.includes('cardano')) asset = 'ADA';
+      else if (lower.includes('doge')) asset = 'DOGE';
+      else if (lower.includes('avax')) asset = 'AVAX';
+      else if (lower.includes('link')) asset = 'LINK';
+      else if (lower.includes('sui')) asset = 'SUI';
+      else if (lower.includes('btc') || lower.includes('bitcoin')) asset = 'BTC';
+
+      const instId = `${asset}-USDC`;
+      const mList = _standaloneState.markets || _standaloneState.tickers || DEFAULT_STANDALONE_MARKETS;
+      const market = mList.find((m) => m.instId === instId) || mList[0] || { price: 80753.90 };
+      const livePrice = Number(market.price || 80753.90);
+
+      const isSell =
+        lower.includes('sprzedaj') ||
+        lower.includes('sprzedaż') ||
+        lower.includes('sprzedac') ||
+        lower.includes('sell') ||
+        lower.includes('short') ||
+        lower.includes('zrealizuj zysk');
+      const side = isSell ? 'SELL' : 'BUY';
+      const isLimit = lower.includes('limit') || lower.includes('po cenie');
+      const orderType = isLimit ? 'LIMIT' : 'MARKET';
+
+      const numbers = (text.match(/\d+(?:[.,]\d+)?/g) || []).map((n) => parseFloat(n.replace(',', '.')));
+      let amount = 0;
+      let usdcVal = 0;
+
+      if (numbers.length > 0 && livePrice > 0) {
+        const firstNum = numbers[0];
+        const mentionsUsdcAfterNumber =
+          new RegExp(`${numbers[0]}\\s*(usdc|usdt|usd|dolar|\\$)`, 'i').test(text) ||
+          (lower.includes('za ') && (lower.includes('usdc') || lower.includes('usdt') || lower.includes('usd')));
+        if (mentionsUsdcAfterNumber || (asset === 'BTC' && firstNum >= 20) || (asset === 'ETH' && firstNum >= 50)) {
+          usdcVal = Number(firstNum.toFixed(2));
+          amount = Number((usdcVal / livePrice).toFixed(6));
+        } else {
+          amount = Number(firstNum.toFixed(6));
+          usdcVal = Number((amount * livePrice).toFixed(2));
+        }
+      } else {
+        usdcVal = 1000.00;
+        amount = livePrice > 0 ? Number((usdcVal / livePrice).toFixed(6)) : 0.01;
       }
-      return { ok: true, reply, state: _standaloneState };
+
+      let strategyName = `Strategia AI MCP (${side === 'BUY' ? 'Kupno' : 'Sprzedaż'} ${instId})`;
+      if (lower.includes('dca')) strategyName = `Strategia AI Spot DCA (${instId})`;
+      else if (lower.includes('grid') || lower.includes('siatk')) strategyName = `Strategia AI Spot Grid (${instId})`;
+      else if (lower.includes('momentum') || lower.includes('wzrost')) strategyName = `Strategia AI Momentum (${instId})`;
+      else if (lower.includes('rebalans') || lower.includes('bezpiecz')) strategyName = `Strategia AI Smart Rebalance (${instId})`;
+
+      const feeUsdc = Number((usdcVal * 0.001).toFixed(2));
+      const feeAsset = Number((amount * 0.001).toFixed(6));
+      const totalUsdcWithFee = side === 'BUY' ? Number((usdcVal + feeUsdc).toFixed(2)) : Number((usdcVal - feeUsdc).toFixed(2));
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+      const timeStr = now.toTimeString().slice(0, 8);
+      const orderId = 'OKX-EEA-' + Math.floor(10000 + Math.random() * 90000);
+
+      const order = {
+        id: orderId,
+        instId,
+        asset,
+        side,
+        orderType,
+        amount,
+        price: livePrice,
+        usdcValue: usdcVal,
+        feeRate: '0.10%',
+        feeUsdc,
+        feeAsset,
+        totalUsdcWithFee,
+        mode: _standaloneState.config.apiMode || 'demo',
+        site: 'eea.okx.com',
+        status: 'waiting_for_start',
+        statusLabel: 'Oczekuje na potwierdzenie przyciskiem Potwierdź',
+        source: 'Agent AI MCP (okx/agent-trade-kit)',
+        strategyName,
+        date: dateStr,
+        time: timeStr,
+        createdAtDate: dateStr,
+        createdAtTime: timeStr,
+        timestamp: now.getTime()
+      };
+
+      _standaloneState.activeTradeOrder = order;
+      _standaloneState.config.tradingStatus = 'waiting_for_start';
+      _standaloneState.config.tradingStatusLabel = `Gotowe do potwierdzenia (${side} ${amount} ${asset} @ ${livePrice} USDC)`;
+      saveStandaloneState();
+
+      const reply = [
+        `🤖 **Przygotowano strategię i zlecenie na giełdę OKX Europe (\`eea.okx.com\`):**`,
+        `- **Założona strategia:** ${strategyName}`,
+        `- **Data i czas:** \`${dateStr} ${timeStr}\` • **ID:** \`${orderId}\``,
+        `- **Operacja:** **${side === 'BUY' ? 'KUPNO (BUY)' : 'SPRZEDAŻ (SELL)'}** \`${amount} ${asset}\` po kursie **${livePrice.toLocaleString('pl-PL')} USDC**`,
+        `- **Przeliczenie na USDC:** **\`${usdcVal.toFixed(2)} USDC\`** • **Opłata (Fee 0.10%):** **\`${feeUsdc.toFixed(2)} USDC\`** (\`${feeAsset} ${asset}\`)`,
+        `- **Całkowite rozliczenie w USDC:** **\`${totalUsdcWithFee.toFixed(2)} USDC\`**`,
+        ``,
+        `👇 Kliknij przycisk **Potwierdź** w karcie zlecenia powyżej, aby natychmiast zrealizować transakcję na giełdzie.`
+      ].join('\n');
+
+      return { ok: true, reply, activeTradeOrder: order, state: _standaloneState };
     }
 
     // Default: State endpoint
@@ -1962,6 +2264,80 @@
   }
 
   // ============================================================================
+  // HELPER: EXCHANGE FEEDBACK BUILDER & DETAILS HTML
+  // ============================================================================
+  function buildExchangeFeedbackForItem(item) {
+    if (item && item.exchangeFeedback) return item.exchangeFeedback;
+    const id = item?.orderId || item?.id || 'OKX-ORD';
+    const asset = item?.asset || (item?.instId ? item.instId.split('-')[0] : 'BTC');
+    const instId = item?.instId || `${asset}-USDC`;
+    const side = (item?.side || 'BUY').toUpperCase();
+    const isBuy = side !== 'SELL';
+    const orderType = (item?.orderType || 'MARKET').toUpperCase();
+    const amount = Number(item?.amount || 0);
+    const usdcVal = Number(item?.usdcValue ?? item?.usdcAmount ?? 0);
+    const price = Number(item?.price || (amount > 0 ? Number((usdcVal / amount).toFixed(4)) : 0));
+    const feeUsdc = Number(item?.feeUsdc ?? (usdcVal * 0.001).toFixed(2));
+    const feeAsset = Number(item?.feeAsset ?? (amount * 0.001).toFixed(6));
+    const totalUsdcWithFee = Number(
+      item?.totalUsdcWithFee ?? (isBuy ? (usdcVal + feeUsdc).toFixed(2) : (usdcVal - feeUsdc).toFixed(2))
+    );
+    const strat = item?.strategyName || item?.action || `Strategia Spot ${side} (${instId})`;
+
+    return {
+      exchange: 'OKX Europe (eea.okx.com) — API v5',
+      mode: (appState?.config?.apiMode || 'demo').toUpperCase(),
+      code: '0',
+      status: item?.status === 'OPEN' ? 'LIVE (Aktywne zlecenie na giełdzie OKX)' : 'FILLED (Zrealizowano na giełdzie OKX)',
+      orderId: id,
+      date: item?.date || '—',
+      time: item?.time || '—',
+      instId,
+      asset,
+      side,
+      orderType,
+      amount,
+      price,
+      usdcValue: usdcVal,
+      feeRate: '0.10%',
+      feeUsdc,
+      feeAsset,
+      feeCcy: isBuy ? asset : 'USDC',
+      totalUsdcWithFee,
+      strategyName: strat,
+      strategyMessage: `Założono strategię „${strat}” oraz uruchomiono proces ${isBuy ? 'KUPNA (BUY)' : 'SPRZEDAŻY (SELL)'} dla pary ${instId}.`,
+      exchangeMessage: `Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #${id}: ${isBuy ? 'Kupiono' : 'Sprzedano'} ${formatQty(amount)} ${asset} po cenie ${formatUnitPrice(price)} (Przeliczenie na USDC: ${formatUsdc(usdcVal)}, Fee 0.10%: ${formatUsdc(feeUsdc)} / ${feeAsset} ${asset}, Rozliczenie całkowite: ${formatUsdc(totalUsdcWithFee)}).`
+    };
+  }
+
+  function renderExchangeFeedbackDetailsHtml(fb) {
+    const isBuy = fb.side === 'BUY';
+    return `
+      <div class="exchange-feedback-box">
+        <div class="ef-header">
+          <span class="ef-badge-ok">✅ EXCHANGE FEEDBACK • OKX EUROPE (eea.okx.com) • sCode: ${fb.code || '0'}</span>
+          <span class="ef-timestamp">📅 ${fb.date} ⏰ ${fb.time}</span>
+        </div>
+        <div class="ef-messages">
+          <p><strong>🎯 Założenie strategii i proces:</strong> ${fb.strategyMessage}</p>
+          <p><strong>🏛️ Komunikat zwrotny z giełdy:</strong> ${fb.exchangeMessage}</p>
+        </div>
+        <div class="ef-grid">
+          <div class="ef-cell"><span>ID Transakcji OKX:</span><strong><code>${fb.orderId}</code></strong></div>
+          <div class="ef-cell"><span>Status Giełdowy:</span><strong style="color: var(--buy-green);">${fb.status}</strong></div>
+          <div class="ef-cell"><span>Para / Tryb:</span><strong>${fb.instId} (${fb.mode})</strong></div>
+          <div class="ef-cell"><span>Proces / Kierunek:</span><strong style="color: ${isBuy ? 'var(--buy-green)' : 'var(--sell-red)'};">${isBuy ? 'KUPNO (BUY)' : 'SPRZEDAŻ (SELL)'} (${fb.orderType})</strong></div>
+          <div class="ef-cell"><span>Ilość aktywa:</span><strong>${formatQty(fb.amount)} ${fb.asset}</strong></div>
+          <div class="ef-cell"><span>Cena wykonania (Kurs OKX):</span><strong>${formatUnitPrice(fb.price)}</strong></div>
+          <div class="ef-cell"><span>Przeliczenie na USDC:</span><strong>${formatUsdc(fb.usdcValue)}</strong></div>
+          <div class="ef-cell"><span>Prowizja giełdowa (Fee ${fb.feeRate || '0.10%'}):</span><strong>${formatUsdc(fb.feeUsdc)} (${fb.feeAsset} ${fb.asset})</strong></div>
+          <div class="ef-cell ef-cell-highlight"><span>Całkowite rozliczenie w USDC (z Fee):</span><strong>${formatUsdc(fb.totalUsdcWithFee)}</strong></div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ============================================================================
   // HISTORIA PORTFELA + EQUITY CURVE CANVAS (Requirement 8)
   // ============================================================================
   function renderPortfolioHistory(historyList) {
@@ -1970,7 +2346,7 @@
     if (executedTradesOnly.length === 0) {
       el.portfolioHistoryTbody.innerHTML = `
         <tr>
-          <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 14px;">
+          <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 14px;">
             Brak zrealizowanych zleceń kupna/sprzedaży w historii tego portfela.
           </td>
         </tr>
@@ -1983,14 +2359,32 @@
       .map((snap) => {
         const badgeClass = snap.side === 'BUY' ? 'badge-buy' : 'badge-sell';
         const sideLabel = snap.side === 'BUY' ? 'KUPNO (BUY)' : 'SPRZEDAŻ (SELL)';
+        const usdcVal = snap.usdcValue ?? snap.usdcAmount ?? 0;
+        const rowKey = `hist-${snap.id}`;
+        const isExpanded = expandedFeedbackIds.has(rowKey);
+        const fb = buildExchangeFeedbackForItem(snap);
         return `
           <tr>
             <td><strong>${snap.date}</strong> <code>${snap.time}</code></td>
             <td>${snap.action}</td>
             <td><span class="${badgeClass}">${sideLabel}</span></td>
             <td><strong>${formatQty(snap.amount)} ${snap.asset}</strong></td>
-            <td>${formatUsdc(snap.usdcAmount)}</td>
+            <td>${formatUsdc(usdcVal)}</td>
             <td><strong style="color: var(--accent-okx);">${formatUsdc(snap.totalValueUsdc)}</strong></td>
+            <td>
+              <button
+                type="button"
+                class="btn btn-feedback-details toggle-exchange-feedback-btn ${isExpanded ? 'active' : ''}"
+                data-feedback-key="${rowKey}"
+              >
+                📋 Szczegóły transakcji (Exchange Feedback)
+              </button>
+            </td>
+          </tr>
+          <tr class="exchange-feedback-detail-row" id="ef-row-${rowKey}" ${isExpanded ? '' : 'hidden'}>
+            <td colspan="7">
+              ${renderExchangeFeedbackDetailsHtml(fb)}
+            </td>
           </tr>
         `;
       })
@@ -2058,7 +2452,7 @@
   }
 
   // ============================================================================
-  // HISTORIA TRANSAKCJI: OTWARTE I ZAMKNIĘTE ZLECENIA + WYKRES (Requirement 9)
+  // HISTORIA TRANSAKCJI: OTWARTE I ZAMKNIĘTE ZLECENIA + EXCHANGE FEEDBACK + WYKRES
   // ============================================================================
   function renderOrdersHistory(orders) {
     const openOrders = orders.filter((o) => o.status === 'OPEN');
@@ -2076,6 +2470,9 @@
       .map((o) => {
         const isBuy = o.side === 'BUY';
         const isOpen = o.status === 'OPEN';
+        const rowKey = `ord-${o.id}`;
+        const isExpanded = expandedFeedbackIds.has(rowKey);
+        const fb = buildExchangeFeedbackForItem(o);
         return `
           <tr>
             <td><code>${o.id}</code></td>
@@ -2084,7 +2481,7 @@
             <td><strong>${o.instId}</strong></td>
             <td><span class="${isBuy ? 'badge-buy' : 'badge-sell'}">${isBuy ? 'KUPNO (BUY)' : 'SPRZEDAŻ (SELL)'}</span></td>
             <td><strong>${formatQty(o.amount)} ${o.asset}</strong></td>
-            <td>${formatUsdc(o.price)}</td>
+            <td>${formatUnitPrice(o.price)}</td>
             <td><strong>${formatUsdc(o.usdcValue)}</strong></td>
             <td>${o.strategyName || o.source}</td>
             <td>
@@ -2093,17 +2490,29 @@
               </span>
             </td>
             <td>
-              <div style="display: flex; gap: 6px; align-items: center;">
+              <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                <button
+                  type="button"
+                  class="btn btn-feedback-details toggle-exchange-feedback-btn ${isExpanded ? 'active' : ''}"
+                  data-feedback-key="${rowKey}"
+                >
+                  📋 Szczegóły transakcji (Exchange Feedback)
+                </button>
                 <button type="button" class="btn btn-outline-sm open-asset-chart-btn" data-instid="${o.instId}">
                   📈 Wykres ${o.asset}
                 </button>
                 ${
                   isOpen
-                    ? `<button type="button" class="btn btn-accent-sm activate-open-order-btn" data-orderid="${o.id}">▶ Do Startu</button>
+                    ? `<button type="button" class="btn btn-accent-sm activate-open-order-btn" data-orderid="${o.id}">▶ Do potwierdzenia</button>
                        <button type="button" class="btn btn-outline-sm cancel-open-order-btn" data-orderid="${o.id}">✕ Anuluj</button>`
                     : ''
                 }
               </div>
+            </td>
+          </tr>
+          <tr class="exchange-feedback-detail-row" id="ef-row-${rowKey}" ${isExpanded ? '' : 'hidden'}>
+            <td colspan="11">
+              ${renderExchangeFeedbackDetailsHtml(fb)}
             </td>
           </tr>
         `;
@@ -2112,66 +2521,105 @@
   }
 
   // ============================================================================
-  // POP-UP AUTORYZACJI I STATUSU HANDLU (Requirement 4)
+  // INLINE ORDER CONFIRMATION CARD (PO NACIŚNIĘCIU "WYŚLIJ DO AI" -> SZCZEGÓŁY + 1 KLAWISZ POTWIERDŹ)
   // ============================================================================
   function renderAuthPopupContent(state) {
-    const active = state.activeTradeOrder;
-    const modeLabel = state.config.apiMode.toUpperCase();
-    el.popupModeBadge.textContent = `OKX EUROPE • TRYB ${modeLabel}`;
+    if (!el.aiInlineOrderContainer) return;
+    const active = state?.activeTradeOrder;
+    const modeLabel = (state?.config?.apiMode || 'demo').toUpperCase();
 
-    if (!active) {
-      el.popupStatusBanner.className = 'popup-status-banner status-idle';
-      el.popupStatusIcon.textContent = 'ℹ️';
-      el.popupStatusMainText.textContent = 'Czekam na utworzenie zlecenia (Brak aktywnego zlecenia w kolejce)';
-      el.popupOrderId.textContent = 'Brak oczekującego zlecenia';
-      el.popupOrderStrategy.textContent = 'Napisz do Agenta AI lub użyj Kreatora Zlecenia';
-      el.popupOrderPair.textContent = '—';
-      el.popupOrderSide.textContent = '—';
-      el.popupOrderAmount.textContent = '—';
-      el.popupOrderPrice.textContent = '—';
-      el.popupOrderUsdc.textContent = '0,00 USDC';
-      el.popupInstructionText.innerHTML =
-        'Aby rozpocząć autoryzowany handel, wydaj polecenie Agentowi AI (np. <em>„Kup 0.05 BTC”</em>) lub kliknij przycisk w Kreatorze Zlecenia — wtedy przycisk <strong>START</strong> tutaj stanie się aktywny.';
-      el.popupConfirmStartBtn.disabled = true;
-      el.popupConfirmStartBtn.textContent = '⏳ Czekam na zlecenie do uruchomienia...';
+    if (active) {
+      const isBuy = active.side === 'BUY';
+      const dateStr = active.date || active.createdAtDate || new Date().toISOString().slice(0, 10);
+      const timeStr = active.time || active.createdAtTime || new Date().toTimeString().slice(0, 8);
+      const feeUsdc = Number(active.feeUsdc ?? (active.usdcValue * 0.001).toFixed(2));
+      const feeAsset = Number(active.feeAsset ?? (active.amount * 0.001).toFixed(6));
+      const totalUsdcWithFee = Number(
+        active.totalUsdcWithFee ?? (isBuy ? (active.usdcValue + feeUsdc).toFixed(2) : (active.usdcValue - feeUsdc).toFixed(2))
+      );
+
+      el.aiInlineOrderContainer.hidden = false;
+      el.aiInlineOrderContainer.innerHTML = `
+        <div class="ai-order-confirm-card">
+          <div class="ai-order-confirm-header">
+            <span class="ai-order-badge">📋 ZLECENIE PRZYGOTOWANE DO REALIZACJI • OKX EUROPE (${modeLabel})</span>
+            <span class="ai-order-datetime">📅 Data: <strong>${dateStr}</strong> ⏰ Czas: <strong>${timeStr}</strong></span>
+          </div>
+          <div class="ai-order-details-grid">
+            <div class="ai-order-item">
+              <span>ID Zlecenia:</span>
+              <strong><code>${active.id}</code></strong>
+            </div>
+            <div class="ai-order-item">
+              <span>Strategia / Proces:</span>
+              <strong>${active.strategyName || 'Strategia Spot AI'}</strong>
+            </div>
+            <div class="ai-order-item">
+              <span>Para handlowa / Typ:</span>
+              <strong>${active.instId} (${(active.orderType || 'MARKET').toUpperCase()})</strong>
+            </div>
+            <div class="ai-order-item">
+              <span>Kierunek operacji:</span>
+              <strong style="color: ${isBuy ? 'var(--buy-green)' : 'var(--sell-red)'};">${isBuy ? 'KUPNO (BUY)' : 'SPRZEDAŻ (SELL)'}</strong>
+            </div>
+            <div class="ai-order-item">
+              <span>Ilość aktywa:</span>
+              <strong>${formatQty(active.amount)} ${active.asset}</strong>
+            </div>
+            <div class="ai-order-item">
+              <span>Cena jednostkowa (Kurs OKX):</span>
+              <strong>${formatUnitPrice(active.price)}</strong>
+            </div>
+            <div class="ai-order-item">
+              <span>Wartość w przeliczeniu na USDC:</span>
+              <strong>${formatUsdc(active.usdcValue)}</strong>
+            </div>
+            <div class="ai-order-item">
+              <span>Opłata giełdowa (Fee ${active.feeRate || '0.10%'}):</span>
+              <strong>${formatUsdc(feeUsdc)} (${feeAsset} ${active.asset})</strong>
+            </div>
+            <div class="ai-order-item ai-order-item-total">
+              <span>Całkowite przeliczenie w USDC (z Fee):</span>
+              <strong>${formatUsdc(totalUsdcWithFee)}</strong>
+            </div>
+          </div>
+          <div class="ai-order-confirm-actions">
+            <button type="button" id="btnSimpleConfirmOrder" class="btn-simple-confirm">
+              Potwierdź
+            </button>
+          </div>
+        </div>
+      `;
       return;
     }
 
-    el.popupOrderId.textContent = active.id;
-    el.popupOrderStrategy.textContent = active.strategyName;
-    el.popupOrderPair.textContent = active.instId;
-    el.popupOrderSide.textContent = active.side === 'BUY' ? 'KUPNO (BUY)' : 'SPRZEDAŻ (SELL)';
-    el.popupOrderSide.style.color = active.side === 'BUY' ? 'var(--buy-green)' : 'var(--sell-red)';
-    el.popupOrderAmount.textContent = `${formatQty(active.amount)} ${active.asset}`;
-    el.popupOrderPrice.textContent = formatUsdc(active.price);
-    el.popupOrderUsdc.textContent = formatUsdc(active.usdcValue);
-
-    if (active.status === 'waiting_for_start') {
-      el.popupStatusBanner.className = 'popup-status-banner status-waiting';
-      el.popupStatusIcon.textContent = '⏳';
-      el.popupStatusMainText.textContent = 'Czekam na start zlecenia (Oczekuje na wciśnięcie START)';
-      el.popupInstructionText.innerHTML =
-        'Zlecenie jest gotowe i autoryzowane do uruchomienia. Wciśnij poniższy przycisk <strong>START</strong>, aby rozpocząć i zrealizować transakcję.';
-      el.popupConfirmStartBtn.disabled = false;
-      el.popupConfirmStartBtn.textContent = `🚀 START — Rozpocznij handel (${active.side === 'BUY' ? 'KUP' : 'SPRZEDAJ'} ${active.amount} ${active.asset})`;
-    } else {
-      el.popupStatusBanner.className = 'popup-status-banner status-executing';
-      el.popupStatusIcon.textContent = '✅';
-      el.popupStatusMainText.textContent = 'Zlecenie jest już w realizacji / Handel zrealizowany!';
-      el.popupInstructionText.innerHTML =
-        `Przycisk <strong>START</strong> został wciśnięty (${active.executedAtTime || ''}). Transakcja została zrealizowana, a Portfel Handlowy, Bilans Kupiono/Sprzedano oraz Historia Portfela zostały zaktualizowane.`;
-      el.popupConfirmStartBtn.disabled = true;
-      el.popupConfirmStartBtn.textContent = '✅ Zlecenie w realizacji / Handel dokonany';
+    if (lastExchangeFeedback) {
+      el.aiInlineOrderContainer.hidden = false;
+      el.aiInlineOrderContainer.innerHTML = `
+        <div class="ai-order-executed-feedback-wrap">
+          ${renderExchangeFeedbackDetailsHtml(lastExchangeFeedback)}
+          <div class="ef-saved-footer">
+            <span>💾 Rezultat został zapisany w historii — dostępny po naciśnięciu klawisza <strong>„Szczegóły transakcji (Exchange Feedback)”</strong>.</span>
+          </div>
+        </div>
+      `;
+      return;
     }
+
+    el.aiInlineOrderContainer.hidden = true;
+    el.aiInlineOrderContainer.innerHTML = '';
   }
 
   function openAuthPopup() {
+    setWindowMode('win-ai-chat', 'grid');
     if (appState) renderAuthPopupContent(appState);
-    el.tradeAuthModalOverlay.hidden = false;
+    if (el.aiInlineOrderContainer) {
+      el.aiInlineOrderContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }
 
   function closeAuthPopup() {
-    el.tradeAuthModalOverlay.hidden = true;
+    if (el.tradeAuthModalOverlay) el.tradeAuthModalOverlay.hidden = true;
   }
 
   // ============================================================================
@@ -3597,105 +4045,94 @@
       el.btnAiActive.addEventListener('click', handleActivateAiAgent);
     }
 
-    el.quickActivateAiBtn.addEventListener('click', async () => {
-      const res = await apiRequest('/api/config', 'POST', { aiStatus: 'active' });
-      renderApp(res.state);
-      showToast('Agent AI został aktywowany!');
-    });
-
-    // Requirement 4: Every click on Start Trading button opens the Pop-up showing status
-    el.mainStartTradingBtn.addEventListener('click', () => {
-      openAuthPopup();
-    });
-
-    el.openPopupFromAccordionBtn.addEventListener('click', () => {
-      openAuthPopup();
-    });
-
-    // Close Pop-up with X in top-right corner (Requirement 4)
-    el.closeAuthPopupBtn.addEventListener('click', () => {
-      closeAuthPopup();
-    });
-
-    // Fullscreen toggle for Auth Pop-up
-    if (el.btnPopupToggleFullscreen) {
-      el.btnPopupToggleFullscreen.addEventListener('click', () => {
-        const isFull = el.authPopupDialog.classList.toggle('modal-fullscreen');
-        if (isFull) {
-          el.authPopupDialog.style.left = '';
-          el.authPopupDialog.style.top = '';
-          el.btnPopupToggleFullscreen.textContent = '🗗 Zmniejsz (Przesuwne)';
-        } else {
-          el.btnPopupToggleFullscreen.textContent = '⛶ Cały ekran';
-        }
+    if (el.quickActivateAiBtn) {
+      el.quickActivateAiBtn.addEventListener('click', async () => {
+        const res = await apiRequest('/api/config', 'POST', { aiStatus: 'active' });
+        renderApp(res.state);
+        showToast('Agent AI został aktywowany!');
       });
     }
 
-    // Confirm & Execute Trade by pressing START inside Pop-up (Requirement 4 & 8)
-    el.popupConfirmStartBtn.addEventListener('click', async () => {
+    if (el.mainStartTradingBtn) {
+      el.mainStartTradingBtn.addEventListener('click', () => {
+        openAuthPopup();
+      });
+    }
+
+    if (el.openPopupFromAccordionBtn) {
+      el.openPopupFromAccordionBtn.addEventListener('click', () => {
+        openAuthPopup();
+      });
+    }
+
+    // Confirm & Execute Trade by pressing the single "Potwierdź" button (#btnSimpleConfirmOrder)
+    const executeConfirmedOrder = async () => {
       if (!appState || !appState.activeTradeOrder) return;
+      const pendingOrder = appState.activeTradeOrder;
       const res = await apiRequest('/api/trade/authorize', 'POST', {
-        orderId: appState.activeTradeOrder.id
+        orderId: pendingOrder.id
       });
       if (!res.ok) {
         showToast(`⚠️ Błąd: ${res.error}`);
         return;
       }
+      const execOrd = res.executedOrder || pendingOrder;
+      const fb = res.exchangeFeedback || buildExchangeFeedbackForItem(execOrd);
+      lastExchangeFeedback = fb;
       renderApp(res.state);
-      showToast(`✅ ${res.message}`);
+      showToast(`✅ ${fb.exchangeMessage}`);
       appendChatMessage(
         'assistant',
-        `✅ **Autoryzacja potwierdzona przyciskiem START!** Zrealizowano transakcję **${res.executedOrder.side === 'BUY' ? 'KUPNA' : 'SPRZEDAŻY'} ${res.executedOrder.amount} ${res.executedOrder.asset}** po prawdziwym kursie OKX (**${formatUnitPrice(res.executedOrder.price)}**) za **${formatUsdc(res.executedOrder.usdcValue)}**. Portfel Handlowy, bilans Kupiono/Sprzedano w USDC oraz Historia Portfela zostały zaktualizowane.`
+        [
+          `✅ **KOMUNIKAT ZWROTNY Z GIEŁDY OKX EUROPE (EXCHANGE FEEDBACK):**`,
+          `- **Założenie strategii i proces:** ${fb.strategyMessage}`,
+          `- **Potwierdzenie z giełdy:** ${fb.exchangeMessage}`,
+          `- **Szczegóły rozliczenia:** ID \`${fb.orderId}\` • Data: \`${fb.date} ${fb.time}\` • Ilość: **${formatQty(fb.amount)} ${fb.asset}** • Kurs: **${formatUnitPrice(fb.price)}** • Przeliczenie: **${formatUsdc(fb.usdcValue)}** • Fee (${fb.feeRate}): **${formatUsdc(fb.feeUsdc)}** (${fb.feeAsset} ${fb.asset}) • Razem z Fee: **${formatUsdc(fb.totalUsdcWithFee)}**`,
+          `- 💾 *Rezultat został zapisany w historii transakcji i historii portfela — dostępny po naciśnięciu klawisza **Szczegóły transakcji (Exchange Feedback)**.*`
+        ].join('\n')
       );
       if (chartState.isOpen && !chartState.isMinimized) {
         fetchAndDrawCandles();
       }
-    });
+    };
+
+    if (el.popupConfirmStartBtn) {
+      el.popupConfirmStartBtn.addEventListener('click', executeConfirmedOrder);
+    }
 
     // Stop Trading button
     const handleStopTrading = async () => {
+      lastExchangeFeedback = null;
       const res = await apiRequest('/api/trade/stop', 'POST');
       if (res.ok) {
         renderApp(res.state);
-        showToast(`⏹ ${res.message}`);
+        showToast(`⏹ ${res.message || 'Zatrzymano zlecenie.'}`);
       }
     };
-    el.mainStopTradingBtn.addEventListener('click', handleStopTrading);
-    el.popupStopCancelBtn.addEventListener('click', async () => {
-      await handleStopTrading();
-      closeAuthPopup();
-    });
+    if (el.mainStopTradingBtn) {
+      el.mainStopTradingBtn.addEventListener('click', handleStopTrading);
+    }
 
-    // AI Agent Chat Submit
+    // AI Agent Chat Submit — immediately displays order details (Fee, Date, USDC conversion) + single "Potwierdź" button
     const sendAiPrompt = async (promptText) => {
       if (!promptText.trim()) return;
+      lastExchangeFeedback = null;
       appendChatMessage('user', promptText);
       el.aiChatInput.value = '';
 
       const res = await apiRequest('/api/agent/chat', 'POST', { message: promptText });
-      appendChatMessage('assistant', res.reply);
+      if (res.reply) {
+        appendChatMessage('assistant', res.reply);
+      }
 
-      if (res.ok && res.state) {
+      if (res.state) {
         renderApp(res.state);
-        openAuthPopup();
       }
     };
 
     el.aiChatForm.addEventListener('submit', (e) => {
       e.preventDefault();
       sendAiPrompt(el.aiChatInput.value);
-    });
-
-    document.querySelectorAll('.prompt-chip').forEach((chip) => {
-      chip.addEventListener('click', async () => {
-        const prompt = chip.getAttribute('data-prompt');
-        if (appState && appState.config.aiStatus !== 'active') {
-          const cfgRes = await apiRequest('/api/config', 'POST', { aiStatus: 'active' });
-          renderApp(cfgRes.state);
-          showToast('Automatycznie aktywowano Agenta AI.');
-        }
-        sendAiPrompt(prompt);
-      });
     });
 
     // Manual / Quick Order Form
@@ -3882,8 +4319,35 @@
         const orderId = activateBtn.getAttribute('data-orderid');
         const res = await apiRequest('/api/orders/activate', 'POST', { orderId });
         if (res.ok) {
+          lastExchangeFeedback = null;
           renderApp(res.state);
           openAuthPopup();
+        }
+        return;
+      }
+
+      // 7. Single "Potwierdź" button inside AI Agent Order Card
+      const confirmInlineBtn = e.target.closest('#btnSimpleConfirmOrder');
+      if (confirmInlineBtn) {
+        confirmInlineBtn.disabled = true;
+        confirmInlineBtn.textContent = '⏳ Realizacja transakcji na giełdzie...';
+        await executeConfirmedOrder();
+        return;
+      }
+
+      // 8. "Szczegóły transakcji (Exchange Feedback)" button in History tables
+      const feedbackToggleBtn = e.target.closest('.toggle-exchange-feedback-btn');
+      if (feedbackToggleBtn) {
+        const key = feedbackToggleBtn.getAttribute('data-feedback-key');
+        const detailRow = document.getElementById(`ef-row-${key}`);
+        if (expandedFeedbackIds.has(key)) {
+          expandedFeedbackIds.delete(key);
+          feedbackToggleBtn.classList.remove('active');
+          if (detailRow) detailRow.hidden = true;
+        } else {
+          expandedFeedbackIds.add(key);
+          feedbackToggleBtn.classList.add('active');
+          if (detailRow) detailRow.hidden = false;
         }
       }
     });

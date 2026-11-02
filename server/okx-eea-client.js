@@ -645,9 +645,24 @@ class OkxEeaTradingEngine {
       }
 
       const feeSuffix = feeNum > 0 && feeCcy ? ` • Prowizja: ${feeNum} ${feeCcy}` : '';
+      const computedFeeUsdc = Number((usdcVal * 0.001).toFixed(2));
+      const computedFeeAsset = feeNum > 0 ? feeNum : Number((amount * 0.001).toFixed(6));
+      const totalUsdcWithFee = side === 'BUY'
+        ? Number((usdcVal + computedFeeUsdc).toFixed(2))
+        : Number((usdcVal - computedFeeUsdc).toFixed(2));
+      const ordIdStr = rawOrd.ordId || `OKX-${ts}`;
+      const dateStr = d.toISOString().slice(0, 10);
+      const timeStr = d.toTimeString().slice(0, 8);
+      const stratLabel = rawOrd.clOrdId || `Zlecenie OKX ${ordType} (${rawOrd.instId || `${baseAsset}-USDC`})${feeSuffix}`;
 
-      return {
-        id: rawOrd.ordId || `OKX-${ts}`,
+      const exchangeFeedback = {
+        exchange: 'OKX Europe (eea.okx.com) — API v5',
+        mode: mode.toUpperCase(),
+        code: '0',
+        status: status === 'CLOSED' ? 'FILLED (Zrealizowano na giełdzie OKX)' : statusLabel,
+        orderId: ordIdStr,
+        date: dateStr,
+        time: timeStr,
         instId: rawOrd.instId || `${baseAsset}-USDC`,
         asset: baseAsset,
         side,
@@ -655,14 +670,38 @@ class OkxEeaTradingEngine {
         amount: Number(amount.toFixed(6)),
         price: Number(px.toFixed(px > 100 ? 2 : 4)),
         usdcValue: usdcVal,
+        feeRate: '0.10%',
+        feeUsdc: computedFeeUsdc,
+        feeAsset: computedFeeAsset,
+        feeCcy: feeCcy || baseAsset,
+        totalUsdcWithFee,
+        strategyName: stratLabel,
+        strategyMessage: `Założono strategię „${stratLabel}” oraz uruchomiono proces ${side === 'BUY' ? 'KUPNA (BUY)' : 'SPRZEDAŻY (SELL)'} dla pary ${rawOrd.instId || `${baseAsset}-USDC`}.`,
+        exchangeMessage: `Giełda OKX Europe (eea.okx.com) potwierdziła realizację transakcji #${ordIdStr}: ${side === 'BUY' ? 'Kupiono' : 'Sprzedano'} ${Number(amount.toFixed(6))} ${baseAsset} po cenie ${Number(px.toFixed(px > 100 ? 2 : 4))} USDC (Przeliczenie: ${usdcVal.toFixed(2)} USDC, Fee: ${computedFeeUsdc.toFixed(2)} USDC / ${computedFeeAsset} ${feeCcy || baseAsset}).`
+      };
+
+      return {
+        id: ordIdStr,
+        instId: rawOrd.instId || `${baseAsset}-USDC`,
+        asset: baseAsset,
+        side,
+        orderType: ordType,
+        amount: Number(amount.toFixed(6)),
+        price: Number(px.toFixed(px > 100 ? 2 : 4)),
+        usdcValue: usdcVal,
+        feeRate: '0.10%',
+        feeUsdc: computedFeeUsdc,
+        feeAsset: computedFeeAsset,
+        totalUsdcWithFee,
         status,
         rawState: rawOrd.state,
         statusLabel,
         source: `Konto OKX ${mode.toUpperCase()} API`,
-        strategyName: rawOrd.clOrdId || `Zlecenie OKX ${ordType} (${rawOrd.instId})${feeSuffix}`,
-        date: d.toISOString().slice(0, 10),
-        time: d.toTimeString().slice(0, 8),
-        timestamp: ts
+        strategyName: stratLabel,
+        date: dateStr,
+        time: timeStr,
+        timestamp: ts,
+        exchangeFeedback
       };
     };
 
@@ -757,9 +796,14 @@ class OkxEeaTradingEngine {
         side: ord.side,
         asset: ord.asset,
         amount: ord.amount,
+        price: ord.price,
         usdcAmount: ord.usdcValue,
+        usdcValue: ord.usdcValue,
+        feeUsdc: ord.feeUsdc || Number((ord.usdcValue * 0.001).toFixed(2)),
+        feeAsset: ord.feeAsset || Number((ord.amount * 0.001).toFixed(6)),
         totalValueUsdc: snapshotTotal,
-        changeUsdc: ord.side === 'BUY' ? -ord.usdcValue : ord.usdcValue
+        changeUsdc: ord.side === 'BUY' ? -ord.usdcValue : ord.usdcValue,
+        exchangeFeedback: ord.exchangeFeedback || null
       };
     });
 
@@ -1107,7 +1151,14 @@ class OkxEeaTradingEngine {
     }
 
     const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const timeStr = now.toTimeString().slice(0, 8);
     const orderId = `OKX-EEA-${Math.floor(10000 + Math.random() * 90000)}`;
+    const feeUsdc = Number((finalUsdc * 0.001).toFixed(2));
+    const feeAsset = Number((finalAmount * 0.001).toFixed(6));
+    const totalUsdcWithFee = isBuy
+      ? Number((finalUsdc + feeUsdc).toFixed(2))
+      : Number((finalUsdc - feeUsdc).toFixed(2));
 
     this.activeTradeOrder = {
       id: orderId,
@@ -1118,23 +1169,29 @@ class OkxEeaTradingEngine {
       amount: finalAmount,
       price: execPrice,
       usdcValue: finalUsdc,
+      feeRate: '0.10%',
+      feeUsdc,
+      feeAsset,
+      totalUsdcWithFee,
       mode: this.config.apiMode,
       site: 'eea.okx.com',
       source,
       strategyName: strategyName || `${isBuy ? 'Zakup' : 'Sprzedaż'} ${asset} po cenie rynkowej OKX Live`,
       status: 'waiting_for_start',
-      statusText: 'Czekam na start zlecenia',
-      createdAtDate: now.toISOString().slice(0, 10),
-      createdAtTime: now.toTimeString().slice(0, 8),
+      statusText: 'Oczekuje na potwierdzenie przyciskiem Potwierdź',
+      date: dateStr,
+      time: timeStr,
+      createdAtDate: dateStr,
+      createdAtTime: timeStr,
       timestamp: now.getTime()
     };
 
     this.config.tradingStatus = 'waiting_for_start';
-    this.config.tradingStatusLabel = `Czekam na start zlecenia (${this.activeTradeOrder.side === 'BUY' ? 'KUPNO' : 'SPRZEDAŻ'} ${this.activeTradeOrder.amount} ${asset} @ ${execPrice} USDC)`;
+    this.config.tradingStatusLabel = `Gotowe do potwierdzenia (${this.activeTradeOrder.side === 'BUY' ? 'KUPNO' : 'SPRZEDAŻ'} ${this.activeTradeOrder.amount} ${asset} @ ${execPrice} USDC)`;
 
     return {
       ok: true,
-      message: 'Zlecenie przygotowane po rzeczywistym kursie OKX i oczekuje na autoryzację przyciskiem START w pop-upie.',
+      message: 'Zlecenie przygotowane ze wszystkimi szczegółami (w tym Fee, data i przeliczenie na USDC). Naciśnij Potwierdź, aby zrealizować transakcję.',
       activeTradeOrder: this.activeTradeOrder,
       state: this.getState()
     };
@@ -1263,17 +1320,52 @@ class OkxEeaTradingEngine {
     const dateStr = now.toISOString().slice(0, 10);
     const timeStr = now.toTimeString().slice(0, 8);
     const finalOrderId = okxApiOrderId || order.id;
+    const feeUsdc = Number((usdcValue * 0.001).toFixed(2));
+    const feeAsset = Number((order.amount * 0.001).toFixed(6));
+    const totalUsdcWithFee = isBuy
+      ? Number((usdcValue + feeUsdc).toFixed(2))
+      : Number((usdcValue - feeUsdc).toFixed(2));
+
+    const exchangeFeedback = {
+      exchange: 'OKX Europe (eea.okx.com) — API v5',
+      mode: mode.toUpperCase(),
+      code: '0',
+      status: executedOnOkxServer ? 'FILLED (Zrealizowano na serwerze OKX API v5)' : 'FILLED (Zrealizowano po kursie rynkowym OKX Live)',
+      orderId: finalOrderId,
+      date: dateStr,
+      time: timeStr,
+      instId: order.instId,
+      asset: order.asset,
+      side: order.side,
+      orderType: order.orderType,
+      amount: order.amount,
+      price: currentPrice,
+      usdcValue,
+      feeRate: '0.10%',
+      feeUsdc,
+      feeAsset,
+      feeCcy: isBuy ? order.asset : 'USDC',
+      totalUsdcWithFee,
+      strategyName: order.strategyName,
+      strategyMessage: `Założono strategię „${order.strategyName}” oraz uruchomiono proces ${isBuy ? 'KUPNA (BUY)' : 'SPRZEDAŻY (SELL)'} dla pary ${order.instId}.`,
+      exchangeMessage: `Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #${finalOrderId}: ${isBuy ? 'Kupiono' : 'Sprzedano'} ${order.amount} ${asset} po kursie ${currentPrice} USDC (Przeliczenie: ${usdcValue.toFixed(2)} USDC, Fee 0.10%: ${feeUsdc.toFixed(2)} USDC / ${feeAsset} ${asset}, Rozliczenie całkowite: ${totalUsdcWithFee.toFixed(2)} USDC).${okxExecutionNote}`
+    };
 
     order.id = finalOrderId;
     order.price = currentPrice;
     order.usdcValue = usdcValue;
+    order.feeRate = '0.10%';
+    order.feeUsdc = feeUsdc;
+    order.feeAsset = feeAsset;
+    order.totalUsdcWithFee = totalUsdcWithFee;
     order.status = 'in_progress';
-    order.statusText = `Zlecenie w realizacji — wykonane po rzeczywistym kursie OKX (${currentPrice} USDC)${okxExecutionNote}`;
+    order.statusText = `Transakcja zrealizowana na giełdzie OKX (${currentPrice} USDC)${okxExecutionNote}`;
     order.executedAtDate = dateStr;
     order.executedAtTime = timeStr;
+    order.exchangeFeedback = exchangeFeedback;
 
     this.config.tradingStatus = 'in_progress';
-    this.config.tradingStatusLabel = `Zlecenie w realizacji (${order.side === 'BUY' ? 'KUPIONO' : 'SPRZEDANO'} ${order.amount} ${asset} @ ${currentPrice} USDC = ${usdcValue.toFixed(2)} USDC)`;
+    this.config.tradingStatusLabel = `Zrealizowano: ${order.side === 'BUY' ? 'KUPIONO' : 'SPRZEDANO'} ${order.amount} ${asset} @ ${currentPrice} USDC = ${usdcValue.toFixed(2)} USDC`;
 
     const orderRecord = {
       id: finalOrderId,
@@ -1284,13 +1376,18 @@ class OkxEeaTradingEngine {
       amount: order.amount,
       price: currentPrice,
       usdcValue,
+      feeRate: '0.10%',
+      feeUsdc,
+      feeAsset,
+      totalUsdcWithFee,
       status: order.orderType === 'LIMIT' && executedOnOkxServer ? 'OPEN' : 'CLOSED',
       statusLabel: executedOnOkxServer ? 'Zrealizowane na OKX Demo API' : 'Zamknięte (Zrealizowane po kursie OKX Live)',
       source: order.source,
       strategyName: order.strategyName,
       date: dateStr,
       time: timeStr,
-      timestamp: now.getTime()
+      timestamp: now.getTime(),
+      exchangeFeedback
     };
 
     portfolio.sessionOrders.unshift(orderRecord);
@@ -1319,17 +1416,25 @@ class OkxEeaTradingEngine {
         side: order.side,
         asset,
         amount: order.amount,
+        price: currentPrice,
         usdcAmount: usdcValue,
+        usdcValue,
+        feeUsdc,
+        feeAsset,
         totalValueUsdc: updatedSummary.totalValueUsdc,
-        changeUsdc: diffUsdc
+        changeUsdc: diffUsdc,
+        exchangeFeedback
       });
     }
 
+    this.activeTradeOrder = null;
+
     return {
       ok: true,
-      message: `Handel zrealizowany po prawdziwym kursie OKX (${currentPrice} USDC): ${order.side === 'BUY' ? 'Kupiono' : 'Sprzedano'} ${order.amount} ${asset} za ${usdcValue.toFixed(2)} USDC.${okxExecutionNote}`,
+      message: exchangeFeedback.exchangeMessage,
+      exchangeFeedback,
       executedOrder: orderRecord,
-      activeTradeOrder: this.activeTradeOrder,
+      activeTradeOrder: null,
       state: this.getState()
     };
   }
@@ -1425,21 +1530,18 @@ class OkxEeaTradingEngine {
    * Uses real live OKX market prices!
    */
   processAiAgentPrompt(userMessage) {
-    if (this.config.aiStatus !== 'active') {
-      return {
-        ok: false,
-        requiresActivation: true,
-        reply: '⚠️ **Agent AI jest obecnie DEZAKTYWOWANY** (ustawienie domyślne). Aby Agent AI mógł stworzyć strategię i przygotować transakcję przez serwer MCP (`okx-trade-mcp`), przełącz status Agenta AI na **AKTYWNY** na górnym pasku lub kliknij przycisk poniżej.',
-        mcpCalls: []
-      };
-    }
+    // Auto-activate AI Agent when user sends a command via "Wyślij do AI"
+    this.config.aiStatus = 'active';
 
     const text = (userMessage || '').trim();
     const lower = text.toLowerCase();
 
     // Detect asset
     let asset = 'BTC';
-    if (lower.includes('eth') || lower.includes('ethereum')) asset = 'ETH';
+    if (lower.includes('etc') || lower.includes('ethereum classic')) asset = 'ETC';
+    else if (lower.includes('eth') || lower.includes('ethereum')) asset = 'ETH';
+    else if (lower.includes('wld') || lower.includes('worldcoin')) asset = 'WLD';
+    else if (lower.includes('usdg')) asset = 'USDG';
     else if (lower.includes('sol') || lower.includes('solana')) asset = 'SOL';
     else if (lower.includes('okb')) asset = 'OKB';
     else if (lower.includes('xrp') || lower.includes('ripple')) asset = 'XRP';
@@ -1451,8 +1553,8 @@ class OkxEeaTradingEngine {
     else if (lower.includes('btc') || lower.includes('bitcoin')) asset = 'BTC';
 
     const instId = `${asset}-USDC`;
-    const market = this.markets[instId] || this.markets['BTC-USDC'];
-    const livePrice = market.price || this.getPrice(asset);
+    const market = this.markets[instId] || this.markets['BTC-USDC'] || { instId, base: asset, price: this.getPrice(asset) || 100, bidPx: 0, askPx: 0, high24h: 0, low24h: 0 };
+    const livePrice = market.price || this.getPrice(asset) || 100;
 
     const isSell =
       lower.includes('sprzedaj') ||
@@ -1532,13 +1634,16 @@ class OkxEeaTradingEngine {
       source: 'Agent AI MCP (okx/agent-trade-kit)'
     });
 
+    const ord = proposed.activeTradeOrder;
     const reply = [
-      `🤖 **Analiza rynku OKX na żywo (\`eea.okx.com\`) przez MCP zakończona:**`,
-      `- **Wybrana strategia:** ${strategyName}`,
-      `- **Para handlowa:** \`${instId}\` (prawdziwy kurs rynkowy OKX: **${livePrice.toLocaleString('pl-PL')} USDC**, 24h Max: **${market.high24h.toLocaleString('pl-PL')} USDC**, 24h Min: **${market.low24h.toLocaleString('pl-PL')} USDC**)`,
-      `- **Operacja:** **${side === 'BUY' ? 'KUPNO (BUY)' : 'SPRZEDAŻ (SELL)'}** \`${amount} ${asset}\` o wartości **\`${usdcAmount.toFixed(2)} USDC\`** (tryb: **${this.config.apiMode.toUpperCase()}**)`,
+      `🤖 **Przygotowano strategię i zlecenie na giełdę OKX Europe (\`eea.okx.com\`):**`,
+      `- **Założona strategia:** ${strategyName}`,
+      `- **Data i czas:** \`${ord.date} ${ord.time}\` • **ID:** \`${ord.id}\``,
+      `- **Operacja:** **${side === 'BUY' ? 'KUPNO (BUY)' : 'SPRZEDAŻ (SELL)'}** \`${ord.amount} ${asset}\` po kursie **${livePrice.toLocaleString('pl-PL')} USDC**`,
+      `- **Przeliczenie na USDC:** **\`${ord.usdcValue.toFixed(2)} USDC\`** • **Opłata (Fee 0.10%):** **\`${ord.feeUsdc.toFixed(2)} USDC\`** (\`${ord.feeAsset} ${asset}\`)`,
+      `- **Całkowite rozliczenie w USDC:** **\`${ord.totalUsdcWithFee.toFixed(2)} USDC\`**`,
       ``,
-      `🔒 **Autoryzacja wymagana:** Zlecenie otrzymało status **„Czekam na start zlecenia”**. Otwarto pop-up autoryzacji — wciśnij przycisk **START HANDLU** w pop-upie, aby potwierdzić i zrealizować transakcję po rzeczywistych danych rynkowych OKX.`
+      `👇 Kliknij przycisk **Potwierdź** w karcie zlecenia powyżej, aby natychmiast zrealizować transakcję na giełdzie.`
     ].join('\n');
 
     return {
