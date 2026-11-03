@@ -21945,15 +21945,52 @@
     const handleTopMenuPillClick = (winId) => {
       const winMeta = windowsRegistryRef.current.find((w) => w.id === winId);
       if (!winMeta) return;
-      if (winMeta.mode === "docked-top" || winMeta.mode === "docked-sidebar" || winMeta.mode === "minimized-inline") {
-        setWindowMode(winId, winMeta.isChart ? "floating-medium" : "grid");
-        showToast(`\u25B6 Wywo\u0142ano okno \u201E${winMeta.title}\u201D z Menu G\xF3rnego.`);
-      } else {
-        setWindowMode(winId, "docked-top");
-        showToast(
-          `\u{1F53C} Wys\u0142ano okno \u201E${winMeta.title}\u201D do Menu G\xF3rnego (kliknij ponownie, aby otworzy\u0107).`
+      setTopMenuOpen(false);
+      if (winId === "win-chart") {
+        openAssetChart(chartStateRef.current.instId || "BTC-USDC", "full");
+        setWindowsRegistry(
+          (prev) => prev.map((w) => ({
+            ...w,
+            mode: w.id === "win-chart" ? "fullscreen" : "docked-top"
+          }))
         );
+        showToast(`\u{1F5D4} Otwarto okno \u201E${winMeta.title}\u201D (pozosta\u0142e okna zwini\u0119te do Menu).`);
+        return;
       }
+      setChartState((prev) => ({ ...prev, isOpen: false, isMinimized: false }));
+      const z = nextZIndex();
+      setWindowsRegistry(
+        (prev) => prev.map((w) => {
+          if (w.id === winId) {
+            return {
+              ...w,
+              mode: "grid",
+              prevActiveMode: "grid",
+              zIndex: z
+            };
+          }
+          return {
+            ...w,
+            mode: "docked-top"
+          };
+        })
+      );
+      if (winId === "win-ctrl-api") {
+        setApiAccordionOpen(true);
+      } else if (winId === "win-ctrl-trade") {
+        setTradeAccordionOpen(true);
+      }
+      showToast(`\u{1F5D4} Otwarto okno \u201E${winMeta.title}\u201D (pozosta\u0142e okna zwini\u0119te do Menu).`);
+      setTimeout(() => {
+        const domEl = document.getElementById(winId);
+        if (domEl) {
+          const headerEl = document.getElementById("appHeader");
+          const headerH = headerEl ? headerEl.offsetHeight : 38;
+          const rect = domEl.getBoundingClientRect();
+          const targetTop = Math.max(0, window.scrollY + rect.top - headerH - 10);
+          window.scrollTo({ top: targetTop, behavior: "smooth" });
+        }
+      }, 50);
     };
     const handleToggleTopControls = () => {
       const topWins = windowsRegistryRef.current.filter((w) => w.isTopCtrl);
@@ -21973,17 +22010,20 @@
       }
     };
     const handleResetAllWindowsGrid = () => {
+      setTopMenuOpen(false);
       setWindowsRegistry(
         (prev) => prev.map((w) => w.isChart ? w : { ...w, mode: "grid" })
       );
       showToast("\u229E Przywr\xF3cono wszystkie okna do uk\u0142adu siatki.");
     };
     const handleDockAllTop = () => {
+      setTopMenuOpen(false);
       setChartState((prev) => ({ ...prev, isOpen: false, isMinimized: false }));
       setWindowsRegistry((prev) => prev.map((w) => ({ ...w, mode: "docked-top" })));
       showToast("\u{1F53C} Wszystkie okna zosta\u0142y zwini\u0119te do Menu G\xF3rnego.");
     };
     const handleDockAllSidebar = () => {
+      setTopMenuOpen(false);
       setChartState((prev) => ({ ...prev, isOpen: false, isMinimized: false }));
       setWindowsRegistry((prev) => prev.map((w) => ({ ...w, mode: "docked-sidebar" })));
       setLeftSidebarCollapsed(false);
