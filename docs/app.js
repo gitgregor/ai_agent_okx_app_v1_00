@@ -18369,12 +18369,23 @@
     onOpenAiStrategies,
     onToggleAiExecutedTx,
     onToggleAllAiExecutedTx,
+    onCollapseAllTransactions,
     onToggleChatBubble,
     onSetWindowMode,
     onCloseWindow,
     onBringToFront
   }) {
     const chatMessagesRef = (0, import_react6.useRef)(null);
+    const prevActiveRef = (0, import_react6.useRef)(false);
+    const isWindowActive = winMeta && winMeta.mode !== "docked-top" && winMeta.mode !== "docked-sidebar";
+    (0, import_react6.useEffect)(() => {
+      if (isWindowActive && !prevActiveRef.current) {
+        if (onCollapseAllTransactions) {
+          onCollapseAllTransactions();
+        }
+      }
+      prevActiveRef.current = Boolean(isWindowActive);
+    }, [isWindowActive, onCollapseAllTransactions]);
     (0, import_react6.useEffect)(() => {
       if (chatMessagesRef.current) {
         chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
@@ -21701,6 +21712,7 @@
     };
     const handleOpenAuthPopup = () => {
       setWindowMode("win-ai-chat", "grid");
+      collapseAllAiTransactions();
       setTimeout(() => {
         const container2 = document.getElementById("aiInlineOrderContainer");
         if (container2) container2.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -21835,6 +21847,23 @@
         return next;
       });
     };
+    const collapseAllAiTransactions = (0, import_react13.useCallback)(() => {
+      const txList = executedSessionTransactions.length > 0 ? executedSessionTransactions : lastExchangeFeedback ? [lastExchangeFeedback] : [];
+      const nextTx = new Set(txList.map((fb) => String(fb.orderId || "LATEST")));
+      if (lastExchangeFeedback?.orderId) {
+        nextTx.add(String(lastExchangeFeedback.orderId));
+      }
+      if (appState?.portfolio?.orders) {
+        for (const ord of appState.portfolio.orders) {
+          if (ord.id) nextTx.add(String(ord.id));
+        }
+      }
+      setCollapsedAiTxIds(nextTx);
+      const nextBubbles = new Set(
+        chatMessages.filter((m) => m.role === "assistant" || m.isExecutedTx || m.isPendingTx).map((m) => m.id)
+      );
+      setCollapsedBubbleIds(nextBubbles);
+    }, [executedSessionTransactions, lastExchangeFeedback, chatMessages, appState]);
     const handleToggleAllAiExecutedTx = () => {
       const txList = executedSessionTransactions.length > 0 ? executedSessionTransactions : lastExchangeFeedback ? [lastExchangeFeedback] : [];
       const allCollapsed = txList.every(
@@ -21844,12 +21873,7 @@
         setCollapsedAiTxIds(/* @__PURE__ */ new Set());
         setCollapsedBubbleIds(/* @__PURE__ */ new Set());
       } else {
-        const nextTx = new Set(txList.map((fb) => String(fb.orderId || "LATEST")));
-        setCollapsedAiTxIds(nextTx);
-        const nextBubbles = new Set(
-          chatMessages.filter((m) => m.role === "assistant").map((m) => m.id)
-        );
-        setCollapsedBubbleIds(nextBubbles);
+        collapseAllAiTransactions();
       }
     };
     const handleToggleChatBubble = (msgId) => {
@@ -21979,6 +22003,8 @@
         setApiAccordionOpen(true);
       } else if (winId === "win-ctrl-trade") {
         setTradeAccordionOpen(true);
+      } else if (winId === "win-ai-chat") {
+        collapseAllAiTransactions();
       }
       showToast(`\u{1F5D4} Otwarto okno \u201E${winMeta.title}\u201D (pozosta\u0142e okna zwini\u0119te do Menu).`);
       setTimeout(() => {
@@ -22181,6 +22207,7 @@
                 onOpenAiStrategies: handleOpenAiStrategies,
                 onToggleAiExecutedTx: handleToggleAiExecutedTx,
                 onToggleAllAiExecutedTx: handleToggleAllAiExecutedTx,
+                onCollapseAllTransactions: collapseAllAiTransactions,
                 onToggleChatBubble: handleToggleChatBubble,
                 onSetWindowMode: setWindowMode,
                 onCloseWindow: handleCloseWindow,
@@ -22315,7 +22342,10 @@
               {
                 type: "button",
                 className: "mobile-nav-btn",
-                onClick: () => setWindowMode("win-ai-chat", "grid"),
+                onClick: () => {
+                  setWindowMode("win-ai-chat", "grid");
+                  collapseAllAiTransactions();
+                },
                 children: [
                   /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4AC}" }),
                   /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Agent AI" })

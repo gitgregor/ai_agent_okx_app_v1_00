@@ -35,12 +35,28 @@ export function AiChatWindow({
   onOpenAiStrategies,
   onToggleAiExecutedTx,
   onToggleAllAiExecutedTx,
+  onCollapseAllTransactions,
   onToggleChatBubble,
   onSetWindowMode,
   onCloseWindow,
   onBringToFront
 }) {
   const chatMessagesRef = useRef(null);
+  const prevActiveRef = useRef(false);
+
+  const isWindowActive =
+    winMeta &&
+    winMeta.mode !== 'docked-top' &&
+    winMeta.mode !== 'docked-sidebar';
+
+  useEffect(() => {
+    if (isWindowActive && !prevActiveRef.current) {
+      if (onCollapseAllTransactions) {
+        onCollapseAllTransactions();
+      }
+    }
+    prevActiveRef.current = Boolean(isWindowActive);
+  }, [isWindowActive, onCollapseAllTransactions]);
 
   useEffect(() => {
     if (chatMessagesRef.current) {
