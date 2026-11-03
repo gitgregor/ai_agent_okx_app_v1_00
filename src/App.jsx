@@ -100,6 +100,8 @@ export function App() {
     pendingDrawing: null,
     visibleCount: 68,
     panOffset: 0,
+    priceScaleY: 1.0,
+    pricePanY: 0,
     hoverX: null,
     hoverY: null,
     data: null,

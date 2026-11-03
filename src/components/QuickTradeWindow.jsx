@@ -27,6 +27,7 @@ export function QuickTradeWindow({
   onCloseWindow,
   onBringToFront
 }) {
+  const [pairFilter, setPairFilter] = React.useState('');
   const mList = Array.isArray(markets) && markets.length > 0 ? markets : DEFAULT_STANDALONE_MARKETS;
   const asset = (tradePair || 'BTC-USDC').split('-')[0];
   const hList = holdings || [];
@@ -34,6 +35,17 @@ export function QuickTradeWindow({
   const usdtHolding = hList.find((h) => h.asset === 'USDT');
   const assetHolding = hList.find((h) => h.asset === asset);
   const totalAvailCash = (cashHolding ? cashHolding.amount : 0) + (usdtHolding ? usdtHolding.amount : 0);
+
+  const filteredMarkets = React.useMemo(() => {
+    if (!pairFilter.trim()) return mList;
+    const q = pairFilter.trim().toUpperCase();
+    return mList.filter(
+      (m) =>
+        m.instId.toUpperCase().includes(q) ||
+        (m.base && m.base.toUpperCase().includes(q)) ||
+        (m.name && m.name.toUpperCase().includes(q))
+    );
+  }, [mList, pairFilter]);
 
   return (
     <WindowContainer
@@ -86,15 +98,51 @@ export function QuickTradeWindow({
         </div>
 
         <div className="form-group">
-          <label htmlFor="tradePairSelect">Para kryptowalutowa (Kursy na żywo z OKX):</label>
+          <label htmlFor="tradePairSelect">
+            Para kryptowalutowa Spot (Wszystkie rynki OKX — {mList.length} par):
+          </label>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
+            <input
+              type="text"
+              className="trade-pair-search-input"
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                borderRadius: '6px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-input, #131722)',
+                color: 'var(--text-main, #d1d4dc)',
+                fontSize: '12px'
+              }}
+              placeholder="🔍 Filtruj pary (np. SOL, DOGE, PEPE, SUI, BTC)..."
+              value={pairFilter}
+              onChange={(e) => setPairFilter(e.target.value)}
+            />
+            {pairFilter && (
+              <button
+                type="button"
+                className="btn btn-outline-sm"
+                style={{ padding: '4px 8px', fontSize: '11px' }}
+                onClick={() => setPairFilter('')}
+                title="Wyczyść filtr"
+              >
+                ✕
+              </button>
+            )}
+          </div>
           <select
             id="tradePairSelect"
             value={tradePair}
             onChange={(e) => onChangeTradePair(e.target.value)}
           >
-            {mList.map((m) => (
+            {!filteredMarkets.some((m) => m.instId === tradePair) && (
+              <option value={tradePair}>
+                {tradePair} (Aktualnie wybrana para)
+              </option>
+            )}
+            {filteredMarkets.map((m) => (
               <option key={m.instId} value={m.instId}>
-                {m.instId} ({m.name} / USD Coin)
+                {m.instId} ({m.name || m.base} — {m.price} {m.quote})
               </option>
             ))}
           </select>

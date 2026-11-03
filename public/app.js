@@ -14634,6 +14634,51 @@
     { instId: "LINK-USDC", base: "LINK", quote: "USDC", name: "Chainlink", price: 11.041, bidPx: 11.048, askPx: 11.052, open24h: 11.391, high24h: 11.429, low24h: 10.988, vol24h: 54395.38, volCcy24h: 612058, change24hPct: -3.07 },
     { instId: "SUI-USDC", base: "SUI", quote: "USDC", name: "Sui Network", price: 0.8677, bidPx: 0.8687, askPx: 0.869, open24h: 0.8947, high24h: 0.908, low24h: 0.8631, vol24h: 952011.95, volCcy24h: 843315, change24hPct: -3.02 }
   ];
+  function findMarketInList(text, mList = DEFAULT_STANDALONE_MARKETS) {
+    const raw = (text || "").trim();
+    const upper = raw.toUpperCase();
+    const lower = raw.toLowerCase();
+    const list = Array.isArray(mList) && mList.length > 0 ? mList : DEFAULT_STANDALONE_MARKETS;
+    const pairMatch = upper.match(/\b([A-Z0-9]{2,10}-[A-Z0-9]{3,5})\b/);
+    if (pairMatch) {
+      const found = list.find((m) => m.instId === pairMatch[1]);
+      if (found) return found;
+    }
+    const aliasMap = {
+      "bitcoin": "BTC",
+      "ethereum classic": "ETC",
+      "ethereum": "ETH",
+      "ether": "ETH",
+      "worldcoin": "WLD",
+      "ripple": "XRP",
+      "cardano": "ADA",
+      "dogecoin": "DOGE",
+      "avalanche": "AVAX",
+      "chainlink": "LINK",
+      "solana": "SOL",
+      "polkadot": "DOT",
+      "polygon": "POL",
+      "matic": "POL"
+    };
+    for (const [alias, sym] of Object.entries(aliasMap)) {
+      if (lower.includes(alias)) {
+        const m = list.find((x) => x.instId === `${sym}-USDC`) || list.find((x) => x.instId === `${sym}-USDT`) || list.find((x) => x.base === sym);
+        if (m) return m;
+      }
+    }
+    const words = upper.replace(/[^A-Z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+    const skipWords = /* @__PURE__ */ new Set(["KUP", "SPRZEDAJ", "KUPNO", "SPRZEDAZ", "DLA", "ZA", "W", "NA", "SPOT", "AI", "OKX", "USDC", "USDT", "USD", "LIMIT", "MARKET", "ORDER", "BUY", "SELL", "PROSZE", "CHCE", "ZLECENIE", "STRATEGIE", "STRATEGIA", "TEST", "DEMO", "LIVE"]);
+    for (const w of words) {
+      if (skipWords.has(w)) continue;
+      const foundUsdc = list.find((m) => m.instId === `${w}-USDC`);
+      if (foundUsdc) return foundUsdc;
+      const foundUsdt = list.find((m) => m.instId === `${w}-USDT`);
+      if (foundUsdt) return foundUsdt;
+      const anyBase = list.find((m) => m.base === w);
+      if (anyBase) return anyBase;
+    }
+    return list.find((m) => m.instId === "BTC-USDC") || list[0];
+  }
   var LS_CUSTOM_GATEWAY_KEY = "okx_custom_gateway_url_v1";
   var LS_AI_EXECUTED_ORDERS_KEY = "okx_ai_executed_orders_v1";
   var DEFAULT_HOME_GATEWAYS = [
@@ -14964,34 +15009,44 @@
           for (const t of json.data) {
             map[t.instId] = t;
           }
-          const updateMarketList = (list) => {
-            if (!Array.isArray(list)) return;
-            list.forEach((m) => {
-              const t = map[m.instId] || map[`${m.base}-USDT`];
-              if (t) {
-                const last = Number(t.last || 0);
-                if (last > 0) {
-                  const open24h = Number(t.open24h || t.sodUtc0 || last);
-                  m.price = last;
-                  m.bidPx = Number(t.bidPx || last);
-                  m.askPx = Number(t.askPx || last);
-                  m.open24h = open24h > 0 ? open24h : last;
-                  m.high24h = Number(t.high24h || last);
-                  m.low24h = Number(t.low24h || last);
-                  m.vol24h = Number(Number(t.vol24h || m.vol24h || 0).toFixed(2));
-                  m.volCcy24h = Number(Number(t.volCcy24h || m.volCcy24h || 0).toFixed(2));
-                  m.change24hPct = m.open24h > 0 ? Number(((last - m.open24h) / m.open24h * 100).toFixed(2)) : 0;
-                }
-              }
-            });
-          };
-          updateMarketList(DEFAULT_STANDALONE_MARKETS);
+          const allSpotMarkets = json.data.filter((t) => t && t.instId).map((t) => {
+            const parts = t.instId.split("-");
+            const base = parts[0] || t.instId;
+            const quote = parts[1] || "USDC";
+            const last = Number(t.last || 0);
+            const open24h = Number(t.open24h || t.sodUtc0 || last);
+            const high24h = Number(t.high24h || last);
+            const low24h = Number(t.low24h || last);
+            const vol24h = Number(Number(t.vol24h || 0).toFixed(2));
+            const volCcy24h = Number(Number(t.volCcy24h || 0).toFixed(2));
+            return {
+              instId: t.instId,
+              base,
+              quote,
+              name: base,
+              price: last,
+              bidPx: Number(t.bidPx || last),
+              askPx: Number(t.askPx || last),
+              open24h: open24h > 0 ? open24h : last,
+              high24h,
+              low24h,
+              vol24h,
+              volCcy24h,
+              change24hPct: open24h > 0 ? Number(((last - open24h) / open24h * 100).toFixed(2)) : 0
+            };
+          }).sort((a, b) => {
+            const quoteRank = (q) => q === "USDC" ? 1 : q === "USDT" ? 2 : q === "EUR" ? 3 : 4;
+            const rA = quoteRank(a.quote);
+            const rB = quoteRank(b.quote);
+            if (rA !== rB) return rA - rB;
+            return (b.volCcy24h || 0) - (a.volCcy24h || 0);
+          });
           if (_standaloneState) {
-            updateMarketList(_standaloneState.markets);
-            _standaloneState.tickers = _standaloneState.markets;
+            _standaloneState.markets = allSpotMarkets;
+            _standaloneState.tickers = allSpotMarkets;
             if (_standaloneState.config && _standaloneState.config.marketDataStatus) {
               _standaloneState.config.marketDataStatus.live = true;
-              _standaloneState.config.marketDataStatus.source = "OKX API v5 Live (Bie\u017C\u0105ce notowania OKX)";
+              _standaloneState.config.marketDataStatus.source = "OKX API v5 Live (Pe\u0142na lista par Spot OKX)";
               _standaloneState.config.marketDataStatus.lastUpdatedAt = (/* @__PURE__ */ new Date()).toTimeString().slice(0, 8);
             }
             recalculateStateValuations(_standaloneState);
@@ -15949,23 +16004,10 @@
       _standaloneState.config.aiStatus = "active";
       const text = (body?.message || "").trim();
       const lower = text.toLowerCase();
-      let asset = "BTC";
-      if (lower.includes("etc") || lower.includes("ethereum classic")) asset = "ETC";
-      else if (lower.includes("eth") || lower.includes("ethereum")) asset = "ETH";
-      else if (lower.includes("wld") || lower.includes("worldcoin")) asset = "WLD";
-      else if (lower.includes("usdg")) asset = "USDG";
-      else if (lower.includes("sol") || lower.includes("solana")) asset = "SOL";
-      else if (lower.includes("okb")) asset = "OKB";
-      else if (lower.includes("xrp") || lower.includes("ripple")) asset = "XRP";
-      else if (lower.includes("ada") || lower.includes("cardano")) asset = "ADA";
-      else if (lower.includes("doge")) asset = "DOGE";
-      else if (lower.includes("avax")) asset = "AVAX";
-      else if (lower.includes("link")) asset = "LINK";
-      else if (lower.includes("sui")) asset = "SUI";
-      else if (lower.includes("btc") || lower.includes("bitcoin")) asset = "BTC";
-      const instId = `${asset}-USDC`;
       const mList = _standaloneState.markets || _standaloneState.tickers || DEFAULT_STANDALONE_MARKETS;
-      const market = mList.find((m) => m.instId === instId) || mList[0] || { price: 76682.3 };
+      const market = findMarketInList(text, mList);
+      const asset = market.base;
+      const instId = market.instId;
       const livePrice = Number(market.price || 76682.3);
       const isSell = lower.includes("sprzedaj") || lower.includes("sprzeda\u017C") || lower.includes("sprzedac") || lower.includes("sell") || lower.includes("short") || lower.includes("zrealizuj zysk");
       const side = isSell ? "SELL" : "BUY";
@@ -16045,48 +16087,10 @@
       _standaloneState.config.aiStatus = "active";
       const rawQuery = (body?.query || body?.message || "BTC").trim();
       const lower = rawQuery.toLowerCase();
-      let asset = "BTC";
-      if (lower.includes("etc") || lower.includes("ethereum classic")) asset = "ETC";
-      else if (lower.includes("eth") || lower.includes("ethereum")) asset = "ETH";
-      else if (lower.includes("wld") || lower.includes("worldcoin")) asset = "WLD";
-      else if (lower.includes("usdg")) asset = "USDG";
-      else if (lower.includes("sol") || lower.includes("solana")) asset = "SOL";
-      else if (lower.includes("okb")) asset = "OKB";
-      else if (lower.includes("xrp") || lower.includes("ripple")) asset = "XRP";
-      else if (lower.includes("ada") || lower.includes("cardano")) asset = "ADA";
-      else if (lower.includes("doge") || lower.includes("dogecoin")) asset = "DOGE";
-      else if (lower.includes("avax") || lower.includes("avalanche")) asset = "AVAX";
-      else if (lower.includes("link") || lower.includes("chainlink")) asset = "LINK";
-      else if (lower.includes("sui")) asset = "SUI";
-      else if (lower.includes("btc") || lower.includes("bitcoin")) asset = "BTC";
-      else {
-        const tokenMatch = rawQuery.toUpperCase().match(/\b([A-Z]{2,6})\b/);
-        if (tokenMatch) {
-          const candidate = tokenMatch[1];
-          const ignoreWords = /* @__PURE__ */ new Set(["KUP", "DLA", "POD", "AI", "OKX", "DCA", "GRID", "SPOT", "BUY", "USDC", "USD", "USDT", "JAK", "CO"]);
-          if (!ignoreWords.has(candidate)) {
-            const mListCheck = _standaloneState.markets || DEFAULT_STANDALONE_MARKETS;
-            if (mListCheck.some((m) => m.base === candidate || m.instId === `${candidate}-USDC`)) {
-              asset = candidate;
-            }
-          }
-        }
-      }
-      const instId = `${asset}-USDC`;
       const mList = _standaloneState.markets || _standaloneState.tickers || DEFAULT_STANDALONE_MARKETS;
-      const market = mList.find((m) => m.instId === instId) || mList[0] || {
-        instId,
-        base: asset,
-        name: asset,
-        price: 76682.3,
-        bidPx: 76680.5,
-        askPx: 76680.6,
-        open24h: 77838.1,
-        high24h: 78789.3,
-        low24h: 76606.9,
-        vol24h: 1071.88,
-        change24hPct: -1.48
-      };
+      const market = findMarketInList(rawQuery, mList);
+      const asset = market.base;
+      const instId = market.instId;
       const livePrice = Number(market.price || 100);
       const open24h = Number(market.open24h || livePrice);
       const high24h = Number(market.high24h || livePrice * 1.025);
@@ -19128,6 +19132,7 @@
     onCloseWindow,
     onBringToFront
   }) {
+    const [pairFilter, setPairFilter] = import_react8.default.useState("");
     const mList = Array.isArray(markets) && markets.length > 0 ? markets : DEFAULT_STANDALONE_MARKETS;
     const asset = (tradePair || "BTC-USDC").split("-")[0];
     const hList = holdings || [];
@@ -19135,6 +19140,13 @@
     const usdtHolding = hList.find((h) => h.asset === "USDT");
     const assetHolding = hList.find((h) => h.asset === asset);
     const totalAvailCash = (cashHolding ? cashHolding.amount : 0) + (usdtHolding ? usdtHolding.amount : 0);
+    const filteredMarkets = import_react8.default.useMemo(() => {
+      if (!pairFilter.trim()) return mList;
+      const q = pairFilter.trim().toUpperCase();
+      return mList.filter(
+        (m) => m.instId.toUpperCase().includes(q) || m.base && m.base.toUpperCase().includes(q) || m.name && m.name.toUpperCase().includes(q)
+      );
+    }, [mList, pairFilter]);
     return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
       WindowContainer,
       {
@@ -19188,19 +19200,65 @@
               )
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "form-group", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { htmlFor: "tradePairSelect", children: "Para kryptowalutowa (Kursy na \u017Cywo z OKX):" }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("label", { htmlFor: "tradePairSelect", children: [
+                "Para kryptowalutowa Spot (Wszystkie rynki OKX \u2014 ",
+                mList.length,
+                " par):"
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", gap: "8px", marginBottom: "6px" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                  "input",
+                  {
+                    type: "text",
+                    className: "trade-pair-search-input",
+                    style: {
+                      flex: 1,
+                      padding: "6px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid var(--border)",
+                      background: "var(--bg-input, #131722)",
+                      color: "var(--text-main, #d1d4dc)",
+                      fontSize: "12px"
+                    },
+                    placeholder: "\u{1F50D} Filtruj pary (np. SOL, DOGE, PEPE, SUI, BTC)...",
+                    value: pairFilter,
+                    onChange: (e) => setPairFilter(e.target.value)
+                  }
+                ),
+                pairFilter && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                  "button",
+                  {
+                    type: "button",
+                    className: "btn btn-outline-sm",
+                    style: { padding: "4px 8px", fontSize: "11px" },
+                    onClick: () => setPairFilter(""),
+                    title: "Wyczy\u015B\u0107 filtr",
+                    children: "\u2715"
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
                 "select",
                 {
                   id: "tradePairSelect",
                   value: tradePair,
                   onChange: (e) => onChangeTradePair(e.target.value),
-                  children: mList.map((m) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("option", { value: m.instId, children: [
-                    m.instId,
-                    " (",
-                    m.name,
-                    " / USD Coin)"
-                  ] }, m.instId))
+                  children: [
+                    !filteredMarkets.some((m) => m.instId === tradePair) && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("option", { value: tradePair, children: [
+                      tradePair,
+                      " (Aktualnie wybrana para)"
+                    ] }),
+                    filteredMarkets.map((m) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("option", { value: m.instId, children: [
+                      m.instId,
+                      " (",
+                      m.name || m.base,
+                      " \u2014 ",
+                      m.price,
+                      " ",
+                      m.quote,
+                      ")"
+                    ] }, m.instId))
+                  ]
                 }
               )
             ] }),
@@ -19875,7 +19933,30 @@
     const canvasRef = (0, import_react12.useRef)(null);
     const lastGeomRef = (0, import_react12.useRef)(null);
     const panRef = (0, import_react12.useRef)({ isPanning: false, startX: 0, startOffset: 0 });
+    const yScaleRef = (0, import_react12.useRef)({ isScaling: false, startY: 0, startScale: 1 });
+    const chartStateRef = (0, import_react12.useRef)(chartState);
+    chartStateRef.current = chartState;
     const [, setLegendTick] = (0, import_react12.useState)(0);
+    (0, import_react12.useEffect)(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const onWheelNative = (e) => {
+        if (chartStateRef.current.engine !== "pro") return;
+        e.preventDefault();
+        e.stopPropagation();
+        const delta = Math.sign(e.deltaY);
+        const curCount = chartStateRef.current.visibleCount || 68;
+        const step = Math.max(3, Math.round(curCount * 0.12));
+        const nextCount = delta > 0 ? Math.min(240, curCount + step) : Math.max(14, curCount - step);
+        if (nextCount !== curCount) {
+          onUpdateChartState({ visibleCount: nextCount });
+        }
+      };
+      canvas.addEventListener("wheel", onWheelNative, { passive: false });
+      return () => {
+        canvas.removeEventListener("wheel", onWheelNative);
+      };
+    }, [onUpdateChartState]);
     const mList = Array.isArray(markets) && markets.length > 0 ? markets : DEFAULT_STANDALONE_MARKETS;
     const data = chartState.data;
     const isPos = (data?.change24hPct || 0) >= 0;
@@ -19967,8 +20048,12 @@
         if (avgBuyPx > maxPrice) maxPrice = avgBuyPx;
       }
       const rawRange = Math.max(1e-5, maxPrice - minPrice);
-      minPrice -= rawRange * 0.06;
-      maxPrice += rawRange * 0.06;
+      const midPrice = (minPrice + maxPrice) / 2;
+      const baseHalfRange = rawRange / 2 * 1.12;
+      const scaleY = typeof chartState.priceScaleY === "number" && chartState.priceScaleY > 0 ? chartState.priceScaleY : 1;
+      const effectiveHalfRange = Math.max(5e-6, baseHalfRange * scaleY);
+      minPrice = midPrice - effectiveHalfRange;
+      maxPrice = midPrice + effectiveHalfRange;
       const priceRange = Math.max(1e-5, maxPrice - minPrice);
       const priceToY = (p) => padTop + (maxPrice - p) / priceRange * mainH;
       const yToPrice = (y) => maxPrice - (y - padTop) / mainH * priceRange;
@@ -20953,20 +21038,20 @@
                   {
                     id: "assetChartCanvas",
                     ref: canvasRef,
-                    onWheel: (e) => {
-                      if (chartState.engine !== "pro") return;
-                      e.preventDefault();
-                      const delta = Math.sign(e.deltaY);
-                      const step = Math.max(4, Math.round(chartState.visibleCount * 0.14));
-                      const nextCount = delta > 0 ? Math.min(180, chartState.visibleCount + step) : Math.max(18, chartState.visibleCount - step);
-                      onUpdateChartState({ visibleCount: nextCount });
-                    },
                     onMouseDown: (e) => {
                       if (chartState.engine !== "pro" || !lastGeomRef.current) return;
                       const g = lastGeomRef.current;
                       const rect = e.currentTarget.getBoundingClientRect();
                       const x = e.clientX - rect.left;
                       const y = e.clientY - rect.top;
+                      if (x >= g.w - g.padRight) {
+                        yScaleRef.current = {
+                          isScaling: true,
+                          startY: e.clientY,
+                          startScale: chartState.priceScaleY || 1
+                        };
+                        return;
+                      }
                       const localIdx = Math.min(
                         g.candles.length - 1,
                         Math.max(0, Math.floor((x - g.padLeft) / g.stepX))
@@ -21023,6 +21108,20 @@
                       const rect = e.currentTarget.getBoundingClientRect();
                       const x = e.clientX - rect.left;
                       const y = e.clientY - rect.top;
+                      if (yScaleRef.current.isScaling) {
+                        const dy = e.clientY - yScaleRef.current.startY;
+                        const factor = Math.exp(dy * 8e-3);
+                        const newScale = Math.min(15, Math.max(0.06, yScaleRef.current.startScale * factor));
+                        onUpdateChartState({ priceScaleY: newScale });
+                        return;
+                      }
+                      if (x >= g.w - g.padRight) {
+                        e.currentTarget.style.cursor = "ns-resize";
+                      } else if (panRef.current.isPanning) {
+                        e.currentTarget.style.cursor = "grabbing";
+                      } else {
+                        e.currentTarget.style.cursor = chartState.activeTool === "crosshair" ? "crosshair" : "default";
+                      }
                       if (panRef.current.isPanning) {
                         const dx = e.clientX - panRef.current.startX;
                         const candlesDelta = Math.round(dx / Math.max(3, g.stepX));
@@ -21052,13 +21151,21 @@
                     },
                     onMouseUp: () => {
                       panRef.current.isPanning = false;
+                      yScaleRef.current.isScaling = false;
                     },
                     onMouseLeave: () => {
                       panRef.current.isPanning = false;
+                      yScaleRef.current.isScaling = false;
                       onUpdateChartState({ hoverX: null, hoverY: null });
                     },
-                    onDoubleClick: () => {
-                      onUpdateChartState({ panOffset: 0, visibleCount: 68 });
+                    onDoubleClick: (e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      if (lastGeomRef.current && x >= lastGeomRef.current.w - lastGeomRef.current.padRight) {
+                        onUpdateChartState({ priceScaleY: 1 });
+                      } else {
+                        onUpdateChartState({ panOffset: 0, visibleCount: 68 });
+                      }
                     }
                   }
                 ),
@@ -21086,7 +21193,7 @@
               /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { children: [
                 "\u{1F4A1} ",
                 /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { children: "TradingView Pro:" }),
-                " Rolka myszy = Zoom \u2022 Przeci\u0105gnij wykres = Historia \u2022 Lewy pasek = Rysowanie Fibo / Linii trendu"
+                " Rolka myszy = Zag\u0119szczanie / Rozszerzanie osi czasu (Zoom) \u2022 O\u015B Y z prawej = Przeci\u0105gnij myszk\u0105, aby skalowa\u0107 wysoko\u015B\u0107 ceny (2x klik = Auto-fit) \u2022 Przeci\u0105gnij wykres = Historia"
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
                 "button",
@@ -21214,6 +21321,8 @@
       pendingDrawing: null,
       visibleCount: 68,
       panOffset: 0,
+      priceScaleY: 1,
+      pricePanY: 0,
       hoverX: null,
       hoverY: null,
       data: null,

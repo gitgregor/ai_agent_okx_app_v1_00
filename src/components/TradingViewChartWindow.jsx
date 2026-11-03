@@ -31,7 +31,41 @@ export function TradingViewChartWindow({
   const canvasRef = useRef(null);
   const lastGeomRef = useRef(null);
   const panRef = useRef({ isPanning: false, startX: 0, startOffset: 0 });
+  const yScaleRef = useRef({ isScaling: false, startY: 0, startScale: 1.0 });
+  const chartStateRef = useRef(chartState);
+  chartStateRef.current = chartState;
   const [, setLegendTick] = useState(0);
+
+  // Natywny non-passive event listener dla kółka myszy na canvasie
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onWheelNative = (e) => {
+      if (chartStateRef.current.engine !== 'pro') return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const delta = Math.sign(e.deltaY);
+      const curCount = chartStateRef.current.visibleCount || 68;
+      // Scroll w dół (delta > 0) = oddalanie / rozszerzanie osi czasu (więcej świeczek widocznych)
+      // Scroll w górę (delta < 0) = przybliżanie / zagęszczanie osi czasu (mniej świeczek, świeczki szersze)
+      const step = Math.max(3, Math.round(curCount * 0.12));
+      const nextCount =
+        delta > 0
+          ? Math.min(240, curCount + step)
+          : Math.max(14, curCount - step);
+
+      if (nextCount !== curCount) {
+        onUpdateChartState({ visibleCount: nextCount });
+      }
+    };
+
+    canvas.addEventListener('wheel', onWheelNative, { passive: false });
+    return () => {
+      canvas.removeEventListener('wheel', onWheelNative);
+    };
+  }, [onUpdateChartState]);
 
   const mList =
     Array.isArray(markets) && markets.length > 0 ? markets : DEFAULT_STANDALONE_MARKETS;
@@ -148,8 +182,17 @@ export function TradingViewChartWindow({
     }
 
     const rawRange = Math.max(0.00001, maxPrice - minPrice);
-    minPrice -= rawRange * 0.06;
-    maxPrice += rawRange * 0.06;
+    const midPrice = (minPrice + maxPrice) / 2;
+    const baseHalfRange = (rawRange / 2) * 1.12;
+
+    const scaleY =
+      typeof chartState.priceScaleY === 'number' && chartState.priceScaleY > 0
+        ? chartState.priceScaleY
+        : 1.0;
+    const effectiveHalfRange = Math.max(0.000005, baseHalfRange * scaleY);
+
+    minPrice = midPrice - effectiveHalfRange;
+    maxPrice = midPrice + effectiveHalfRange;
     const priceRange = Math.max(0.00001, maxPrice - minPrice);
 
     const priceToY = (p) => padTop + ((maxPrice - p) / priceRange) * mainH;
@@ -1208,23 +1251,23 @@ export function TradingViewChartWindow({
             <canvas
               id="assetChartCanvas"
               ref={canvasRef}
-              onWheel={(e) => {
-                if (chartState.engine !== 'pro') return;
-                e.preventDefault();
-                const delta = Math.sign(e.deltaY);
-                const step = Math.max(4, Math.round(chartState.visibleCount * 0.14));
-                const nextCount =
-                  delta > 0
-                    ? Math.min(180, chartState.visibleCount + step)
-                    : Math.max(18, chartState.visibleCount - step);
-                onUpdateChartState({ visibleCount: nextCount });
-              }}
               onMouseDown={(e) => {
                 if (chartState.engine !== 'pro' || !lastGeomRef.current) return;
                 const g = lastGeomRef.current;
                 const rect = e.currentTarget.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
+
+                // 1. Sprawdzamy czy kliknięto na skali ceny z prawej strony (oś Y)
+                if (x >= g.w - g.padRight) {
+                  yScaleRef.current = {
+                    isScaling: true,
+                    startY: e.clientY,
+                    startScale: chartState.priceScaleY || 1.0
+                  };
+                  return;
+                }
+
                 const localIdx = Math.min(
                   g.candles.length - 1,
                   Math.max(0, Math.floor((x - g.padLeft) / g.stepX))
@@ -1289,6 +1332,27 @@ export function TradingViewChartWindow({
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
 
+                // A) Skalowanie zakresu osi Y ceny myszką
+                if (yScaleRef.current.isScaling) {
+                  const dy = e.clientY - yScaleRef.current.startY;
+                  // Ruch w dół (dy > 0): powiększa zakres ceny (świeczki mniejsze w pionie)
+                  // Ruch w górę (dy < 0): zawęża zakres ceny (świeczki wyższe w pionie)
+                  const factor = Math.exp(dy * 0.008);
+                  const newScale = Math.min(15.0, Math.max(0.06, yScaleRef.current.startScale * factor));
+                  onUpdateChartState({ priceScaleY: newScale });
+                  return;
+                }
+
+                // B) Styl kursora: na osi Y strzałka góra/dół (ns-resize)
+                if (x >= g.w - g.padRight) {
+                  e.currentTarget.style.cursor = 'ns-resize';
+                } else if (panRef.current.isPanning) {
+                  e.currentTarget.style.cursor = 'grabbing';
+                } else {
+                  e.currentTarget.style.cursor =
+                    chartState.activeTool === 'crosshair' ? 'crosshair' : 'default';
+                }
+
                 if (panRef.current.isPanning) {
                   const dx = e.clientX - panRef.current.startX;
                   const candlesDelta = Math.round(dx / Math.max(3, g.stepX));
@@ -1319,13 +1383,23 @@ export function TradingViewChartWindow({
               }}
               onMouseUp={() => {
                 panRef.current.isPanning = false;
+                yScaleRef.current.isScaling = false;
               }}
               onMouseLeave={() => {
                 panRef.current.isPanning = false;
+                yScaleRef.current.isScaling = false;
                 onUpdateChartState({ hoverX: null, hoverY: null });
               }}
-              onDoubleClick={() => {
-                onUpdateChartState({ panOffset: 0, visibleCount: 68 });
+              onDoubleClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                if (lastGeomRef.current && x >= lastGeomRef.current.w - lastGeomRef.current.padRight) {
+                  // Podwójne kliknięcie na osi Y przywraca automatyczną skalę ceny
+                  onUpdateChartState({ priceScaleY: 1.0 });
+                } else {
+                  // Podwójne kliknięcie na wykresie przywraca domyślny widok osi czasu
+                  onUpdateChartState({ panOffset: 0, visibleCount: 68 });
+                }
               }}
             />
 
@@ -1349,8 +1423,7 @@ export function TradingViewChartWindow({
 
         <div className="chart-window-footer">
           <span>
-            💡 <strong>TradingView Pro:</strong> Rolka myszy = Zoom • Przeciągnij wykres =
-            Historia • Lewy pasek = Rysowanie Fibo / Linii trendu
+            💡 <strong>TradingView Pro:</strong> Rolka myszy = Zagęszczanie / Rozszerzanie osi czasu (Zoom) • Oś Y z prawej = Przeciągnij myszką, aby skalować wysokość ceny (2x klik = Auto-fit) • Przeciągnij wykres = Historia
           </span>
           <button
             type="button"

@@ -902,23 +902,39 @@ class OkxEeaTradingEngine {
 
       const tickers = payload.data;
       for (const t of tickers) {
+        if (!t || !t.instId) continue;
         this.spotTickerMap[t.instId] = t;
-      }
 
-      // Update all watched markets with real OKX prices
-      for (const instId of Object.keys(this.markets)) {
-        const m = this.markets[instId];
-        const t = this.spotTickerMap[instId] || this.spotTickerMap[`${m.base}-USDT`];
-        if (t) {
-          const last = Number(t.last || 0);
-          const open24h = Number(t.open24h || t.sodUtc0 || last);
-          const high24h = Number(t.high24h || last);
-          const low24h = Number(t.low24h || last);
-          const vol24h = Number(t.vol24h || 0);
-          const volCcy24h = Number(t.volCcy24h || 0);
-          const bidPx = Number(t.bidPx || last);
-          const askPx = Number(t.askPx || last);
+        const parts = t.instId.split('-');
+        const base = parts[0] || t.instId;
+        const quote = parts[1] || 'USDC';
+        const last = Number(t.last || 0);
+        const open24h = Number(t.open24h || t.sodUtc0 || last);
+        const high24h = Number(t.high24h || last);
+        const low24h = Number(t.low24h || last);
+        const vol24h = Number(t.vol24h || 0);
+        const volCcy24h = Number(t.volCcy24h || 0);
+        const bidPx = Number(t.bidPx || last);
+        const askPx = Number(t.askPx || last);
 
+        if (!this.markets[t.instId]) {
+          this.markets[t.instId] = {
+            instId: t.instId,
+            base,
+            quote,
+            name: ASSET_NAMES[base] || base,
+            price: last,
+            bidPx,
+            askPx,
+            open24h: open24h > 0 ? open24h : last,
+            high24h,
+            low24h,
+            vol24h: Number(vol24h.toFixed(2)),
+            volCcy24h: Number(volCcy24h.toFixed(2)),
+            ts: Number(t.ts || Date.now())
+          };
+        } else {
+          const m = this.markets[t.instId];
           if (last > 0) {
             m.price = last;
             m.bidPx = bidPx;
@@ -946,20 +962,36 @@ class OkxEeaTradingEngine {
   applyClientTickers(tickers) {
     if (!Array.isArray(tickers) || tickers.length === 0) return;
     for (const t of tickers) {
-      if (t && t.instId) {
-        this.spotTickerMap[t.instId] = t;
-      }
-    }
-    for (const instId of Object.keys(this.markets)) {
-      const m = this.markets[instId];
-      const t = this.spotTickerMap[instId] || this.spotTickerMap[`${m.base}-USDT`];
-      if (t) {
-        const last = Number(t.last || t.price || 0);
+      if (!t || !t.instId) continue;
+      this.spotTickerMap[t.instId] = t;
+      const last = Number(t.last || t.price || 0);
+      const open24h = Number(t.open24h || t.sodUtc0 || last);
+      const parts = t.instId.split('-');
+      const base = parts[0] || t.instId;
+      const quote = parts[1] || 'USDC';
+      if (!this.markets[t.instId]) {
+        this.markets[t.instId] = {
+          instId: t.instId,
+          base,
+          quote,
+          name: ASSET_NAMES[base] || base,
+          price: last,
+          bidPx: Number(t.bidPx || last),
+          askPx: Number(t.askPx || last),
+          open24h: open24h > 0 ? open24h : last,
+          high24h: Number(t.high24h || last),
+          low24h: Number(t.low24h || last),
+          vol24h: Number(Number(t.vol24h || 0).toFixed(2)),
+          volCcy24h: Number(Number(t.volCcy24h || 0).toFixed(2)),
+          ts: Number(t.ts || Date.now())
+        };
+      } else {
+        const m = this.markets[t.instId];
         if (last > 0) {
           m.price = last;
           m.bidPx = Number(t.bidPx || last);
           m.askPx = Number(t.askPx || last);
-          m.open24h = Number(t.open24h || t.sodUtc0 || last);
+          m.open24h = open24h > 0 ? open24h : last;
           m.high24h = Number(t.high24h || last);
           m.low24h = Number(t.low24h || last);
           m.vol24h = Number(Number(t.vol24h || m.vol24h || 0).toFixed(2));
@@ -1503,10 +1535,21 @@ class OkxEeaTradingEngine {
 
   getState() {
     const activePortfolio = this.calculatePortfolioSummary(this.config.apiMode);
-    const marketsList = Object.values(this.markets).map((m) => ({
-      ...m,
-      change24hPct: m.open24h > 0 ? Number((((m.price - m.open24h) / m.open24h) * 100).toFixed(2)) : 0.0
-    }));
+    const marketsList = Object.values(this.markets)
+      .map((m) => ({
+        ...m,
+        change24hPct:
+          m.open24h > 0
+            ? Number((((m.price - m.open24h) / m.open24h) * 100).toFixed(2))
+            : 0.0
+      }))
+      .sort((a, b) => {
+        const quoteRank = (q) => (q === 'USDC' ? 1 : q === 'USDT' ? 2 : q === 'EUR' ? 3 : 4);
+        const rA = quoteRank(a.quote);
+        const rB = quoteRank(b.quote);
+        if (rA !== rB) return rA - rB;
+        return (b.volCcy24h || 0) - (a.volCcy24h || 0);
+      });
 
     const demoConnection = this.evaluateApiKeyStatus('demo');
     const liveConnection = this.evaluateApiKeyStatus('live');
@@ -2057,6 +2100,60 @@ class OkxEeaTradingEngine {
     });
   }
 
+  _detectMarketFromText(text) {
+    const raw = (text || '').trim();
+    const upper = raw.toUpperCase();
+    const lower = raw.toLowerCase();
+
+    // 1. Bezpośrednie dopasowanie instId np. 'SOL-USDC', 'PEPE-USDT', 'DOGE-USDC'
+    const pairMatch = upper.match(/\b([A-Z0-9]{2,10}-[A-Z0-9]{3,5})\b/);
+    if (pairMatch && this.markets[pairMatch[1]]) {
+      return this.markets[pairMatch[1]];
+    }
+
+    // 2. Znane aliasy
+    const aliasMap = {
+      'bitcoin': 'BTC',
+      'ethereum classic': 'ETC',
+      'ethereum': 'ETH',
+      'ether': 'ETH',
+      'worldcoin': 'WLD',
+      'ripple': 'XRP',
+      'cardano': 'ADA',
+      'dogecoin': 'DOGE',
+      'avalanche': 'AVAX',
+      'chainlink': 'LINK',
+      'solana': 'SOL',
+      'polkadot': 'DOT',
+      'polygon': 'POL',
+      'matic': 'POL'
+    };
+    for (const [alias, sym] of Object.entries(aliasMap)) {
+      if (lower.includes(alias)) {
+        const m = this.markets[`${sym}-USDC`] || this.markets[`${sym}-USDT`] || Object.values(this.markets).find((x) => x.base === sym);
+        if (m) return m;
+      }
+    }
+
+    // 3. Wyszukiwanie symbolu bazowego ze słów zapytania w całym słowniku par OKX
+    const words = upper.replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+    const skipWords = new Set(['KUP', 'SPRZEDAJ', 'KUPNO', 'SPRZEDAZ', 'DLA', 'ZA', 'W', 'NA', 'SPOT', 'AI', 'OKX', 'USDC', 'USDT', 'USD', 'LIMIT', 'MARKET', 'ORDER', 'BUY', 'SELL', 'PROSZE', 'CHCE', 'ZLECENIE', 'STRATEGIE', 'STRATEGIA', 'TEST', 'DEMO', 'LIVE']);
+    for (const w of words) {
+      if (skipWords.has(w)) continue;
+      if (this.markets[`${w}-USDC`]) return this.markets[`${w}-USDC`];
+      if (this.markets[`${w}-USDT`]) return this.markets[`${w}-USDT`];
+      const anyWithBase = Object.values(this.markets).find((m) => m.base === w);
+      if (anyWithBase) return anyWithBase;
+    }
+
+    return this.markets['BTC-USDC'] || Object.values(this.markets)[0] || {
+      instId: 'BTC-USDC',
+      base: 'BTC',
+      quote: 'USDC',
+      price: 76682.30
+    };
+  }
+
   /**
    * Natural Language AI Agent powered by okx/agent-skills & okx/agent-trade-kit MCP tools
    * Uses real live OKX market prices!
@@ -2068,25 +2165,11 @@ class OkxEeaTradingEngine {
     const text = (userMessage || '').trim();
     const lower = text.toLowerCase();
 
-    // Detect asset
-    let asset = 'BTC';
-    if (lower.includes('etc') || lower.includes('ethereum classic')) asset = 'ETC';
-    else if (lower.includes('eth') || lower.includes('ethereum')) asset = 'ETH';
-    else if (lower.includes('wld') || lower.includes('worldcoin')) asset = 'WLD';
-    else if (lower.includes('usdg')) asset = 'USDG';
-    else if (lower.includes('sol') || lower.includes('solana')) asset = 'SOL';
-    else if (lower.includes('okb')) asset = 'OKB';
-    else if (lower.includes('xrp') || lower.includes('ripple')) asset = 'XRP';
-    else if (lower.includes('ada') || lower.includes('cardano')) asset = 'ADA';
-    else if (lower.includes('doge')) asset = 'DOGE';
-    else if (lower.includes('avax')) asset = 'AVAX';
-    else if (lower.includes('link')) asset = 'LINK';
-    else if (lower.includes('sui')) asset = 'SUI';
-    else if (lower.includes('btc') || lower.includes('bitcoin')) asset = 'BTC';
-
-    const instId = `${asset}-USDC`;
-    const market = this.markets[instId] || this.markets['BTC-USDC'] || { instId, base: asset, price: this.getPrice(asset) || 100, bidPx: 0, askPx: 0, high24h: 0, low24h: 0 };
-    const livePrice = market.price || this.getPrice(asset) || 100;
+    // Wykryj rynek z całego zestawu par spot OKX
+    const market = this._detectMarketFromText(text);
+    const asset = market.base;
+    const instId = market.instId;
+    const livePrice = Number(market.price || this.getPrice(asset) || 100);
 
     const isSell =
       lower.includes('sprzedaj') ||
@@ -2215,48 +2298,10 @@ class OkxEeaTradingEngine {
     const rawQuery = (userQuery || 'BTC').trim();
     const lower = rawQuery.toLowerCase();
 
-    // Detect requested asset from query
-    let asset = 'BTC';
-    if (lower.includes('etc') || lower.includes('ethereum classic')) asset = 'ETC';
-    else if (lower.includes('eth') || lower.includes('ethereum')) asset = 'ETH';
-    else if (lower.includes('wld') || lower.includes('worldcoin')) asset = 'WLD';
-    else if (lower.includes('usdg')) asset = 'USDG';
-    else if (lower.includes('sol') || lower.includes('solana')) asset = 'SOL';
-    else if (lower.includes('okb')) asset = 'OKB';
-    else if (lower.includes('xrp') || lower.includes('ripple')) asset = 'XRP';
-    else if (lower.includes('ada') || lower.includes('cardano')) asset = 'ADA';
-    else if (lower.includes('doge') || lower.includes('dogecoin')) asset = 'DOGE';
-    else if (lower.includes('avax') || lower.includes('avalanche')) asset = 'AVAX';
-    else if (lower.includes('link') || lower.includes('chainlink')) asset = 'LINK';
-    else if (lower.includes('sui')) asset = 'SUI';
-    else if (lower.includes('btc') || lower.includes('bitcoin')) asset = 'BTC';
-    else {
-      // Check if user typed a custom ticker symbol present on OKX
-      const tokenMatch = rawQuery.toUpperCase().match(/\b([A-Z]{2,6})\b/);
-      if (tokenMatch) {
-        const candidate = tokenMatch[1];
-        const ignoreWords = new Set(['KUP', 'DLA', 'POD', 'AI', 'OKX', 'DCA', 'GRID', 'SPOT', 'BUY', 'USDC', 'USD', 'USDT', 'JAK', 'CO']);
-        if (!ignoreWords.has(candidate)) {
-          if (this.markets[`${candidate}-USDC`] || this.spotTickerMap[`${candidate}-USDC`] || this.spotTickerMap[`${candidate}-USDT`]) {
-            asset = candidate;
-          }
-        }
-      }
-    }
-
-    const instId = `${asset}-USDC`;
-    const market = this.markets[instId] || this.markets['BTC-USDC'] || {
-      instId,
-      base: asset,
-      name: asset,
-      price: this.getPrice(asset) || 100,
-      bidPx: this.getPrice(asset) || 100,
-      askPx: this.getPrice(asset) || 100,
-      open24h: this.getPrice(asset) || 100,
-      high24h: (this.getPrice(asset) || 100) * 1.03,
-      low24h: (this.getPrice(asset) || 100) * 0.97,
-      vol24h: 1500
-    };
+    // Wykryj rynek z całego zestawu par spot OKX
+    const market = this._detectMarketFromText(rawQuery);
+    const asset = market.base;
+    const instId = market.instId;
 
     const livePrice = Number(market.price || this.getPrice(asset) || 100);
     const open24h = Number(market.open24h || livePrice);

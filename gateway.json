@@ -1,14 +1,13 @@
 {
-  "updatedAt": 1793737993667,
+  "updatedAt": 1793738007912,
   "homePublicIp": "81.99.228.78",
   "primaryTunnelUrl": "https://adventures-rescue-growth-reviewing.trycloudflare.com",
   "cloudflareTunnelUrl": "https://adventures-rescue-growth-reviewing.trycloudflare.com",
-  "fallbackTunnelUrl": "https://tame-starfish-8.loca.lt",
+  "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw-2.loca.lt",
   "tunnels": [
     "https://adventures-rescue-growth-reviewing.trycloudflare.com",
-    "https://tame-starfish-8.loca.lt",
-    "https://okx-eea-gregor-home-gw.loca.lt",
     "https://okx-eea-gregor-home-gw-2.loca.lt",
+    "https://okx-eea-gregor-home-gw.loca.lt",
     "https://okx-eea-gregor-home-gw-3.loca.lt"
   ]
 }

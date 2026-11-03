@@ -66,6 +66,59 @@ export const DEFAULT_STANDALONE_MARKETS = [
   { instId: 'SUI-USDC', base: 'SUI', quote: 'USDC', name: 'Sui Network', price: 0.8677, bidPx: 0.8687, askPx: 0.8690, open24h: 0.8947, high24h: 0.9080, low24h: 0.8631, vol24h: 952011.95, volCcy24h: 843315, change24hPct: -3.02 }
 ];
 
+export function findMarketInList(text, mList = DEFAULT_STANDALONE_MARKETS) {
+  const raw = (text || '').trim();
+  const upper = raw.toUpperCase();
+  const lower = raw.toLowerCase();
+  const list = Array.isArray(mList) && mList.length > 0 ? mList : DEFAULT_STANDALONE_MARKETS;
+
+  // 1. Bezpośrednie dopasowanie np. SOL-USDC, PEPE-USDT, BTC-USDC
+  const pairMatch = upper.match(/\b([A-Z0-9]{2,10}-[A-Z0-9]{3,5})\b/);
+  if (pairMatch) {
+    const found = list.find((m) => m.instId === pairMatch[1]);
+    if (found) return found;
+  }
+
+  // 2. Popularne aliasy
+  const aliasMap = {
+    'bitcoin': 'BTC',
+    'ethereum classic': 'ETC',
+    'ethereum': 'ETH',
+    'ether': 'ETH',
+    'worldcoin': 'WLD',
+    'ripple': 'XRP',
+    'cardano': 'ADA',
+    'dogecoin': 'DOGE',
+    'avalanche': 'AVAX',
+    'chainlink': 'LINK',
+    'solana': 'SOL',
+    'polkadot': 'DOT',
+    'polygon': 'POL',
+    'matic': 'POL'
+  };
+  for (const [alias, sym] of Object.entries(aliasMap)) {
+    if (lower.includes(alias)) {
+      const m = list.find((x) => x.instId === `${sym}-USDC`) || list.find((x) => x.instId === `${sym}-USDT`) || list.find((x) => x.base === sym);
+      if (m) return m;
+    }
+  }
+
+  // 3. Wyszukiwanie symbolu bazowego w tekście ze słów
+  const words = upper.replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+  const skipWords = new Set(['KUP', 'SPRZEDAJ', 'KUPNO', 'SPRZEDAZ', 'DLA', 'ZA', 'W', 'NA', 'SPOT', 'AI', 'OKX', 'USDC', 'USDT', 'USD', 'LIMIT', 'MARKET', 'ORDER', 'BUY', 'SELL', 'PROSZE', 'CHCE', 'ZLECENIE', 'STRATEGIE', 'STRATEGIA', 'TEST', 'DEMO', 'LIVE']);
+  for (const w of words) {
+    if (skipWords.has(w)) continue;
+    const foundUsdc = list.find((m) => m.instId === `${w}-USDC`);
+    if (foundUsdc) return foundUsdc;
+    const foundUsdt = list.find((m) => m.instId === `${w}-USDT`);
+    if (foundUsdt) return foundUsdt;
+    const anyBase = list.find((m) => m.base === w);
+    if (anyBase) return anyBase;
+  }
+
+  return list.find((m) => m.instId === 'BTC-USDC') || list[0];
+}
+
 const LS_CUSTOM_GATEWAY_KEY = 'okx_custom_gateway_url_v1';
 const LS_AI_EXECUTED_ORDERS_KEY = 'okx_ai_executed_orders_v1';
 const DEFAULT_HOME_GATEWAYS = [
@@ -434,35 +487,48 @@ export async function fetchLiveOkxTickersInBrowser(force = false) {
           map[t.instId] = t;
         }
 
-        const updateMarketList = (list) => {
-          if (!Array.isArray(list)) return;
-          list.forEach((m) => {
-            const t = map[m.instId] || map[`${m.base}-USDT`];
-            if (t) {
-              const last = Number(t.last || 0);
-              if (last > 0) {
-                const open24h = Number(t.open24h || t.sodUtc0 || last);
-                m.price = last;
-                m.bidPx = Number(t.bidPx || last);
-                m.askPx = Number(t.askPx || last);
-                m.open24h = open24h > 0 ? open24h : last;
-                m.high24h = Number(t.high24h || last);
-                m.low24h = Number(t.low24h || last);
-                m.vol24h = Number(Number(t.vol24h || m.vol24h || 0).toFixed(2));
-                m.volCcy24h = Number(Number(t.volCcy24h || m.volCcy24h || 0).toFixed(2));
-                m.change24hPct = m.open24h > 0 ? Number((((last - m.open24h) / m.open24h) * 100).toFixed(2)) : 0;
-              }
-            }
+        const allSpotMarkets = json.data
+          .filter((t) => t && t.instId)
+          .map((t) => {
+            const parts = t.instId.split('-');
+            const base = parts[0] || t.instId;
+            const quote = parts[1] || 'USDC';
+            const last = Number(t.last || 0);
+            const open24h = Number(t.open24h || t.sodUtc0 || last);
+            const high24h = Number(t.high24h || last);
+            const low24h = Number(t.low24h || last);
+            const vol24h = Number(Number(t.vol24h || 0).toFixed(2));
+            const volCcy24h = Number(Number(t.volCcy24h || 0).toFixed(2));
+            return {
+              instId: t.instId,
+              base,
+              quote,
+              name: base,
+              price: last,
+              bidPx: Number(t.bidPx || last),
+              askPx: Number(t.askPx || last),
+              open24h: open24h > 0 ? open24h : last,
+              high24h,
+              low24h,
+              vol24h,
+              volCcy24h,
+              change24hPct: open24h > 0 ? Number((((last - open24h) / open24h) * 100).toFixed(2)) : 0
+            };
+          })
+          .sort((a, b) => {
+            const quoteRank = (q) => (q === 'USDC' ? 1 : q === 'USDT' ? 2 : q === 'EUR' ? 3 : 4);
+            const rA = quoteRank(a.quote);
+            const rB = quoteRank(b.quote);
+            if (rA !== rB) return rA - rB;
+            return (b.volCcy24h || 0) - (a.volCcy24h || 0);
           });
-        };
 
-        updateMarketList(DEFAULT_STANDALONE_MARKETS);
         if (_standaloneState) {
-          updateMarketList(_standaloneState.markets);
-          _standaloneState.tickers = _standaloneState.markets;
+          _standaloneState.markets = allSpotMarkets;
+          _standaloneState.tickers = allSpotMarkets;
           if (_standaloneState.config && _standaloneState.config.marketDataStatus) {
             _standaloneState.config.marketDataStatus.live = true;
-            _standaloneState.config.marketDataStatus.source = 'OKX API v5 Live (Bieżące notowania OKX)';
+            _standaloneState.config.marketDataStatus.source = 'OKX API v5 Live (Pełna lista par Spot OKX)';
             _standaloneState.config.marketDataStatus.lastUpdatedAt = new Date().toTimeString().slice(0, 8);
           }
           recalculateStateValuations(_standaloneState);
@@ -1491,24 +1557,10 @@ export async function clientMockEngine(url, method = 'GET', body = null) {
     const text = (body?.message || '').trim();
     const lower = text.toLowerCase();
 
-    let asset = 'BTC';
-    if (lower.includes('etc') || lower.includes('ethereum classic')) asset = 'ETC';
-    else if (lower.includes('eth') || lower.includes('ethereum')) asset = 'ETH';
-    else if (lower.includes('wld') || lower.includes('worldcoin')) asset = 'WLD';
-    else if (lower.includes('usdg')) asset = 'USDG';
-    else if (lower.includes('sol') || lower.includes('solana')) asset = 'SOL';
-    else if (lower.includes('okb')) asset = 'OKB';
-    else if (lower.includes('xrp') || lower.includes('ripple')) asset = 'XRP';
-    else if (lower.includes('ada') || lower.includes('cardano')) asset = 'ADA';
-    else if (lower.includes('doge')) asset = 'DOGE';
-    else if (lower.includes('avax')) asset = 'AVAX';
-    else if (lower.includes('link')) asset = 'LINK';
-    else if (lower.includes('sui')) asset = 'SUI';
-    else if (lower.includes('btc') || lower.includes('bitcoin')) asset = 'BTC';
-
-    const instId = `${asset}-USDC`;
     const mList = _standaloneState.markets || _standaloneState.tickers || DEFAULT_STANDALONE_MARKETS;
-    const market = mList.find((m) => m.instId === instId) || mList[0] || { price: 76682.30 };
+    const market = findMarketInList(text, mList);
+    const asset = market.base;
+    const instId = market.instId;
     const livePrice = Number(market.price || 76682.30);
 
     const isSell =
@@ -1608,49 +1660,10 @@ export async function clientMockEngine(url, method = 'GET', body = null) {
     const rawQuery = (body?.query || body?.message || 'BTC').trim();
     const lower = rawQuery.toLowerCase();
 
-    let asset = 'BTC';
-    if (lower.includes('etc') || lower.includes('ethereum classic')) asset = 'ETC';
-    else if (lower.includes('eth') || lower.includes('ethereum')) asset = 'ETH';
-    else if (lower.includes('wld') || lower.includes('worldcoin')) asset = 'WLD';
-    else if (lower.includes('usdg')) asset = 'USDG';
-    else if (lower.includes('sol') || lower.includes('solana')) asset = 'SOL';
-    else if (lower.includes('okb')) asset = 'OKB';
-    else if (lower.includes('xrp') || lower.includes('ripple')) asset = 'XRP';
-    else if (lower.includes('ada') || lower.includes('cardano')) asset = 'ADA';
-    else if (lower.includes('doge') || lower.includes('dogecoin')) asset = 'DOGE';
-    else if (lower.includes('avax') || lower.includes('avalanche')) asset = 'AVAX';
-    else if (lower.includes('link') || lower.includes('chainlink')) asset = 'LINK';
-    else if (lower.includes('sui')) asset = 'SUI';
-    else if (lower.includes('btc') || lower.includes('bitcoin')) asset = 'BTC';
-    else {
-      const tokenMatch = rawQuery.toUpperCase().match(/\b([A-Z]{2,6})\b/);
-      if (tokenMatch) {
-        const candidate = tokenMatch[1];
-        const ignoreWords = new Set(['KUP', 'DLA', 'POD', 'AI', 'OKX', 'DCA', 'GRID', 'SPOT', 'BUY', 'USDC', 'USD', 'USDT', 'JAK', 'CO']);
-        if (!ignoreWords.has(candidate)) {
-          const mListCheck = _standaloneState.markets || DEFAULT_STANDALONE_MARKETS;
-          if (mListCheck.some((m) => m.base === candidate || m.instId === `${candidate}-USDC`)) {
-            asset = candidate;
-          }
-        }
-      }
-    }
-
-    const instId = `${asset}-USDC`;
     const mList = _standaloneState.markets || _standaloneState.tickers || DEFAULT_STANDALONE_MARKETS;
-    const market = mList.find((m) => m.instId === instId) || mList[0] || {
-      instId,
-      base: asset,
-      name: asset,
-      price: 76682.30,
-      bidPx: 76680.50,
-      askPx: 76680.60,
-      open24h: 77838.10,
-      high24h: 78789.30,
-      low24h: 76606.90,
-      vol24h: 1071.88,
-      change24hPct: -1.48
-    };
+    const market = findMarketInList(rawQuery, mList);
+    const asset = market.base;
+    const instId = market.instId;
 
     const livePrice = Number(market.price || 100);
     const open24h = Number(market.open24h || livePrice);
