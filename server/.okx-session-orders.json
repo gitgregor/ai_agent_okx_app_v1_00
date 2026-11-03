@@ -1,0 +1,32 @@
+{
+  "demo": [
+    {
+      "id": "OKX-EEA-10001",
+      "instId": "BTC-USDC",
+      "asset": "BTC",
+      "side": "BUY",
+      "orderType": "MARKET",
+      "amount": 0.05,
+      "price": 76682.3,
+      "usdcValue": 3834.12,
+      "feeRate": "0.10%",
+      "feeUsdc": 3.83,
+      "feeAsset": 0.00005,
+      "totalUsdcWithFee": 3837.95,
+      "status": "CLOSED",
+      "date": "2026-11-02",
+      "time": "22:00:00",
+      "timestamp": 1793684895469,
+      "source": "Agent AI MCP (okx/agent-trade-kit)",
+      "strategyName": "Strategia AI MCP (Kupno BTC-USDC)"
+    }
+  ],
+  "live": [],
+  "sessionSync": {
+    "chatMessages": [],
+    "currentAiStrategyAnalysis": null,
+    "executedSessionTransactions": [],
+    "lastExchangeFeedback": null,
+    "updatedAt": 1793688495563
+  }
+}

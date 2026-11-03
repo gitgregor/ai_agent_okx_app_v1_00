@@ -38,7 +38,9 @@ export function ControlWindows({
   const gwInfo = getGatewayConnectionInfo();
   const remoteGw = cfg?.remoteGateway || {};
   const activeTunnelUrl =
+    remoteGw.cloudflareTunnelUrl ||
     remoteGw.tunnelUrl ||
+    gwInfo.cloudflareTunnelUrl ||
     gwInfo.customGatewayUrl ||
     gwInfo.defaultGatewayUrl ||
     'https://okx-eea-gregor-home-gw.loca.lt';
@@ -49,6 +51,16 @@ export function ControlWindows({
     gwInfo.customGatewayUrl || activeTunnelUrl
   );
   const [gwCopyMsg, setGwCopyMsg] = useState('');
+
+  React.useEffect(() => {
+    const bestTunnel =
+      remoteGw.cloudflareTunnelUrl ||
+      remoteGw.tunnelUrl ||
+      gwInfo.cloudflareTunnelUrl;
+    if (bestTunnel && (!customGwInput || customGwInput.includes('okx-eea-gregor-home-gw'))) {
+      setCustomGwInput(bestTunnel);
+    }
+  }, [remoteGw.cloudflareTunnelUrl, remoteGw.tunnelUrl, gwInfo.cloudflareTunnelUrl]);
 
   const handleCopyMobileLink = () => {
     try {
@@ -61,16 +73,24 @@ export function ControlWindows({
   };
 
   const handleReconnectGateway = async () => {
-    setCustomGatewayUrl(customGwInput);
-    setGwCopyMsg('⏳ Łączenie z Bramą Domową IP...');
+    const trimmedInput = (customGwInput || '').trim();
+    const isDefaultLoclt = trimmedInput.includes('okx-eea-gregor-home-gw');
+    setCustomGatewayUrl(isDefaultLoclt ? '' : trimmedInput);
+    setGwCopyMsg('⏳ Wyszukiwanie i łączenie z aktywnym tunelem Bramy Domowej IP...');
     const ok = await probeHomeGateway(true);
     if (ok) {
-      setGwCopyMsg('✅ Połączono z Bramą Domową IP (Whitelist OKX aktywny)!');
+      const updatedInfo = getGatewayConnectionInfo();
+      const connectedUrl =
+        updatedInfo.cloudflareTunnelUrl ||
+        updatedInfo.activeApiBaseUrl ||
+        activeTunnelUrl;
+      if (connectedUrl) setCustomGwInput(connectedUrl);
+      setGwCopyMsg(`✅ Połączono z Bramą Domową IP (${connectedUrl}) — Whitelist OKX aktywny!`);
       if (onManualSyncOkx) onManualSyncOkx();
     } else {
       setGwCopyMsg('⚠️ Nie udało się połączyć z tunelem — upewnij się, że serwer na PC w domu jest włączony.');
     }
-    setTimeout(() => setGwCopyMsg(''), 4500);
+    setTimeout(() => setGwCopyMsg(''), 5500);
   };
   const topWinsInGrid = windowsRegistry.filter(
     (w) => w.isTopCtrl && (w.mode === 'grid' || w.mode === 'minimized-inline')

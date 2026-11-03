@@ -147,6 +147,16 @@ class OkxEeaTradingEngine {
           WLD: { asset: 'WLD', name: 'Worldcoin (WLD)', amount: 186.08373, availAmount: 186.08373, frozenAmount: 0, avgBuyPrice: 0.5368 },
           ETC: { asset: 'ETC', name: 'Ethereum Classic (ETC)', amount: 5.00, availAmount: 5.00, frozenAmount: 0, avgBuyPrice: 7.494 }
         },
+        rawOkxHoldings: {
+          USDC: { asset: 'USDC', name: 'USD Coin (EEA MiCA)', amount: 20442.55, availAmount: 20442.55, frozenAmount: 0, avgBuyPrice: 1.00 },
+          USD: { asset: 'USD', name: 'US Dollar (OKX Demo)', amount: 100000.00, availAmount: 100000.00, frozenAmount: 0, avgBuyPrice: 1.00 },
+          USDG: { asset: 'USDG', name: 'Global Dollar (USDG)', amount: 100000.00, availAmount: 100000.00, frozenAmount: 0, avgBuyPrice: 1.00 },
+          BTC: { asset: 'BTC', name: 'Bitcoin', amount: 1.980256, availAmount: 1.980256, frozenAmount: 0, avgBuyPrice: 80864.32 },
+          ETH: { asset: 'ETH', name: 'Ethereum', amount: 10.00, availAmount: 10.00, frozenAmount: 0, avgBuyPrice: 2331.48 },
+          XRP: { asset: 'XRP', name: 'Ripple', amount: 50000.00, availAmount: 50000.00, frozenAmount: 0, avgBuyPrice: 1.2836 },
+          WLD: { asset: 'WLD', name: 'Worldcoin (WLD)', amount: 186.08373, availAmount: 186.08373, frozenAmount: 0, avgBuyPrice: 0.5368 },
+          ETC: { asset: 'ETC', name: 'Ethereum Classic (ETC)', amount: 5.00, availAmount: 5.00, frozenAmount: 0, avgBuyPrice: 7.494 }
+        },
         ledger: {},
         portfolioHistory: [],
         orders: [
@@ -272,11 +282,103 @@ class OkxEeaTradingEngine {
     } catch (e) {}
   }
 
+  mergeClientSessionOrders(payload = {}) {
+    const mode = payload.mode === 'live' ? 'live' : 'demo';
+    const targetPortfolio = this.portfolios[mode];
+    if (!targetPortfolio) return this.getState();
+
+    let changed = false;
+    const existingIds = new Set((targetPortfolio.sessionOrders || []).map((o) => String(o.id)));
+    const allKnownIds = new Set((targetPortfolio.orders || []).map((o) => String(o.id)));
+
+    if (Array.isArray(payload.orders)) {
+      for (const ord of payload.orders) {
+        if (!ord || !ord.id) continue;
+        const idStr = String(ord.id);
+        if (idStr.startsWith('OKX-DEMO-') || idStr.startsWith('OKX-LIVE-POS-')) continue;
+        if (!existingIds.has(idStr) && !allKnownIds.has(idStr)) {
+          existingIds.add(idStr);
+          allKnownIds.add(idStr);
+          targetPortfolio.sessionOrders.push(ord);
+          changed = true;
+
+          if (ord.exchangeFeedback) {
+            const fbId = String(ord.exchangeFeedback.orderId || ord.id);
+            const hasFb = (this.sessionSync.executedSessionTransactions || []).some(
+              (t) => String(t.orderId) === fbId
+            );
+            if (!hasFb) {
+              this.sessionSync.executedSessionTransactions = [
+                { ...ord.exchangeFeedback, collapsed: false },
+                ...(this.sessionSync.executedSessionTransactions || [])
+              ].slice(0, 30);
+            }
+            if (!this.sessionSync.lastExchangeFeedback) {
+              this.sessionSync.lastExchangeFeedback = ord.exchangeFeedback;
+            }
+          }
+        }
+      }
+    }
+
+    if (payload.sessionSync && typeof payload.sessionSync === 'object') {
+      if (Array.isArray(payload.sessionSync.executedSessionTransactions)) {
+        for (const tx of payload.sessionSync.executedSessionTransactions) {
+          if (!tx || !tx.orderId) continue;
+          const hasTx = (this.sessionSync.executedSessionTransactions || []).some(
+            (t) => String(t.orderId) === String(tx.orderId)
+          );
+          if (!hasTx) {
+            this.sessionSync.executedSessionTransactions.push(tx);
+            changed = true;
+          }
+        }
+      }
+      if (
+        Array.isArray(payload.sessionSync.chatMessages) &&
+        payload.sessionSync.chatMessages.length > (this.sessionSync.chatMessages || []).length
+      ) {
+        this.sessionSync.chatMessages = payload.sessionSync.chatMessages.slice(-40);
+        changed = true;
+      }
+      if (payload.sessionSync.currentAiStrategyAnalysis && !this.sessionSync.currentAiStrategyAnalysis) {
+        this.sessionSync.currentAiStrategyAnalysis = payload.sessionSync.currentAiStrategyAnalysis;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      targetPortfolio.sessionOrders.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      this._saveSessionOrders();
+      this._reconcilePortfolioTransactions(mode);
+    }
+
+    return this.getState();
+  }
+
   _reconcilePortfolioTransactions(mode = 'demo', baseOrders = null) {
     const targetPortfolio = this.portfolios[mode];
     if (!targetPortfolio) return;
 
-    const holdings = targetPortfolio.holdings || {};
+    if (!targetPortfolio.rawOkxHoldings) {
+      targetPortfolio.rawOkxHoldings = JSON.parse(JSON.stringify(targetPortfolio.holdings || {}));
+    }
+
+    const rawHoldings = JSON.parse(JSON.stringify(targetPortfolio.rawOkxHoldings || {}));
+    const sessionOrdIds = new Set((targetPortfolio.sessionOrders || []).map((s) => String(s.id)));
+
+    // Keep track of pure OKX orders (excluding local sessionOrders and generated baseline orders)
+    if (Array.isArray(baseOrders)) {
+      targetPortfolio.okxBaseOrders = baseOrders.filter(
+        (o) => o && o.id && !sessionOrdIds.has(String(o.id)) && !String(o.id).startsWith('OKX-DEMO-') && !String(o.id).startsWith('OKX-LIVE-POS-')
+      );
+    } else if (!Array.isArray(targetPortfolio.okxBaseOrders)) {
+      targetPortfolio.okxBaseOrders = (targetPortfolio.orders || []).filter(
+        (o) => o && o.id && !sessionOrdIds.has(String(o.id)) && !String(o.id).startsWith('OKX-DEMO-') && !String(o.id).startsWith('OKX-LIVE-POS-')
+      );
+    }
+
+    const okxOnlyOrders = targetPortfolio.okxBaseOrders || [];
     const combinedOrders = [];
     const seenIds = new Set();
 
@@ -324,32 +426,32 @@ class OkxEeaTradingEngine {
     for (const sOrd of targetPortfolio.sessionOrders || []) {
       addOrd(sOrd);
     }
-    for (const o of baseOrders || targetPortfolio.orders || []) {
+    for (const o of okxOnlyOrders) {
       addOrd(o);
     }
 
-    // Reconcile every held asset (except quote USDC) so 100% of portfolio holdings have corresponding transactions
-    for (const ccy of Object.keys(holdings)) {
+    // 1. Reconcile baseline OKX holdings against OKX orders so all 8 initial assets have their historical acquisition transactions
+    for (const ccy of Object.keys(rawHoldings)) {
       if (ccy === 'USDC') continue;
-      const h = holdings[ccy];
+      const h = rawHoldings[ccy];
       if (!h || h.amount <= 0.0001) continue;
 
-      let netHeldFromOrders = 0;
-      for (const ord of combinedOrders) {
+      let netHeldFromOkxOrders = 0;
+      for (const ord of okxOnlyOrders) {
         if (ord.asset === ccy && ord.status === 'CLOSED') {
           if (ord.side === 'BUY') {
             const feeDeductedInAsset =
               (ord.feeCcy === ccy || (!ord.feeCcy && ccy !== 'USD' && ccy !== 'USDG')) && ord.feeAsset
                 ? Number(ord.feeAsset)
                 : 0;
-            netHeldFromOrders += ord.amount - feeDeductedInAsset;
+            netHeldFromOkxOrders += ord.amount - feeDeductedInAsset;
           } else if (ord.side === 'SELL') {
-            netHeldFromOrders -= ord.amount;
+            netHeldFromOkxOrders -= ord.amount;
           }
         }
       }
 
-      const missingAmt = Number((h.amount - netHeldFromOrders).toFixed(6));
+      const missingAmt = Number((h.amount - netHeldFromOkxOrders).toFixed(6));
       if (missingAmt > 0.001) {
         const def = DEMO_ACQUISITION_DEFAULTS[ccy] || {
           id: `OKX-${mode.toUpperCase()}-POS-${ccy}`,
@@ -392,6 +494,65 @@ class OkxEeaTradingEngine {
       }
     }
 
+    // 2. Apply all local AI Agent / session orders (that were not executed on OKX server) onto effectiveHoldings
+    // so Portfel Handlowy NEVER loses AI Agent trades when syncAccountFromOkx runs every 10s!
+    const effectiveHoldings = JSON.parse(JSON.stringify(rawHoldings));
+    if (!effectiveHoldings.USDC) {
+      effectiveHoldings.USDC = {
+        asset: 'USDC',
+        name: ASSET_NAMES.USDC,
+        amount: 0,
+        availAmount: 0,
+        tradingAmount: 0,
+        fundingAmount: 0,
+        frozenAmount: 0,
+        avgBuyPrice: 1.0
+      };
+    }
+
+    const okxOrdIdSet = new Set(okxOnlyOrders.map((o) => String(o.id)));
+    const chronologicalLocalSessionOrders = (targetPortfolio.sessionOrders || [])
+      .filter((sOrd) => sOrd && sOrd.status === 'CLOSED' && !sOrd.executedOnOkxServer && !okxOrdIdSet.has(String(sOrd.id)))
+      .slice()
+      .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+    for (const sOrd of chronologicalLocalSessionOrders) {
+      const ccy = sOrd.asset;
+      if (!ccy || ccy === 'USDC') continue;
+      if (!effectiveHoldings[ccy]) {
+        effectiveHoldings[ccy] = {
+          asset: ccy,
+          name: ASSET_NAMES[ccy] || `${ccy} (OKX Spot)`,
+          amount: 0,
+          availAmount: 0,
+          tradingAmount: 0,
+          fundingAmount: 0,
+          frozenAmount: 0,
+          avgBuyPrice: sOrd.price || this.getPrice(ccy) || 0
+        };
+      }
+      const isBuy = sOrd.side !== 'SELL';
+      const amt = Number(sOrd.amount || 0);
+      const usdcVal = Number(sOrd.usdcValue || 0);
+      if (isBuy) {
+        effectiveHoldings[ccy].amount = Number((effectiveHoldings[ccy].amount + amt).toFixed(6));
+        effectiveHoldings[ccy].availAmount = Number(((effectiveHoldings[ccy].availAmount ?? effectiveHoldings[ccy].amount) + amt).toFixed(6));
+        effectiveHoldings[ccy].tradingAmount = effectiveHoldings[ccy].amount;
+        effectiveHoldings.USDC.amount = Math.max(0, Number((effectiveHoldings.USDC.amount - usdcVal).toFixed(2)));
+        effectiveHoldings.USDC.availAmount = effectiveHoldings.USDC.amount;
+        effectiveHoldings.USDC.tradingAmount = effectiveHoldings.USDC.amount;
+      } else {
+        effectiveHoldings[ccy].amount = Math.max(0, Number((effectiveHoldings[ccy].amount - amt).toFixed(6)));
+        effectiveHoldings[ccy].availAmount = effectiveHoldings[ccy].amount;
+        effectiveHoldings[ccy].tradingAmount = effectiveHoldings[ccy].amount;
+        effectiveHoldings.USDC.amount = Number((effectiveHoldings.USDC.amount + usdcVal).toFixed(2));
+        effectiveHoldings.USDC.availAmount = effectiveHoldings.USDC.amount;
+        effectiveHoldings.USDC.tradingAmount = effectiveHoldings.USDC.amount;
+      }
+    }
+
+    targetPortfolio.holdings = effectiveHoldings;
+    const holdings = targetPortfolio.holdings;
     targetPortfolio.orders = combinedOrders.sort((a, b) => b.timestamp - a.timestamp);
 
     // Update weighted avgBuyPrice on holdings from all CLOSED BUY orders so PnL% is always accurate
@@ -991,6 +1152,7 @@ class OkxEeaTradingEngine {
     }
 
     const targetPortfolio = this.portfolios[mode];
+    targetPortfolio.rawOkxHoldings = JSON.parse(JSON.stringify(newHoldings));
     targetPortfolio.holdings = newHoldings;
     targetPortfolio.okxTotalEq = okxAccountTotalEq;
     targetPortfolio.syncedFromOkx = true;
@@ -1545,12 +1707,31 @@ class OkxEeaTradingEngine {
         targetInstId = `${asset}-USDT`;
       }
 
+      const lotDecimalsMap = {
+        BTC: 6,
+        ETH: 5,
+        ETC: 5,
+        SOL: 4,
+        XRP: 2,
+        WLD: 2,
+        ADA: 2,
+        DOGE: 2,
+        AVAX: 2,
+        LINK: 2,
+        SUI: 2,
+        OKB: 2,
+        USDG: 2,
+        USD: 2
+      };
+      const lotDec = lotDecimalsMap[asset] ?? 3;
+      const formattedSz = String(Number(Number(order.amount).toFixed(lotDec)));
+
       const okxOrderBody = {
         instId: targetInstId,
         tdMode: 'cash',
         side: order.side.toLowerCase(),
         ordType: order.orderType.toLowerCase(),
-        sz: String(order.amount)
+        sz: formattedSz
       };
 
       if (order.orderType === 'MARKET') {
@@ -1559,7 +1740,24 @@ class OkxEeaTradingEngine {
         okxOrderBody.px = String(order.price);
       }
 
-      const placeRes = await this._okxSignedRequest(mode, 'POST', '/api/v5/trade/order', okxOrderBody);
+      let placeRes = await this._okxSignedRequest(mode, 'POST', '/api/v5/trade/order', okxOrderBody);
+      if (
+        (!placeRes.ok || !Array.isArray(placeRes.data) || !placeRes.data[0]?.ordId) &&
+        order.orderType === 'MARKET' &&
+        isBuy &&
+        usdcValue > 0
+      ) {
+        const retryQuoteBody = {
+          instId: targetInstId,
+          tdMode: 'cash',
+          side: 'buy',
+          ordType: 'market',
+          tgtCcy: 'quote_ccy',
+          sz: String(Number(usdcValue.toFixed(2)))
+        };
+        placeRes = await this._okxSignedRequest(mode, 'POST', '/api/v5/trade/order', retryQuoteBody);
+      }
+
       if (placeRes.ok && Array.isArray(placeRes.data) && placeRes.data[0]?.ordId) {
         okxApiOrderId = placeRes.data[0].ordId;
         executedOnOkxServer = true;
@@ -1685,6 +1883,7 @@ class OkxEeaTradingEngine {
       feeUsdc,
       feeAsset,
       totalUsdcWithFee,
+      executedOnOkxServer: Boolean(executedOnOkxServer),
       status: order.orderType === 'LIMIT' && executedOnOkxServer ? 'OPEN' : 'CLOSED',
       statusLabel: executedOnOkxServer ? 'Zrealizowane na OKX Demo API' : 'Zamknięte (Zrealizowane po kursie OKX Live)',
       source: order.source,
@@ -1695,7 +1894,10 @@ class OkxEeaTradingEngine {
       exchangeFeedback
     };
 
-    portfolio.sessionOrders.unshift(orderRecord);
+    portfolio.sessionOrders = [
+      orderRecord,
+      ...(portfolio.sessionOrders || []).filter((o) => String(o.id) !== String(finalOrderId))
+    ];
     portfolio.orders.unshift(orderRecord);
 
     // Sync executed transaction & feedback across Desktop and Mobile sessions
@@ -1721,7 +1923,7 @@ class OkxEeaTradingEngine {
     ].slice(-40);
 
     this._saveSessionOrders();
-    this._reconcilePortfolioTransactions(mode, portfolio.orders);
+    this._reconcilePortfolioTransactions(mode);
 
     // If executed on OKX server, immediately sync updated balances from OKX
     if (executedOnOkxServer) {

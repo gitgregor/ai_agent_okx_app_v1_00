@@ -27,7 +27,9 @@ function sendJson(res, status, data) {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, bypass-tunnel-reminder, ngrok-skip-browser-warning, Authorization, X-Requested-With',
-    'Access-Control-Max-Age': '86400'
+    'Access-Control-Allow-Private-Network': 'true',
+    'Access-Control-Max-Age': '86400',
+    'Cache-Control': 'no-store, no-cache, must-revalidate'
   });
   res.end(bodyStr);
 }
@@ -57,6 +59,7 @@ const server = http.createServer(async (req, res) => {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, bypass-tunnel-reminder, ngrok-skip-browser-warning, Authorization, X-Requested-With',
+      'Access-Control-Allow-Private-Network': 'true',
       'Access-Control-Max-Age': '86400'
     });
     return res.end();
@@ -162,6 +165,18 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, state: engine.getState() });
     }
 
+    // 6C. Merge AI Agent / session orders from browser client (Desktop / Mobile / Offline sync)
+    if (pathname === '/api/session/sync-orders' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const state = engine.mergeClientSessionOrders(body);
+      return sendJson(res, 200, { ok: true, state });
+    }
+
+    // 6D. Gateway discovery endpoint
+    if ((pathname === '/api/gateway' || pathname === '/gateway.json') && req.method === 'GET') {
+      return sendJson(res, 200, getGatewayRegistryPayload());
+    }
+
     // 7. Stop trading button
     if (pathname === '/api/trade/stop' && req.method === 'POST') {
       const result = engine.stopTrading();
@@ -237,12 +252,130 @@ const GATEWAY_SUBDOMAINS = [
   'okx-eea-gregor-home-gw-3'
 ];
 
+let activeCloudflareTunnel = null;
+let activeCloudflareUrl = '';
+let reconnectingCloudflare = false;
+
 let activeTunnelInstance = null;
+let activeLocaltunnelUrl = '';
 let reconnectingTunnel = false;
+let currentLtSubdomainIdx = 0;
+let lastPublishedPrimaryUrl = '';
+let gitSyncInFlight = false;
+
+function getGatewayRegistryPayload() {
+  const primary = activeCloudflareUrl || activeLocaltunnelUrl || `https://${GATEWAY_SUBDOMAINS[0]}.loca.lt`;
+  const tunnels = [];
+  if (activeCloudflareUrl) tunnels.push(activeCloudflareUrl);
+  if (activeLocaltunnelUrl && !tunnels.includes(activeLocaltunnelUrl)) tunnels.push(activeLocaltunnelUrl);
+  for (const sub of GATEWAY_SUBDOMAINS) {
+    const u = `https://${sub}.loca.lt`;
+    if (!tunnels.includes(u)) tunnels.push(u);
+  }
+  return {
+    updatedAt: Date.now(),
+    homePublicIp: engine.config?.remoteGateway?.homePublicIp || '81.99.228.78',
+    primaryTunnelUrl: primary,
+    cloudflareTunnelUrl: activeCloudflareUrl || null,
+    fallbackTunnelUrl: activeLocaltunnelUrl || `https://${GATEWAY_SUBDOMAINS[0]}.loca.lt`,
+    tunnels
+  };
+}
+
+function updateAndPublishGatewayStatus() {
+  const payload = getGatewayRegistryPayload();
+  const bestUrl = payload.primaryTunnelUrl;
+  const isReady = Boolean(activeCloudflareUrl || activeLocaltunnelUrl);
+
+  engine.setGatewayStatus({
+    active: isReady,
+    tunnelUrl: bestUrl,
+    cloudflareTunnelUrl: activeCloudflareUrl || null,
+    fallbackTunnelUrl: activeLocaltunnelUrl || null,
+    tunnels: payload.tunnels,
+    mobileAppUrl: `https://gitgregor.github.io/ai_agent_okx_app_v1_00/?gateway=${encodeURIComponent(bestUrl)}`,
+    statusLabel: isReady
+      ? `AKTYWNA BRAMA DOMOWEGO IP (${bestUrl.replace('https://', '')}) — Telefon działa poza domem przez Whitelist IP`
+      : 'Inicjalizacja tunelu Bramy Domowej IP...',
+    lastConnectedAt: new Date().toTimeString().slice(0, 8)
+  });
+
+  // Write gateway.json to public/, docs/, and root so both local and GitHub Pages clients can auto-discover the live tunnel URL
+  try {
+    const jsonStr = JSON.stringify(payload, null, 2);
+    const rootDir = path.join(__dirname, '..');
+    const targets = [
+      path.join(rootDir, 'public', 'gateway.json'),
+      path.join(rootDir, 'docs', 'gateway.json'),
+      path.join(rootDir, 'gateway.json')
+    ];
+    for (const tPath of targets) {
+      const dir = path.dirname(tPath);
+      if (fs.existsSync(dir)) {
+        fs.writeFileSync(tPath, jsonStr, 'utf8');
+      }
+    }
+  } catch (e) {}
+
+  // If a new Cloudflare URL is active, auto-push gateway.json to GitHub in background so mobile phones outside home discover it via raw.githubusercontent.com
+  if (activeCloudflareUrl && activeCloudflareUrl !== lastPublishedPrimaryUrl && !gitSyncInFlight) {
+    lastPublishedPrimaryUrl = activeCloudflareUrl;
+    gitSyncInFlight = true;
+    const { exec } = require('child_process');
+    const rootDir = path.join(__dirname, '..');
+    exec(
+      'git add gateway.json public/gateway.json docs/gateway.json && git commit -m "chore: update active Home IP Gateway tunnel URL" && git push origin main',
+      { cwd: rootDir, timeout: 25000 },
+      () => {
+        gitSyncInFlight = false;
+      }
+    );
+  }
+}
+
+function startCloudflareGatewayTunnel() {
+  if (reconnectingCloudflare) return;
+  reconnectingCloudflare = true;
+
+  try {
+    const { Tunnel } = require('cloudflared');
+    const cfTunnel = Tunnel.quick(`http://127.0.0.1:${PORT}`);
+    activeCloudflareTunnel = cfTunnel;
+    reconnectingCloudflare = false;
+
+    cfTunnel.on('url', (url) => {
+      if (url && url.startsWith('https://')) {
+        activeCloudflareUrl = url.replace(/\/+$/, '');
+        console.log(`⚡ [Cloudflare Brama Domowa IP / OKX Whitelist] Tunel główny aktywny: ${activeCloudflareUrl}`);
+        updateAndPublishGatewayStatus();
+      }
+    });
+
+    cfTunnel.on('connected', () => {
+      updateAndPublishGatewayStatus();
+    });
+
+    cfTunnel.on('exit', () => {
+      activeCloudflareTunnel = null;
+      activeCloudflareUrl = '';
+      reconnectingCloudflare = false;
+      updateAndPublishGatewayStatus();
+      setTimeout(() => startCloudflareGatewayTunnel(), 4000);
+    });
+
+    cfTunnel.on('error', () => {
+      // Handled by exit / watchdog
+    });
+  } catch (err) {
+    reconnectingCloudflare = false;
+    setTimeout(() => startCloudflareGatewayTunnel(), 8000);
+  }
+}
 
 async function startHomeIpGatewayTunnel(subdomainIndex = 0) {
   if (reconnectingTunnel) return;
   reconnectingTunnel = true;
+  currentLtSubdomainIdx = subdomainIndex;
 
   try {
     const localtunnel = require('localtunnel');
@@ -257,35 +390,28 @@ async function startHomeIpGatewayTunnel(subdomainIndex = 0) {
     activeTunnelInstance = tunnel;
     reconnectingTunnel = false;
 
-    const assignedUrl = tunnel.url || `https://${desiredSubdomain}.loca.lt`;
+    const assignedUrl = (tunnel.url || `https://${desiredSubdomain}.loca.lt`).replace(/\/+$/, '');
+    activeLocaltunnelUrl = assignedUrl;
     const isExactMatch = assignedUrl.includes(desiredSubdomain);
 
-    engine.setGatewayStatus({
-      active: true,
-      tunnelUrl: assignedUrl,
-      mobileAppUrl: `https://gitgregor.github.io/ai_agent_okx_app_v1_00/?gateway=${encodeURIComponent(assignedUrl)}`,
-      statusLabel: `AKTYWNA BRAMA DOMOWEGO IP (${assignedUrl.replace('https://', '')}) — Telefon działa poza domem przez Whitelist IP`,
-      lastConnectedAt: new Date().toTimeString().slice(0, 8)
-    });
+    updateAndPublishGatewayStatus();
 
-    console.log(`🌐 [Brama Domowa IP / OKX Whitelist] Tunel mobilny aktywny: ${assignedUrl}`);
+    console.log(`🌐 [LocalTunnel Brama Domowa IP / OKX Whitelist] Tunel zapasowy aktywny: ${assignedUrl}`);
     console.log(`📱 [Telefon poza domem] Link zsynchronizowany: https://gitgregor.github.io/ai_agent_okx_app_v1_00/`);
 
-    // If localtunnel gave a random subdomain because desiredSubdomain was still releasing, try next candidate in 12s
+    // If localtunnel gave a random subdomain because desiredSubdomain was still releasing, try next candidate in 15s
     if (!isExactMatch && subdomainIndex < GATEWAY_SUBDOMAINS.length - 1) {
       setTimeout(() => {
         try {
           tunnel.close();
         } catch (e) {}
-      }, 12000);
+      }, 15000);
     }
 
     tunnel.on('close', () => {
-      engine.setGatewayStatus({
-        active: false,
-        statusLabel: 'Ponowne łączenie tunelu Bramy Domowej IP...'
-      });
       activeTunnelInstance = null;
+      activeLocaltunnelUrl = '';
+      updateAndPublishGatewayStatus();
       setTimeout(() => startHomeIpGatewayTunnel((subdomainIndex + 1) % GATEWAY_SUBDOMAINS.length), 3000);
     });
 
@@ -296,13 +422,66 @@ async function startHomeIpGatewayTunnel(subdomainIndex = 0) {
     });
   } catch (err) {
     reconnectingTunnel = false;
-    engine.setGatewayStatus({
-      active: false,
-      statusLabel: `Ponawianie tunelu Bramy Domowej IP (${err.message || 'retry'})...`
-    });
+    activeLocaltunnelUrl = '';
+    updateAndPublishGatewayStatus();
     setTimeout(() => startHomeIpGatewayTunnel((subdomainIndex + 1) % GATEWAY_SUBDOMAINS.length), 5000);
   }
 }
+
+// Self-Healing Watchdog: Every 25s verify external tunnels respond 200 OK; if localtunnel returns 503 Tunnel Unavailable, restart it immediately
+let cfConsecutiveFailures = 0;
+let ltConsecutiveFailures = 0;
+
+async function probeExternalUrl(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(`${url}/api/state`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json', 'bypass-tunnel-reminder': 'true' },
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    return res.status === 200;
+  } catch (e) {
+    clearTimeout(timer);
+    return false;
+  }
+}
+
+setInterval(async () => {
+  if (activeCloudflareUrl) {
+    const cfOk = await probeExternalUrl(activeCloudflareUrl);
+    if (cfOk) {
+      cfConsecutiveFailures = 0;
+    } else {
+      cfConsecutiveFailures += 1;
+      if (cfConsecutiveFailures >= 3 && activeCloudflareTunnel) {
+        console.log(`🔄 [Watchdog] Restartowanie tunelu Cloudflare (${activeCloudflareUrl})...`);
+        cfConsecutiveFailures = 0;
+        try {
+          activeCloudflareTunnel.stop();
+        } catch (e) {}
+      }
+    }
+  }
+
+  if (activeLocaltunnelUrl) {
+    const ltOk = await probeExternalUrl(activeLocaltunnelUrl);
+    if (ltOk) {
+      ltConsecutiveFailures = 0;
+    } else {
+      ltConsecutiveFailures += 1;
+      if (ltConsecutiveFailures >= 2 && activeTunnelInstance) {
+        console.log(`🔄 [Watchdog] Wykryto uśpienie LocalTunnel (503/timeout) — automatyczny restart tunelu...`);
+        ltConsecutiveFailures = 0;
+        try {
+          activeTunnelInstance.close();
+        } catch (e) {}
+      }
+    }
+  }
+}, 25000);
 
 server.listen(PORT, () => {
   console.log(`===================================================================`);
@@ -311,5 +490,6 @@ server.listen(PORT, () => {
   console.log(`🔌 Serwer MCP (okx-trade-mcp): http://localhost:${PORT}/api/mcp`);
   console.log(`📊 Domyślny tryb: DEMO | Status Agenta AI: DEZAKTYWOWANY`);
   console.log(`===================================================================`);
+  startCloudflareGatewayTunnel();
   startHomeIpGatewayTunnel(0);
 });

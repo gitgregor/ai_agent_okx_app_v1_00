@@ -29,6 +29,10 @@
   padding: 0;
 }
 
+html {
+  scroll-padding-top: 46px;
+}
+
 body {
   background-color: var(--bg-main);
   color: var(--text-primary);
@@ -54,7 +58,8 @@ code {
 .app-header {
   background: linear-gradient(180deg, #131824 0%, #0d111a 100%);
   border-bottom: 1px solid var(--border-color);
-  padding: 5px 14px;
+  padding: 2px 10px;
+  min-height: 28px;
   position: sticky;
   top: 0;
   z-index: 1900;
@@ -64,7 +69,7 @@ code {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: nowrap;
   margin-bottom: 0;
   overflow-x: auto;
@@ -73,16 +78,17 @@ code {
 .header-quick-badges {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   flex-wrap: nowrap;
 }
 
 .status-pill {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  padding: 4px 10px;
+  padding: 2px 7px;
+  line-height: 1.15;
   border-radius: 999px;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.25px;
   white-space: nowrap;
 }
 
@@ -116,54 +122,55 @@ code {
 .header-ai-status-group {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   background: rgba(16, 22, 34, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
-  padding: 2px 5px 2px 9px;
+  padding: 1px 4px 1px 7px;
+  height: 22px;
 }
 
 .header-ai-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   color: var(--accent-blue);
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   white-space: nowrap;
 }
 
 .header-ai-status-group .status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  font-size: 11px;
-  line-height: 1.2;
+  gap: 4px;
+  padding: 1px 6px;
+  font-size: 10px;
+  line-height: 1.1;
 }
 
 .header-ai-status-group .indicator-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
 
 .header-ai-switch {
   display: inline-flex;
   background: #080b12;
-  border-radius: 6px;
-  padding: 2px;
+  border-radius: 5px;
+  padding: 1px;
   gap: 2px;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .header-ai-switch .seg-btn {
-  padding: 2px 7px;
-  font-size: 10.5px;
+  padding: 1px 6px;
+  font-size: 10px;
   font-weight: 700;
   border-radius: 4px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  line-height: 1.2;
+  line-height: 1.1;
   transition: all 0.15s ease;
 }
 
@@ -1467,14 +1474,16 @@ select:focus {
   background: var(--bg-elevated);
   color: var(--text-primary);
   border: 1px solid var(--border-highlight);
-  border-radius: var(--radius-sm);
-  padding: 6px 11px;
-  font-size: 12px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  height: 22px;
+  font-size: 11px;
+  line-height: 1.1;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .btn-sidebar-toggle:hover {
@@ -1485,9 +1494,10 @@ select:focus {
 .dock-count-badge {
   background: var(--accent-blue);
   color: #090b10;
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.2;
   font-weight: 800;
-  padding: 1px 6px;
+  padding: 0px 5px;
   border-radius: 999px;
 }
 
@@ -1655,13 +1665,15 @@ select:focus {
   color: var(--text-primary);
   border: 1px solid var(--accent-blue);
   border-radius: 999px;
-  padding: 5px 12px;
-  font-size: 11.5px;
+  padding: 2px 8px;
+  height: 22px;
+  font-size: 11px;
+  line-height: 1.1;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   transition: all 0.15s ease;
 }
 
@@ -1674,11 +1686,11 @@ select:focus {
 
 .top-window-menu-bar {
   position: fixed;
-  top: 42px;
+  top: 32px;
   left: max(16px, calc(100vw - 600px));
   width: 580px;
   max-width: calc(100vw - 16px);
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: #0d1320;
   border: 1.5px solid var(--accent-blue);
   border-radius: var(--radius-md);
@@ -1686,7 +1698,7 @@ select:focus {
   z-index: 2600;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .top-window-menu-bar.is-dragging {
@@ -2033,6 +2045,14 @@ select:focus {
 }
 
 /* WINDOW TITLEBAR & UNIVERSAL WINDOW STATES */
+.app-window,
+.control-card,
+.panel-card,
+.top-controls-grid,
+.workspace-row {
+  scroll-margin-top: 46px;
+}
+
 .app-window {
   padding: 0 !important;
   overflow: hidden;
@@ -3693,40 +3713,46 @@ body.has-single-window-grid.single-window-minimized .app-shell {
   }
 
   .app-header {
-    padding: 8px 10px !important;
+    padding: 3px 8px !important;
   }
 
   .brand-row {
-    flex-direction: column;
-    align-items: stretch !important;
-    gap: 8px !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 4px !important;
   }
 
   .header-quick-badges {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px !important;
-    width: 100%;
-    justify-content: flex-start;
+    gap: 4px !important;
+    width: auto;
+    flex: 1 1 auto;
+    justify-content: flex-end;
   }
 
   .status-pill {
-    font-size: 11px !important;
-    padding: 4px 8px !important;
+    font-size: 10px !important;
+    padding: 2px 6px !important;
   }
 
   .header-ai-status-group {
-    width: 100%;
+    width: auto;
     justify-content: space-between;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    height: 22px;
   }
 
   .top-menu-dropdown-wrap {
-    width: 100%;
+    width: auto;
   }
 
   .btn-top-window-menu {
-    width: 100%;
+    width: auto;
+    height: 22px !important;
+    padding: 2px 8px !important;
+    font-size: 10.5px !important;
     justify-content: center;
   }
 
@@ -3736,10 +3762,10 @@ body.has-single-window-grid.single-window-minimized .app-shell {
     position: fixed !important;
     left: 6px !important;
     right: 6px !important;
-    top: 64px !important;
+    top: 46px !important;
     width: calc(100vw - 12px) !important;
     max-width: calc(100vw - 12px) !important;
-    max-height: calc(100vh - 140px) !important;
+    max-height: calc(100vh - 120px) !important;
     overflow-y: auto !important;
   }
 

@@ -67,11 +67,56 @@ export const DEFAULT_STANDALONE_MARKETS = [
 ];
 
 const LS_CUSTOM_GATEWAY_KEY = 'okx_custom_gateway_url_v1';
+const LS_AI_EXECUTED_ORDERS_KEY = 'okx_ai_executed_orders_v1';
 const DEFAULT_HOME_GATEWAYS = [
   'https://okx-eea-gregor-home-gw.loca.lt',
   'https://okx-eea-gregor-home-gw-2.loca.lt',
   'https://okx-eea-gregor-home-gw-3.loca.lt'
 ];
+let _discoveredCloudflareUrl = '';
+let _discoveredGatewayList = [];
+
+function loadSavedAiExecutedOrders() {
+  if (typeof window === 'undefined') return [];
+  const collected = [];
+  const seen = new Set();
+  const addOrd = (o) => {
+    if (!o || !o.id || seen.has(o.id)) return;
+    if (String(o.id).startsWith('OKX-EEA-') || (o.source && o.source.includes('AI'))) {
+      seen.add(o.id);
+      collected.push(o);
+    }
+  };
+  try {
+    const raw = localStorage.getItem(LS_AI_EXECUTED_ORDERS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) parsed.forEach(addOrd);
+    }
+  } catch (e) {}
+  // Also scan any previous standalone state keys in localStorage so no yesterday/today AI orders are ever lost
+  try {
+    for (const k of ['okx_standalone_state_v8', 'okx_standalone_state_v7', 'okx_standalone_state_v6']) {
+      const stRaw = localStorage.getItem(k);
+      if (!stRaw) continue;
+      const st = JSON.parse(stRaw);
+      if (st?.portfolio?.orders && Array.isArray(st.portfolio.orders)) {
+        st.portfolio.orders.forEach(addOrd);
+      }
+    }
+  } catch (e) {}
+  return collected;
+}
+
+function saveAiExecutedOrderToLocal(order) {
+  if (typeof window === 'undefined' || !order || !order.id) return;
+  try {
+    const current = loadSavedAiExecutedOrders();
+    const filtered = current.filter((o) => o.id !== order.id);
+    filtered.unshift(order);
+    localStorage.setItem(LS_AI_EXECUTED_ORDERS_KEY, JSON.stringify(filtered.slice(0, 100)));
+  } catch (e) {}
+}
 
 function detectInitialGatewayConfig() {
   if (typeof window === 'undefined') {
@@ -121,26 +166,29 @@ export function setStandaloneMode(val) {
 }
 
 export function getGatewayConnectionInfo() {
+  const bestDefault = _discoveredCloudflareUrl || DEFAULT_HOME_GATEWAYS[0];
   return {
     isRemoteHost: _gwInit.isRemoteHost,
     gatewayConnected: _gatewayConnected && !_isStandalone,
     activeApiBaseUrl: _activeApiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3456'),
     customGatewayUrl: _customGatewayUrl,
-    defaultGatewayUrl: DEFAULT_HOME_GATEWAYS[0]
+    cloudflareTunnelUrl: _discoveredCloudflareUrl,
+    defaultGatewayUrl: bestDefault
   };
 }
 
 export function setCustomGatewayUrl(newUrl) {
   const cleaned = (newUrl || '').trim().replace(/\/+$/, '');
-  _customGatewayUrl = cleaned;
+  const isDefaultConst = DEFAULT_HOME_GATEWAYS.includes(cleaned);
+  _customGatewayUrl = isDefaultConst ? '' : cleaned;
   try {
-    if (cleaned) {
-      localStorage.setItem(LS_CUSTOM_GATEWAY_KEY, cleaned);
+    if (_customGatewayUrl) {
+      localStorage.setItem(LS_CUSTOM_GATEWAY_KEY, _customGatewayUrl);
     } else {
       localStorage.removeItem(LS_CUSTOM_GATEWAY_KEY);
     }
   } catch (e) {}
-  _activeApiBaseUrl = cleaned || (_gwInit.isRemoteHost ? DEFAULT_HOME_GATEWAYS[0] : '');
+  _activeApiBaseUrl = _customGatewayUrl || (_gwInit.isRemoteHost ? (_discoveredCloudflareUrl || DEFAULT_HOME_GATEWAYS[0]) : '');
   _isStandalone = false;
   _lastGatewayProbeTs = 0;
 }
@@ -161,6 +209,40 @@ async function fetchWithTimeout(fullUrl, opts = {}, timeoutMs = 4500) {
   }
 }
 
+async function discoverLatestGatewayJson() {
+  const urls = [
+    `https://raw.githubusercontent.com/gitgregor/ai_agent_okx_app_v1_00/main/docs/gateway.json?t=${Date.now()}`,
+    `./gateway.json?t=${Date.now()}`
+  ];
+  for (const u of urls) {
+    try {
+      const res = await fetchWithTimeout(u, { method: 'GET', cache: 'no-store' }, 2500);
+      if (!res.ok) continue;
+      const j = await res.json();
+      const found = [];
+      if (j.cloudflareTunnelUrl) {
+        _discoveredCloudflareUrl = j.cloudflareTunnelUrl.replace(/\/+$/, '');
+        found.push(_discoveredCloudflareUrl);
+      }
+      if (j.primaryTunnelUrl) {
+        const p = j.primaryTunnelUrl.replace(/\/+$/, '');
+        if (!found.includes(p)) found.push(p);
+      }
+      if (Array.isArray(j.tunnels)) {
+        for (const t of j.tunnels) {
+          const cleanT = String(t || '').trim().replace(/\/+$/, '');
+          if (cleanT && !found.includes(cleanT)) found.push(cleanT);
+        }
+      }
+      if (found.length > 0) {
+        _discoveredGatewayList = found;
+        return found;
+      }
+    } catch (e) {}
+  }
+  return _discoveredGatewayList;
+}
+
 export async function probeHomeGateway(force = false) {
   if (_gwInit.forceStandalone) return false;
   const now = Date.now();
@@ -172,7 +254,7 @@ export async function probeHomeGateway(force = false) {
   _lastGatewayProbeTs = now;
   _gatewayProbeInFlight = (async () => {
     // 1. If running on local PC / LAN, check local relative origin first
-    if (!_gwInit.isRemoteHost && !_customGatewayUrl) {
+    if (!_gwInit.isRemoteHost) {
       try {
         const res = await fetchWithTimeout(
           '/api/state',
@@ -194,12 +276,25 @@ export async function probeHomeGateway(force = false) {
       } catch (e) {}
     }
 
-    // 2. Probe all remote Home IP Gateway candidates in parallel so the active tunnel responds in <300ms
+    // 2. Discover latest Cloudflare / LocalTunnel URLs published by the home PC
+    const discovered = await discoverLatestGatewayJson();
+
+    // 3. Build candidate list:
+    //    - Localhost (3456) so even when viewing github.io on the home PC it connects directly to the local dev server!
+    //    - Discovered Cloudflare Quick Tunnel (*.trycloudflare.com) & LocalTunnel URLs
+    //    - Custom gateway URL (if user entered one)
+    //    - Default LocalTunnel gateways
     const remoteCandidates = [];
-    if (_customGatewayUrl) remoteCandidates.push(_customGatewayUrl);
-    for (const gw of DEFAULT_HOME_GATEWAYS) {
-      if (!remoteCandidates.includes(gw)) remoteCandidates.push(gw);
-    }
+    const addCandidate = (u) => {
+      const clean = String(u || '').trim().replace(/\/+$/, '');
+      if (clean && !remoteCandidates.includes(clean)) remoteCandidates.push(clean);
+    };
+
+    if (_customGatewayUrl) addCandidate(_customGatewayUrl);
+    for (const d of discovered) addCandidate(d);
+    addCandidate('http://localhost:3456');
+    addCandidate('http://127.0.0.1:3456');
+    for (const gw of DEFAULT_HOME_GATEWAYS) addCandidate(gw);
 
     try {
       const winnerBase = await Promise.any(
@@ -213,12 +308,15 @@ export async function probeHomeGateway(force = false) {
                 'bypass-tunnel-reminder': 'true'
               }
             },
-            4200
+            4500
           );
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
           if (!data || !data.config || !data.portfolio) {
             throw new Error('Invalid state payload');
+          }
+          if (data.config?.remoteGateway?.cloudflareTunnelUrl) {
+            _discoveredCloudflareUrl = data.config.remoteGateway.cloudflareTunnelUrl.replace(/\/+$/, '');
           }
           return base;
         })
@@ -380,6 +478,12 @@ export async function fetchLiveOkxTickersInBrowser(force = false) {
 }
 
 export function initStandaloneState() {
+  const recoveredAiOrders = loadSavedAiExecutedOrders();
+  if (recoveredAiOrders.length > 0 && typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(LS_AI_EXECUTED_ORDERS_KEY, JSON.stringify(recoveredAiOrders.slice(0, 100)));
+    } catch (e) {}
+  }
   try {
     localStorage.removeItem('okx_standalone_state_v1');
     localStorage.removeItem('okx_standalone_state_v2');
@@ -1316,6 +1420,26 @@ export async function clientMockEngine(url, method = 'GET', body = null) {
       exchangeFeedback
     });
 
+    saveAiExecutedOrderToLocal(order);
+    if (!_standaloneState.sessionSync) {
+      _standaloneState.sessionSync = {
+        chatMessages: [],
+        executedSessionTransactions: [],
+        lastExchangeFeedback: null,
+        currentAiStrategyAnalysis: null,
+        updatedAt: Date.now()
+      };
+    }
+    _standaloneState.sessionSync.lastExchangeFeedback = exchangeFeedback;
+    const prevExecList = Array.isArray(_standaloneState.sessionSync.executedSessionTransactions)
+      ? _standaloneState.sessionSync.executedSessionTransactions
+      : [];
+    _standaloneState.sessionSync.executedSessionTransactions = [
+      { id: order.id, collapsed: false, feedback: exchangeFeedback },
+      ...prevExecList.filter((item) => item && item.id !== order.id)
+    ];
+    _standaloneState.sessionSync.updatedAt = Date.now();
+
     _standaloneState.activeTradeOrder = null;
     _standaloneState.config.tradingStatus = 'in_progress';
     _standaloneState.config.tradingStatusLabel = `Zrealizowano: ${isBuy ? 'KUPIONO' : 'SPRZEDANO'} ${order.amount} ${order.asset} @ ${order.price} USDC`;
@@ -1831,8 +1955,49 @@ export async function apiRequest(url, method = 'GET', body = null) {
     _gatewayConnected = true;
     _isStandalone = false;
 
-    const targetState = data?.state || (url.startsWith('/api/state') ? data : null);
+    if (data?.executedOrder) {
+      saveAiExecutedOrderToLocal(data.executedOrder);
+    }
+
+    let targetState = data?.state || (url.startsWith('/api/state') ? data : null);
     if (targetState) {
+      if (targetState.config?.remoteGateway?.cloudflareTunnelUrl) {
+        _discoveredCloudflareUrl = targetState.config.remoteGateway.cloudflareTunnelUrl.replace(/\/+$/, '');
+      }
+
+      // Sync any locally executed AI Agent orders to the server so they are never lost across sessions/devices
+      if (!url.startsWith('/api/session/sync-orders') && Array.isArray(targetState.portfolio?.orders)) {
+        const localAiOrders = loadSavedAiExecutedOrders();
+        const serverOrderIds = new Set(targetState.portfolio.orders.map((o) => o.id));
+        const missingOnServer = localAiOrders.filter((o) => o && o.id && !serverOrderIds.has(o.id));
+        if (missingOnServer.length > 0) {
+          try {
+            const syncRes = await fetchWithTimeout(
+              `${_activeApiBaseUrl}/api/session/sync-orders`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'bypass-tunnel-reminder': 'true'
+                },
+                body: JSON.stringify({
+                  orders: missingOnServer,
+                  sessionSync: _standaloneState?.sessionSync || null
+                })
+              },
+              4500
+            );
+            if (syncRes.ok) {
+              const syncJson = await syncRes.json();
+              if (syncJson?.state) {
+                targetState = syncJson.state;
+                if (data?.state) data.state = targetState;
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
       if (latestBrowserOkxTickers.length > 0 && !targetState.config?.marketDataStatus?.live) {
         const map = {};
         latestBrowserOkxTickers.forEach((t) => {

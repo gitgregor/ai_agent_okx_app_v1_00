@@ -139,10 +139,10 @@ export function HeaderBar({
                 id="toggleTopWindowMenuBtn"
                 className="btn-top-window-menu"
                 aria-expanded={topMenuOpen ? 'true' : 'false'}
-                title="Kliknij, aby otworzyć lub zamknąć okno Menu Górne Okien"
+                title="Kliknij, aby otworzyć lub zamknąć Menu okien"
                 onClick={onToggleTopWindowMenu}
               >
-                🗔 Menu Górne Okien{' '}
+                🗔 Menu{' '}
                 <span id="topMenuDockedCount" className="dock-count-badge">
                   {dockedTopCount}
                 </span>{' '}

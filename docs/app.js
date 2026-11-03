@@ -14635,11 +14635,56 @@
     { instId: "SUI-USDC", base: "SUI", quote: "USDC", name: "Sui Network", price: 0.8677, bidPx: 0.8687, askPx: 0.869, open24h: 0.8947, high24h: 0.908, low24h: 0.8631, vol24h: 952011.95, volCcy24h: 843315, change24hPct: -3.02 }
   ];
   var LS_CUSTOM_GATEWAY_KEY = "okx_custom_gateway_url_v1";
+  var LS_AI_EXECUTED_ORDERS_KEY = "okx_ai_executed_orders_v1";
   var DEFAULT_HOME_GATEWAYS = [
     "https://okx-eea-gregor-home-gw.loca.lt",
     "https://okx-eea-gregor-home-gw-2.loca.lt",
     "https://okx-eea-gregor-home-gw-3.loca.lt"
   ];
+  var _discoveredCloudflareUrl = "";
+  var _discoveredGatewayList = [];
+  function loadSavedAiExecutedOrders() {
+    if (typeof window === "undefined") return [];
+    const collected = [];
+    const seen = /* @__PURE__ */ new Set();
+    const addOrd = (o) => {
+      if (!o || !o.id || seen.has(o.id)) return;
+      if (String(o.id).startsWith("OKX-EEA-") || o.source && o.source.includes("AI")) {
+        seen.add(o.id);
+        collected.push(o);
+      }
+    };
+    try {
+      const raw = localStorage.getItem(LS_AI_EXECUTED_ORDERS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) parsed.forEach(addOrd);
+      }
+    } catch (e) {
+    }
+    try {
+      for (const k of ["okx_standalone_state_v8", "okx_standalone_state_v7", "okx_standalone_state_v6"]) {
+        const stRaw = localStorage.getItem(k);
+        if (!stRaw) continue;
+        const st = JSON.parse(stRaw);
+        if (st?.portfolio?.orders && Array.isArray(st.portfolio.orders)) {
+          st.portfolio.orders.forEach(addOrd);
+        }
+      }
+    } catch (e) {
+    }
+    return collected;
+  }
+  function saveAiExecutedOrderToLocal(order) {
+    if (typeof window === "undefined" || !order || !order.id) return;
+    try {
+      const current = loadSavedAiExecutedOrders();
+      const filtered = current.filter((o) => o.id !== order.id);
+      filtered.unshift(order);
+      localStorage.setItem(LS_AI_EXECUTED_ORDERS_KEY, JSON.stringify(filtered.slice(0, 100)));
+    } catch (e) {
+    }
+  }
   function detectInitialGatewayConfig() {
     if (typeof window === "undefined") {
       return { isRemoteHost: false, activeBaseUrl: "", customGatewayUrl: "" };
@@ -14681,26 +14726,29 @@
     _isStandalone = Boolean(val);
   }
   function getGatewayConnectionInfo() {
+    const bestDefault = _discoveredCloudflareUrl || DEFAULT_HOME_GATEWAYS[0];
     return {
       isRemoteHost: _gwInit.isRemoteHost,
       gatewayConnected: _gatewayConnected && !_isStandalone,
       activeApiBaseUrl: _activeApiBaseUrl || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3456"),
       customGatewayUrl: _customGatewayUrl,
-      defaultGatewayUrl: DEFAULT_HOME_GATEWAYS[0]
+      cloudflareTunnelUrl: _discoveredCloudflareUrl,
+      defaultGatewayUrl: bestDefault
     };
   }
   function setCustomGatewayUrl(newUrl) {
     const cleaned = (newUrl || "").trim().replace(/\/+$/, "");
-    _customGatewayUrl = cleaned;
+    const isDefaultConst = DEFAULT_HOME_GATEWAYS.includes(cleaned);
+    _customGatewayUrl = isDefaultConst ? "" : cleaned;
     try {
-      if (cleaned) {
-        localStorage.setItem(LS_CUSTOM_GATEWAY_KEY, cleaned);
+      if (_customGatewayUrl) {
+        localStorage.setItem(LS_CUSTOM_GATEWAY_KEY, _customGatewayUrl);
       } else {
         localStorage.removeItem(LS_CUSTOM_GATEWAY_KEY);
       }
     } catch (e) {
     }
-    _activeApiBaseUrl = cleaned || (_gwInit.isRemoteHost ? DEFAULT_HOME_GATEWAYS[0] : "");
+    _activeApiBaseUrl = _customGatewayUrl || (_gwInit.isRemoteHost ? _discoveredCloudflareUrl || DEFAULT_HOME_GATEWAYS[0] : "");
     _isStandalone = false;
     _lastGatewayProbeTs = 0;
   }
@@ -14719,6 +14767,40 @@
       throw err;
     }
   }
+  async function discoverLatestGatewayJson() {
+    const urls = [
+      `https://raw.githubusercontent.com/gitgregor/ai_agent_okx_app_v1_00/main/docs/gateway.json?t=${Date.now()}`,
+      `./gateway.json?t=${Date.now()}`
+    ];
+    for (const u of urls) {
+      try {
+        const res = await fetchWithTimeout(u, { method: "GET", cache: "no-store" }, 2500);
+        if (!res.ok) continue;
+        const j = await res.json();
+        const found = [];
+        if (j.cloudflareTunnelUrl) {
+          _discoveredCloudflareUrl = j.cloudflareTunnelUrl.replace(/\/+$/, "");
+          found.push(_discoveredCloudflareUrl);
+        }
+        if (j.primaryTunnelUrl) {
+          const p = j.primaryTunnelUrl.replace(/\/+$/, "");
+          if (!found.includes(p)) found.push(p);
+        }
+        if (Array.isArray(j.tunnels)) {
+          for (const t of j.tunnels) {
+            const cleanT = String(t || "").trim().replace(/\/+$/, "");
+            if (cleanT && !found.includes(cleanT)) found.push(cleanT);
+          }
+        }
+        if (found.length > 0) {
+          _discoveredGatewayList = found;
+          return found;
+        }
+      } catch (e) {
+      }
+    }
+    return _discoveredGatewayList;
+  }
   async function probeHomeGateway(force = false) {
     if (_gwInit.forceStandalone) return false;
     const now = Date.now();
@@ -14728,7 +14810,7 @@
     if (_gatewayProbeInFlight) return _gatewayProbeInFlight;
     _lastGatewayProbeTs = now;
     _gatewayProbeInFlight = (async () => {
-      if (!_gwInit.isRemoteHost && !_customGatewayUrl) {
+      if (!_gwInit.isRemoteHost) {
         try {
           const res = await fetchWithTimeout(
             "/api/state",
@@ -14750,11 +14832,17 @@
         } catch (e) {
         }
       }
+      const discovered = await discoverLatestGatewayJson();
       const remoteCandidates = [];
-      if (_customGatewayUrl) remoteCandidates.push(_customGatewayUrl);
-      for (const gw of DEFAULT_HOME_GATEWAYS) {
-        if (!remoteCandidates.includes(gw)) remoteCandidates.push(gw);
-      }
+      const addCandidate = (u) => {
+        const clean = String(u || "").trim().replace(/\/+$/, "");
+        if (clean && !remoteCandidates.includes(clean)) remoteCandidates.push(clean);
+      };
+      if (_customGatewayUrl) addCandidate(_customGatewayUrl);
+      for (const d of discovered) addCandidate(d);
+      addCandidate("http://localhost:3456");
+      addCandidate("http://127.0.0.1:3456");
+      for (const gw of DEFAULT_HOME_GATEWAYS) addCandidate(gw);
       try {
         const winnerBase = await Promise.any(
           remoteCandidates.map(async (base) => {
@@ -14767,12 +14855,15 @@
                   "bypass-tunnel-reminder": "true"
                 }
               },
-              4200
+              4500
             );
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             if (!data || !data.config || !data.portfolio) {
               throw new Error("Invalid state payload");
+            }
+            if (data.config?.remoteGateway?.cloudflareTunnelUrl) {
+              _discoveredCloudflareUrl = data.config.remoteGateway.cloudflareTunnelUrl.replace(/\/+$/, "");
             }
             return base;
           })
@@ -14914,6 +15005,13 @@
     return latestBrowserOkxTickers;
   }
   function initStandaloneState() {
+    const recoveredAiOrders = loadSavedAiExecutedOrders();
+    if (recoveredAiOrders.length > 0 && typeof window !== "undefined") {
+      try {
+        localStorage.setItem(LS_AI_EXECUTED_ORDERS_KEY, JSON.stringify(recoveredAiOrders.slice(0, 100)));
+      } catch (e) {
+      }
+    }
     try {
       localStorage.removeItem("okx_standalone_state_v1");
       localStorage.removeItem("okx_standalone_state_v2");
@@ -15792,6 +15890,23 @@
         price: order.price,
         exchangeFeedback
       });
+      saveAiExecutedOrderToLocal(order);
+      if (!_standaloneState.sessionSync) {
+        _standaloneState.sessionSync = {
+          chatMessages: [],
+          executedSessionTransactions: [],
+          lastExchangeFeedback: null,
+          currentAiStrategyAnalysis: null,
+          updatedAt: Date.now()
+        };
+      }
+      _standaloneState.sessionSync.lastExchangeFeedback = exchangeFeedback;
+      const prevExecList = Array.isArray(_standaloneState.sessionSync.executedSessionTransactions) ? _standaloneState.sessionSync.executedSessionTransactions : [];
+      _standaloneState.sessionSync.executedSessionTransactions = [
+        { id: order.id, collapsed: false, feedback: exchangeFeedback },
+        ...prevExecList.filter((item) => item && item.id !== order.id)
+      ];
+      _standaloneState.sessionSync.updatedAt = Date.now();
       _standaloneState.activeTradeOrder = null;
       _standaloneState.config.tradingStatus = "in_progress";
       _standaloneState.config.tradingStatusLabel = `Zrealizowano: ${isBuy ? "KUPIONO" : "SPRZEDANO"} ${order.amount} ${order.asset} @ ${order.price} USDC`;
@@ -16236,8 +16351,46 @@
       const data = await res.json();
       _gatewayConnected = true;
       _isStandalone = false;
-      const targetState = data?.state || (url.startsWith("/api/state") ? data : null);
+      if (data?.executedOrder) {
+        saveAiExecutedOrderToLocal(data.executedOrder);
+      }
+      let targetState = data?.state || (url.startsWith("/api/state") ? data : null);
       if (targetState) {
+        if (targetState.config?.remoteGateway?.cloudflareTunnelUrl) {
+          _discoveredCloudflareUrl = targetState.config.remoteGateway.cloudflareTunnelUrl.replace(/\/+$/, "");
+        }
+        if (!url.startsWith("/api/session/sync-orders") && Array.isArray(targetState.portfolio?.orders)) {
+          const localAiOrders = loadSavedAiExecutedOrders();
+          const serverOrderIds = new Set(targetState.portfolio.orders.map((o) => o.id));
+          const missingOnServer = localAiOrders.filter((o) => o && o.id && !serverOrderIds.has(o.id));
+          if (missingOnServer.length > 0) {
+            try {
+              const syncRes = await fetchWithTimeout(
+                `${_activeApiBaseUrl}/api/session/sync-orders`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "bypass-tunnel-reminder": "true"
+                  },
+                  body: JSON.stringify({
+                    orders: missingOnServer,
+                    sessionSync: _standaloneState?.sessionSync || null
+                  })
+                },
+                4500
+              );
+              if (syncRes.ok) {
+                const syncJson = await syncRes.json();
+                if (syncJson?.state) {
+                  targetState = syncJson.state;
+                  if (data?.state) data.state = targetState;
+                }
+              }
+            } catch (e) {
+            }
+          }
+        }
         if (latestBrowserOkxTickers.length > 0 && !targetState.config?.marketDataStatus?.live) {
           const map = {};
           latestBrowserOkxTickers.forEach((t) => {
@@ -16845,10 +16998,10 @@
                 id: "toggleTopWindowMenuBtn",
                 className: "btn-top-window-menu",
                 "aria-expanded": topMenuOpen ? "true" : "false",
-                title: "Kliknij, aby otworzy\u0107 lub zamkn\u0105\u0107 okno Menu G\xF3rne Okien",
+                title: "Kliknij, aby otworzy\u0107 lub zamkn\u0105\u0107 Menu okien",
                 onClick: onToggleTopWindowMenu,
                 children: [
-                  "\u{1F5D4} Menu G\xF3rne Okien",
+                  "\u{1F5D4} Menu",
                   " ",
                   /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { id: "topMenuDockedCount", className: "dock-count-badge", children: dockedTopCount }),
                   " ",
@@ -17293,7 +17446,7 @@
   }) {
     const gwInfo = getGatewayConnectionInfo();
     const remoteGw = cfg?.remoteGateway || {};
-    const activeTunnelUrl = remoteGw.tunnelUrl || gwInfo.customGatewayUrl || gwInfo.defaultGatewayUrl || "https://okx-eea-gregor-home-gw.loca.lt";
+    const activeTunnelUrl = remoteGw.cloudflareTunnelUrl || remoteGw.tunnelUrl || gwInfo.cloudflareTunnelUrl || gwInfo.customGatewayUrl || gwInfo.defaultGatewayUrl || "https://okx-eea-gregor-home-gw.loca.lt";
     const mobilePairedUrl = `https://gitgregor.github.io/ai_agent_okx_app_v1_00/?gateway=${encodeURIComponent(
       activeTunnelUrl
     )}`;
@@ -17301,6 +17454,12 @@
       gwInfo.customGatewayUrl || activeTunnelUrl
     );
     const [gwCopyMsg, setGwCopyMsg] = (0, import_react4.useState)("");
+    import_react4.default.useEffect(() => {
+      const bestTunnel = remoteGw.cloudflareTunnelUrl || remoteGw.tunnelUrl || gwInfo.cloudflareTunnelUrl;
+      if (bestTunnel && (!customGwInput || customGwInput.includes("okx-eea-gregor-home-gw"))) {
+        setCustomGwInput(bestTunnel);
+      }
+    }, [remoteGw.cloudflareTunnelUrl, remoteGw.tunnelUrl, gwInfo.cloudflareTunnelUrl]);
     const handleCopyMobileLink = () => {
       try {
         navigator.clipboard.writeText(mobilePairedUrl);
@@ -17311,16 +17470,21 @@
       }
     };
     const handleReconnectGateway = async () => {
-      setCustomGatewayUrl(customGwInput);
-      setGwCopyMsg("\u23F3 \u0141\u0105czenie z Bram\u0105 Domow\u0105 IP...");
+      const trimmedInput = (customGwInput || "").trim();
+      const isDefaultLoclt = trimmedInput.includes("okx-eea-gregor-home-gw");
+      setCustomGatewayUrl(isDefaultLoclt ? "" : trimmedInput);
+      setGwCopyMsg("\u23F3 Wyszukiwanie i \u0142\u0105czenie z aktywnym tunelem Bramy Domowej IP...");
       const ok = await probeHomeGateway(true);
       if (ok) {
-        setGwCopyMsg("\u2705 Po\u0142\u0105czono z Bram\u0105 Domow\u0105 IP (Whitelist OKX aktywny)!");
+        const updatedInfo = getGatewayConnectionInfo();
+        const connectedUrl = updatedInfo.cloudflareTunnelUrl || updatedInfo.activeApiBaseUrl || activeTunnelUrl;
+        if (connectedUrl) setCustomGwInput(connectedUrl);
+        setGwCopyMsg(`\u2705 Po\u0142\u0105czono z Bram\u0105 Domow\u0105 IP (${connectedUrl}) \u2014 Whitelist OKX aktywny!`);
         if (onManualSyncOkx) onManualSyncOkx();
       } else {
         setGwCopyMsg("\u26A0\uFE0F Nie uda\u0142o si\u0119 po\u0142\u0105czy\u0107 z tunelem \u2014 upewnij si\u0119, \u017Ce serwer na PC w domu jest w\u0142\u0105czony.");
       }
-      setTimeout(() => setGwCopyMsg(""), 4500);
+      setTimeout(() => setGwCopyMsg(""), 5500);
     };
     const topWinsInGrid = windowsRegistry.filter(
       (w) => w.isTopCtrl && (w.mode === "grid" || w.mode === "minimized-inline")
@@ -21213,7 +21377,13 @@
         if (requestedMode === "grid") {
           setTimeout(() => {
             const domEl = document.getElementById(winId);
-            if (domEl) domEl.scrollIntoView({ behavior: "smooth", block: "center" });
+            if (domEl) {
+              const headerEl = document.getElementById("appHeader");
+              const headerH = headerEl ? headerEl.offsetHeight : 38;
+              const rect = domEl.getBoundingClientRect();
+              const targetTop = Math.max(0, window.scrollY + rect.top - headerH - 10);
+              window.scrollTo({ top: targetTop, behavior: "smooth" });
+            }
           }, 40);
         }
       },
@@ -21225,7 +21395,7 @@
         setWindowMode(winId, "docked-top");
         if (winMeta) {
           showToast(
-            `\u{1F53C} Zamkni\u0119to \u201E${winMeta.title}\u201D \u2014 okno trafi\u0142o do Menu G\xF3rnego Okien (kliknij je na g\xF3rze, aby przywr\xF3ci\u0107).`
+            `\u{1F53C} Zamkni\u0119to \u201E${winMeta.title}\u201D \u2014 okno trafi\u0142o do Menu (kliknij je na g\xF3rze, aby przywr\xF3ci\u0107).`
           );
         }
       },

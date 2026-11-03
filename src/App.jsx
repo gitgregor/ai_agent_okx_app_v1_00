@@ -293,7 +293,13 @@ export function App() {
       if (requestedMode === 'grid') {
         setTimeout(() => {
           const domEl = document.getElementById(winId);
-          if (domEl) domEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (domEl) {
+            const headerEl = document.getElementById('appHeader');
+            const headerH = headerEl ? headerEl.offsetHeight : 38;
+            const rect = domEl.getBoundingClientRect();
+            const targetTop = Math.max(0, window.scrollY + rect.top - headerH - 10);
+            window.scrollTo({ top: targetTop, behavior: 'smooth' });
+          }
         }, 40);
       }
     },
@@ -306,7 +312,7 @@ export function App() {
       setWindowMode(winId, 'docked-top');
       if (winMeta) {
         showToast(
-          `🔼 Zamknięto „${winMeta.title}” — okno trafiło do Menu Górnego Okien (kliknij je na górze, aby przywrócić).`
+          `🔼 Zamknięto „${winMeta.title}” — okno trafiło do Menu (kliknij je na górze, aby przywrócić).`
         );
       }
     },
