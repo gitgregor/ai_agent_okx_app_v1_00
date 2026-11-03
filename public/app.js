@@ -19561,7 +19561,7 @@
     const executedTradesOnly = (historyList || []).filter(
       (snap) => snap.side === "BUY" || snap.side === "SELL"
     );
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
       WindowContainer,
       {
         tag: "section",
@@ -19572,85 +19572,75 @@
         onSetWindowMode,
         onCloseWindow,
         onBringToFront,
-        children: [
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "panel-header", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("h2", { children: "\u{1F4C8} Historia Portfela Handlowego (Wszystkie transakcje portfela \u2014 Kupno i Sprzeda\u017C)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("p", { className: "panel-subtitle", children: [
-              "Pe\u0142na historia transakcji portfela z dat\u0105, czasem, kursem wykonania, prowizj\u0105 (Fee) oraz warto\u015Bci\u0105 portfela w USDC (",
-              executedTradesOnly.length,
-              " transakcji)"
-            ] })
+        children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "portfolio-history-layout", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "table-responsive history-snapshots-table", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("table", { className: "data-table", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Data i Czas" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Wykonana operacja" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Typ" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Ilo\u015B\u0107 aktywa" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Cena jedn. (USDC)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Kwota operacji (USDC)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Warto\u015B\u0107 Portfela po transakcji (USDC)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Exchange Feedback" })
           ] }) }),
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "portfolio-history-layout", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "table-responsive history-snapshots-table", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("table", { className: "data-table", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Data i Czas" }),
-              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Wykonana operacja" }),
-              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Typ" }),
-              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Ilo\u015B\u0107 aktywa" }),
-              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Cena jedn. (USDC)" }),
-              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Kwota operacji (USDC)" }),
-              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Warto\u015B\u0107 Portfela po transakcji (USDC)" }),
-              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Exchange Feedback" })
-            ] }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("tbody", { id: "portfolioHistoryTbody", children: executedTradesOnly.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
-              "td",
-              {
-                colSpan: 8,
-                style: {
-                  textAlign: "center",
-                  color: "var(--text-secondary)",
-                  padding: "14px"
-                },
-                children: "Brak zrealizowanych zlece\u0144 kupna/sprzeda\u017Cy w historii tego portfela."
-              }
-            ) }) : executedTradesOnly.map((snap) => {
-              const badgeClass = snap.side === "BUY" ? "badge-buy" : "badge-sell";
-              const sideLabel = snap.side === "BUY" ? "KUPNO (BUY)" : "SPRZEDA\u017B (SELL)";
-              const usdcVal = snap.usdcValue ?? snap.usdcAmount ?? 0;
-              const rowKey = `hist-${snap.id}`;
-              const isExpanded = expandedFeedbackIds.has(rowKey);
-              const fb = buildExchangeFeedbackForItem(snap, apiMode);
-              return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react10.default.Fragment, { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { children: snap.date }),
-                    " ",
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("code", { children: snap.time })
-                  ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: snap.action }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: badgeClass, children: sideLabel }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("strong", { children: [
-                    formatQty(snap.amount),
-                    " ",
-                    snap.asset
-                  ] }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: formatUnitPrice(snap.price || (snap.amount > 0 ? usdcVal / snap.amount : 1)) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: formatUsdc(usdcVal) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { style: { color: "var(--accent-okx)" }, children: formatUsdc(snap.totalValueUsdc) }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
-                    "button",
-                    {
-                      type: "button",
-                      className: `btn btn-feedback-details toggle-exchange-feedback-btn ${isExpanded ? "active" : ""}`,
-                      "data-feedback-key": rowKey,
-                      onClick: () => onToggleFeedbackRow(rowKey),
-                      children: "\u{1F4CB} Szczeg\xF3\u0142y transakcji (Exchange Feedback)"
-                    }
-                  ) })
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("tbody", { id: "portfolioHistoryTbody", children: executedTradesOnly.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+            "td",
+            {
+              colSpan: 8,
+              style: {
+                textAlign: "center",
+                color: "var(--text-secondary)",
+                padding: "14px"
+              },
+              children: "Brak zrealizowanych zlece\u0144 kupna/sprzeda\u017Cy w historii tego portfela."
+            }
+          ) }) : executedTradesOnly.map((snap) => {
+            const badgeClass = snap.side === "BUY" ? "badge-buy" : "badge-sell";
+            const sideLabel = snap.side === "BUY" ? "KUPNO (BUY)" : "SPRZEDA\u017B (SELL)";
+            const usdcVal = snap.usdcValue ?? snap.usdcAmount ?? 0;
+            const rowKey = `hist-${snap.id}`;
+            const isExpanded = expandedFeedbackIds.has(rowKey);
+            const fb = buildExchangeFeedbackForItem(snap, apiMode);
+            return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react10.default.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { children: snap.date }),
+                  " ",
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("code", { children: snap.time })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
-                  "tr",
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: snap.action }),
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: badgeClass, children: sideLabel }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("strong", { children: [
+                  formatQty(snap.amount),
+                  " ",
+                  snap.asset
+                ] }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: formatUnitPrice(snap.price || (snap.amount > 0 ? usdcVal / snap.amount : 1)) }),
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: formatUsdc(usdcVal) }),
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { style: { color: "var(--accent-okx)" }, children: formatUsdc(snap.totalValueUsdc) }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                  "button",
                   {
-                    className: "exchange-feedback-detail-row",
-                    id: `ef-row-${rowKey}`,
-                    hidden: !isExpanded,
-                    children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { colSpan: 8, children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ExchangeFeedbackDetails, { fb }) })
+                    type: "button",
+                    className: `btn btn-feedback-details toggle-exchange-feedback-btn ${isExpanded ? "active" : ""}`,
+                    "data-feedback-key": rowKey,
+                    onClick: () => onToggleFeedbackRow(rowKey),
+                    children: "\u{1F4CB} Szczeg\xF3\u0142y transakcji (Exchange Feedback)"
                   }
-                )
-              ] }, snap.id);
-            }) })
-          ] }) }) })
-        ]
+                ) })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                "tr",
+                {
+                  className: "exchange-feedback-detail-row",
+                  id: `ef-row-${rowKey}`,
+                  hidden: !isExpanded,
+                  children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { colSpan: 8, children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ExchangeFeedbackDetails, { fb }) })
+                }
+              )
+            ] }, snap.id);
+          }) })
+        ] }) }) })
       }
     );
   }

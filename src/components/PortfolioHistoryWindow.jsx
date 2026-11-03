@@ -34,17 +34,6 @@ export function PortfolioHistoryWindow({
       onCloseWindow={onCloseWindow}
       onBringToFront={onBringToFront}
     >
-      <div className="panel-header">
-        <div>
-          <h2>
-            📈 Historia Portfela Handlowego (Wszystkie transakcje portfela — Kupno i Sprzedaż)
-          </h2>
-          <p className="panel-subtitle">
-            Pełna historia transakcji portfela z datą, czasem, kursem wykonania, prowizją (Fee) oraz wartością portfela w USDC ({executedTradesOnly.length} transakcji)
-          </p>
-        </div>
-      </div>
-
       <div className="portfolio-history-layout">
         <div className="table-responsive history-snapshots-table">
           <table className="data-table">
