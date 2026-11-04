@@ -1368,6 +1368,8 @@ export function App() {
               lastExchangeFeedback={lastExchangeFeedback}
               collapsedAiTxIds={collapsedAiTxIds}
               isConfirmingOrder={isConfirmingOrder}
+              orders={appState?.portfolio?.orders}
+              executedSessionTransactions={executedSessionTransactions}
               onSetAiStrategyInput={setAiStrategyInput}
               onSubmitAiStrategy={handleSubmitAiStrategy}
               onRunAiStrategyQuery={runAiStrategyQuery}

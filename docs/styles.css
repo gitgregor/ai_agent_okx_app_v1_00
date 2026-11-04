@@ -3120,6 +3120,256 @@ body.has-single-window-grid.single-window-minimized .app-shell {
   max-height: calc(100vh - 24px);
 }
 
+/* AI STRATEGIES TOOLBAR BUTTONS & INSTRUCTION / HISTORY / RECOMMENDATION ACCORDION */
+.ai-strat-titlebar-btn-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ai-titlebar-pill {
+  font-size: 10.5px !important;
+  padding: 2px 7px !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  transition: all 0.15s ease !important;
+}
+
+.ai-strat-instruction-banner {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.14) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  animation: fadeInDown 0.18s ease-out;
+}
+
+.instruction-banner-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.instruction-banner-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.instruction-banner-title h4 {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #38bdf8;
+  margin: 0;
+}
+
+.instruction-banner-desc {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.instruction-banner-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* HISTORIA ZAPYTAŃ I ZAKUPÓW AI */
+.ai-strat-history-container {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(15, 23, 42, 0.96) 100%);
+  border: 1px solid rgba(168, 85, 247, 0.45);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  animation: fadeInDown 0.18s ease-out;
+}
+
+.history-container-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(168, 85, 247, 0.25);
+  padding-bottom: 8px;
+}
+
+.history-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-title-group h4 {
+  font-size: 14px;
+  font-weight: 800;
+  color: #c084fc;
+  margin: 0;
+}
+
+.history-sections-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .history-sections-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.history-section-card {
+  background: rgba(11, 15, 25, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.history-section-card h5 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.history-queries-list, .history-orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.hist-query-item, .hist-order-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  font-size: 11.5px;
+}
+
+.hist-query-item:hover, .hist-order-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hist-query-text-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.hist-query-text {
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hist-query-time {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.btn-repeat-query {
+  padding: 2px 7px !important;
+  font-size: 10.5px !important;
+  white-space: nowrap;
+}
+
+.hist-order-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.hist-order-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hist-order-sub {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.hist-order-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* PASEK ZWIJANEJ REKOMENDACJI STRATEGII AI */
+.ai-strat-recommendation-wrapper {
+  margin-bottom: 14px;
+}
+
+.ai-strat-recommendation-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1.5px solid rgba(16, 185, 129, 0.4);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ai-strat-recommendation-bar:hover {
+  border-color: rgba(16, 185, 129, 0.7);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(15, 23, 42, 0.98) 100%);
+}
+
+.ai-strat-recommendation-bar.is-expanded {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
+}
+
+.rec-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rec-bar-title {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.rec-bar-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.btn-rec-toggle {
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  padding: 4px 10px !important;
+  white-space: nowrap;
+}
+
 .ai-strat-generator-box {
   background: linear-gradient(145deg, #111827 0%, #0b0f19 100%);
   border: 1.5px solid rgba(56, 189, 248, 0.45);
