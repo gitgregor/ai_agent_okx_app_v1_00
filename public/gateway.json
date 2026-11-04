@@ -1,11 +1,11 @@
 {
-  "updatedAt": 1793810129726,
+  "updatedAt": 1793810386942,
   "homePublicIp": "81.99.228.78",
-  "primaryTunnelUrl": "https://contributions-machine-electricity-fifth.trycloudflare.com",
-  "cloudflareTunnelUrl": "https://contributions-machine-electricity-fifth.trycloudflare.com",
+  "primaryTunnelUrl": "https://built-officially-base-scotia.trycloudflare.com",
+  "cloudflareTunnelUrl": "https://built-officially-base-scotia.trycloudflare.com",
   "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw.loca.lt",
   "tunnels": [
-    "https://contributions-machine-electricity-fifth.trycloudflare.com",
+    "https://built-officially-base-scotia.trycloudflare.com",
     "https://okx-eea-gregor-home-gw.loca.lt",
     "https://okx-eea-gregor-home-gw-2.loca.lt",
     "https://okx-eea-gregor-home-gw-3.loca.lt"
