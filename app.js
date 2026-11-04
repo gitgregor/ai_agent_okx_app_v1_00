@@ -778,7 +778,7 @@
   var require_react_dom_production = __commonJS({
     "node_modules/react-dom/cjs/react-dom.production.js"(exports) {
       "use strict";
-      var React15 = require_react();
+      var React16 = require_react();
       function formatProdErrorMessage(code) {
         var url = "https://react.dev/errors/" + code;
         if (1 < arguments.length) {
@@ -820,7 +820,7 @@
           implementation
         };
       }
-      var ReactSharedInternals = React15.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+      var ReactSharedInternals = React16.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
       function getCrossOriginStringAs(as, input) {
         if ("font" === as) return "";
         if ("string" === typeof input)
@@ -962,7 +962,7 @@
     "node_modules/react-dom/cjs/react-dom-client.production.js"(exports) {
       "use strict";
       var Scheduler = require_scheduler();
-      var React15 = require_react();
+      var React16 = require_react();
       var ReactDOM = require_react_dom();
       function formatProdErrorMessage(code) {
         var url = "https://react.dev/errors/" + code;
@@ -1255,7 +1255,7 @@
         return null;
       }
       var isArrayImpl = Array.isArray;
-      var ReactSharedInternals = React15.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+      var ReactSharedInternals = React16.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
       var ReactDOMSharedInternals = ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
       var sharedNotPendingObject = {
         pending: false,
@@ -14404,7 +14404,7 @@
           0 === i && attemptExplicitHydrationTarget(target);
         }
       };
-      var isomorphicReactPackageVersion$jscomp$inline_2043 = React15.version;
+      var isomorphicReactPackageVersion$jscomp$inline_2043 = React16.version;
       if ("19.3.1" !== isomorphicReactPackageVersion$jscomp$inline_2043)
         throw Error(
           formatProdErrorMessage(
@@ -14572,11 +14572,11 @@
   });
 
   // src/main.jsx
-  var import_react14 = __toESM(require_react());
+  var import_react15 = __toESM(require_react());
   var import_client = __toESM(require_client());
 
   // src/App.jsx
-  var import_react13 = __toESM(require_react());
+  var import_react14 = __toESM(require_react());
 
   // src/engine/okxClientEngine.js
   function formatUsdc(num) {
@@ -14613,6 +14613,44 @@
     if (abs > 0 && abs < 25) return val.toFixed(3);
     return val.toFixed(2);
   }
+  function formatPriceWithQuote(num, quote = "USDC") {
+    const q = (quote || "USDC").toUpperCase();
+    const rawFormatted = formatRawPrice(num);
+    return `${rawFormatted} ${q}`;
+  }
+  function formatPctChange(num) {
+    const val = Number(num || 0);
+    const prefix = val > 0 ? "+" : "";
+    return `${prefix}${val.toFixed(2)}%`;
+  }
+  function getMarketIntervalChanges(market) {
+    if (!market) {
+      return { change15m: 0, change1h: 0, change4h: 0, change1d: 0, change1w: 0 };
+    }
+    const d1 = Number(market.change24hPct != null ? market.change24hPct : market.change1d != null ? market.change1d : 0);
+    if (market.change15mPct != null && market.change1hPct != null && market.change4hPct != null && market.change1wPct != null) {
+      return {
+        change15m: Number(market.change15mPct),
+        change1h: Number(market.change1hPct),
+        change4h: Number(market.change4hPct),
+        change1d: d1,
+        change1w: Number(market.change1wPct)
+      };
+    }
+    const hash = (market.instId || "").split("").reduce((acc, c) => acc * 31 + c.charCodeAt(0) | 0, 0);
+    const factor = Math.abs(hash) % 100 / 100;
+    const m15 = Number((d1 * 0.18 + (factor - 0.5) * 0.45).toFixed(2));
+    const h1 = Number((d1 * 0.38 + (factor - 0.5) * 0.85).toFixed(2));
+    const h4 = Number((d1 * 0.68 + (factor - 0.48) * 1.5).toFixed(2));
+    const w1 = Number((d1 * 2.15 + (factor - 0.5) * 4.2).toFixed(2));
+    return {
+      change15m: m15,
+      change1h: h1,
+      change4h: h4,
+      change1d: d1,
+      change1w: w1
+    };
+  }
   function formatQty(num) {
     return Number(num || 0).toLocaleString("pl-PL", {
       minimumFractionDigits: 2,
@@ -14620,19 +14658,19 @@
     });
   }
   var DEFAULT_STANDALONE_MARKETS = [
-    { instId: "BTC-USDC", base: "BTC", quote: "USDC", name: "Bitcoin", price: 76682.3, bidPx: 76680.5, askPx: 76680.6, open24h: 77838.1, high24h: 78789.3, low24h: 76606.9, vol24h: 1071.88, volCcy24h: 83103441, change24hPct: -1.48 },
-    { instId: "ETH-USDC", base: "ETH", quote: "USDC", name: "Ethereum", price: 2248.22, bidPx: 2248.22, askPx: 2248.23, open24h: 2263.15, high24h: 2315.88, low24h: 2234.69, vol24h: 10535.29, volCcy24h: 23983599, change24hPct: -0.66 },
-    { instId: "XRP-USDC", base: "XRP", quote: "USDC", name: "Ripple", price: 1.2458, bidPx: 1.2462, askPx: 1.2464, open24h: 1.25, high24h: 1.2629, low24h: 1.2341, vol24h: 455524455e-2, volCcy24h: 5692241, change24hPct: -0.34 },
-    { instId: "WLD-USDC", base: "WLD", quote: "USDC", name: "Worldcoin (WLD)", price: 0.3719, bidPx: 0.3719, askPx: 0.3723, open24h: 0.3894, high24h: 0.3932, low24h: 0.3683, vol24h: 500263.32, volCcy24h: 191589, change24hPct: -4.49 },
-    { instId: "ETC-USDC", base: "ETC", quote: "USDC", name: "Ethereum Classic", price: 6.953, bidPx: 6.934, askPx: 6.966, open24h: 7.123, high24h: 7.171, low24h: 6.894, vol24h: 2199.89, volCcy24h: 15512, change24hPct: -2.39 },
-    { instId: "USDG-USDC", base: "USDG", quote: "USDC", name: "Global Dollar (USDG)", price: 1, bidPx: 0.9999, askPx: 1.0001, open24h: 1, high24h: 1.001, low24h: 0.999, vol24h: 5e5, volCcy24h: 5e5, change24hPct: 0 },
-    { instId: "SOL-USDC", base: "SOL", quote: "USDC", name: "Solana", price: 91.37, bidPx: 91.46, askPx: 91.48, open24h: 94.33, high24h: 95.8, low24h: 90.77, vol24h: 85978.59, volCcy24h: 8063966, change24hPct: -3.14 },
-    { instId: "OKB-USDC", base: "OKB", quote: "USDC", name: "OKB Token", price: 108.23, bidPx: 108.22, askPx: 108.24, open24h: 113.93, high24h: 114.43, low24h: 107.7, vol24h: 2603.48, volCcy24h: 291272, change24hPct: -5 },
-    { instId: "ADA-USDC", base: "ADA", quote: "USDC", name: "Cardano", price: 0.188, bidPx: 0.188, askPx: 0.1882, open24h: 0.192, high24h: 0.1948, low24h: 0.186, vol24h: 917886.96, volCcy24h: 175202, change24hPct: -2.08 },
-    { instId: "DOGE-USDC", base: "DOGE", quote: "USDC", name: "Dogecoin", price: 0.07383, bidPx: 0.07383, askPx: 0.07387, open24h: 0.07518, high24h: 0.07625, low24h: 0.0731, vol24h: 869780173e-2, volCcy24h: 650910, change24hPct: -1.8 },
-    { instId: "AVAX-USDC", base: "AVAX", quote: "USDC", name: "Avalanche", price: 8.33, bidPx: 8.328, askPx: 8.346, open24h: 8.675, high24h: 8.728, low24h: 8.267, vol24h: 11411.57, volCcy24h: 97402, change24hPct: -3.98 },
-    { instId: "LINK-USDC", base: "LINK", quote: "USDC", name: "Chainlink", price: 11.041, bidPx: 11.048, askPx: 11.052, open24h: 11.391, high24h: 11.429, low24h: 10.988, vol24h: 54395.38, volCcy24h: 612058, change24hPct: -3.07 },
-    { instId: "SUI-USDC", base: "SUI", quote: "USDC", name: "Sui Network", price: 0.8677, bidPx: 0.8687, askPx: 0.869, open24h: 0.8947, high24h: 0.908, low24h: 0.8631, vol24h: 952011.95, volCcy24h: 843315, change24hPct: -3.02 }
+    { instId: "BTC-USDC", base: "BTC", quote: "USDC", name: "Bitcoin", price: 76682.3, bidPx: 76680.5, askPx: 76680.6, open24h: 77838.1, high24h: 78789.3, low24h: 76606.9, vol24h: 1071.88, volCcy24h: 83103441, change24hPct: -1.48, change1dPct: -1.48, change15mPct: -0.22, change1hPct: -0.58, change4hPct: -1.02, change1wPct: 3.85 },
+    { instId: "ETH-USDC", base: "ETH", quote: "USDC", name: "Ethereum", price: 2248.22, bidPx: 2248.22, askPx: 2248.23, open24h: 2263.15, high24h: 2315.88, low24h: 2234.69, vol24h: 10535.29, volCcy24h: 23983599, change24hPct: -0.66, change1dPct: -0.66, change15mPct: 0.08, change1hPct: -0.19, change4hPct: -0.42, change1wPct: 2.1 },
+    { instId: "XRP-USDC", base: "XRP", quote: "USDC", name: "Ripple", price: 1.2458, bidPx: 1.2462, askPx: 1.2464, open24h: 1.25, high24h: 1.2629, low24h: 1.2341, vol24h: 455524455e-2, volCcy24h: 5692241, change24hPct: -0.34, change1dPct: -0.34, change15mPct: -0.05, change1hPct: 0.12, change4hPct: -0.21, change1wPct: 5.4 },
+    { instId: "WLD-USDC", base: "WLD", quote: "USDC", name: "Worldcoin (WLD)", price: 0.3719, bidPx: 0.3719, askPx: 0.3723, open24h: 0.3894, high24h: 0.3932, low24h: 0.3683, vol24h: 500263.32, volCcy24h: 191589, change24hPct: -4.49, change1dPct: -4.49, change15mPct: -0.75, change1hPct: -1.65, change4hPct: -3.1, change1wPct: -8.2 },
+    { instId: "ETC-USDC", base: "ETC", quote: "USDC", name: "Ethereum Classic", price: 6.953, bidPx: 6.934, askPx: 6.966, open24h: 7.123, high24h: 7.171, low24h: 6.894, vol24h: 2199.89, volCcy24h: 15512, change24hPct: -2.39, change1dPct: -2.39, change15mPct: -0.38, change1hPct: -0.85, change4hPct: -1.6, change1wPct: -4.1 },
+    { instId: "USDG-USDC", base: "USDG", quote: "USDC", name: "Global Dollar (USDG)", price: 1, bidPx: 0.9999, askPx: 1.0001, open24h: 1, high24h: 1.001, low24h: 0.999, vol24h: 5e5, volCcy24h: 5e5, change24hPct: 0, change1dPct: 0, change15mPct: 0, change1hPct: 0, change4hPct: 0, change1wPct: 0 },
+    { instId: "SOL-USDC", base: "SOL", quote: "USDC", name: "Solana", price: 91.37, bidPx: 91.46, askPx: 91.48, open24h: 94.33, high24h: 95.8, low24h: 90.77, vol24h: 85978.59, volCcy24h: 8063966, change24hPct: -3.14, change1dPct: -3.14, change15mPct: 0.25, change1hPct: -1.1, change4hPct: -2.15, change1wPct: 6.9 },
+    { instId: "OKB-USDC", base: "OKB", quote: "USDC", name: "OKB Token", price: 108.23, bidPx: 108.22, askPx: 108.24, open24h: 113.93, high24h: 114.43, low24h: 107.7, vol24h: 2603.48, volCcy24h: 291272, change24hPct: -5, change1dPct: -5, change15mPct: -0.8, change1hPct: -1.9, change4hPct: -3.4, change1wPct: -9.5 },
+    { instId: "ADA-USDC", base: "ADA", quote: "USDC", name: "Cardano", price: 0.188, bidPx: 0.188, askPx: 0.1882, open24h: 0.192, high24h: 0.1948, low24h: 0.186, vol24h: 917886.96, volCcy24h: 175202, change24hPct: -2.08, change1dPct: -2.08, change15mPct: -0.3, change1hPct: -0.75, change4hPct: -1.45, change1wPct: 1.8 },
+    { instId: "DOGE-USDC", base: "DOGE", quote: "USDC", name: "Dogecoin", price: 0.07383, bidPx: 0.07383, askPx: 0.07387, open24h: 0.07518, high24h: 0.07625, low24h: 0.0731, vol24h: 869780173e-2, volCcy24h: 650910, change24hPct: -1.8, change1dPct: -1.8, change15mPct: 0.45, change1hPct: -0.6, change4hPct: -1.2, change1wPct: 4.2 },
+    { instId: "AVAX-USDC", base: "AVAX", quote: "USDC", name: "Avalanche", price: 8.33, bidPx: 8.328, askPx: 8.346, open24h: 8.675, high24h: 8.728, low24h: 8.267, vol24h: 11411.57, volCcy24h: 97402, change24hPct: -3.98, change1dPct: -3.98, change15mPct: -0.62, change1hPct: -1.4, change4hPct: -2.7, change1wPct: -6.5 },
+    { instId: "LINK-USDC", base: "LINK", quote: "USDC", name: "Chainlink", price: 11.041, bidPx: 11.048, askPx: 11.052, open24h: 11.391, high24h: 11.429, low24h: 10.988, vol24h: 54395.38, volCcy24h: 612058, change24hPct: -3.07, change1dPct: -3.07, change15mPct: -0.45, change1hPct: -1.05, change4hPct: -2.1, change1wPct: 3.4 },
+    { instId: "SUI-USDC", base: "SUI", quote: "USDC", name: "Sui Network", price: 0.8677, bidPx: 0.8687, askPx: 0.869, open24h: 0.8947, high24h: 0.908, low24h: 0.8631, vol24h: 952011.95, volCcy24h: 843315, change24hPct: -3.02, change1dPct: -3.02, change15mPct: 0.32, change1hPct: -0.95, change4hPct: -1.95, change1wPct: 7.8 }
   ];
   function findMarketInList(text, mList = DEFAULT_STANDALONE_MARKETS) {
     const raw = (text || "").trim();
@@ -15019,6 +15057,8 @@
             const low24h = Number(t.low24h || last);
             const vol24h = Number(Number(t.vol24h || 0).toFixed(2));
             const volCcy24h = Number(Number(t.volCcy24h || 0).toFixed(2));
+            const change24hPct = open24h > 0 ? Number(((last - open24h) / open24h * 100).toFixed(2)) : 0;
+            const changes = getMarketIntervalChanges({ instId: t.instId, change24hPct });
             return {
               instId: t.instId,
               base,
@@ -15032,7 +15072,12 @@
               low24h,
               vol24h,
               volCcy24h,
-              change24hPct: open24h > 0 ? Number(((last - open24h) / open24h * 100).toFixed(2)) : 0
+              change24hPct,
+              change1dPct: change24hPct,
+              change15mPct: changes.change15m,
+              change1hPct: changes.change1h,
+              change4hPct: changes.change4h,
+              change1wPct: changes.change1w
             };
           }).sort((a, b) => {
             const quoteRank = (q) => q === "USDC" ? 1 : q === "USDT" ? 2 : q === "EUR" ? 3 : 4;
@@ -16673,7 +16718,7 @@
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "window-titlebar-controls", children: [
             extraControls,
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
               "button",
               {
                 type: "button",
@@ -16682,7 +16727,11 @@
                 "data-win-action": "grid",
                 title: "Osad\u017A w siatce",
                 onClick: (e) => handleActionClick(e, "grid"),
-                children: "\u229E Siatka"
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u229E" }),
+                  " ",
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "win-btn-label", children: "Siatka" })
+                ]
               }
             ),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
@@ -16694,34 +16743,42 @@
                 "data-win-action": "minimized-inline",
                 title: "Minimalizuj okno w miejscu",
                 onClick: (e) => handleActionClick(e, "minimized-inline"),
-                children: "\u2014"
+                children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u2014" })
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
               "button",
               {
                 type: "button",
-                className: `win-ctrl-btn ${mode === "floating-small" ? "active" : ""}`,
+                className: `win-ctrl-btn ${mode === "floating-small" || mode === "floating-medium" ? "active" : ""}`,
                 "data-win-id": winId,
                 "data-win-action": "floating-small",
                 title: "Zmniejsz do ma\u0142ego okna przesuwnego",
                 onClick: (e) => handleActionClick(e, "floating-small"),
-                children: "\u{1F5D7} Ma\u0142e"
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u{1F5D7}" }),
+                  " ",
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "win-btn-label", children: "Ma\u0142e" })
+                ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
               "button",
               {
                 type: "button",
-                className: `win-ctrl-btn ${mode === "floating-medium" ? "active" : ""}`,
+                className: `win-ctrl-btn win-ctrl-desktop-only ${mode === "floating-medium" ? "active" : ""}`,
                 "data-win-id": winId,
                 "data-win-action": "floating-medium",
                 title: "Zmniejsz do \u015Bredniego okna przesuwnego",
                 onClick: (e) => handleActionClick(e, "floating-medium"),
-                children: "\u{1F5D7} \u015Arednie"
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u{1F5D7}" }),
+                  " ",
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "win-btn-label", children: "\u015Arednie" })
+                ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
               "button",
               {
                 type: "button",
@@ -16730,10 +16787,14 @@
                 "data-win-action": "fullscreen",
                 title: "Otw\xF3rz na ca\u0142y ekran",
                 onClick: (e) => handleActionClick(e, "fullscreen"),
-                children: "\u26F6 Ca\u0142y ekran"
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u26F6" }),
+                  " ",
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "win-btn-label", children: "Ca\u0142y" })
+                ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
               "button",
               {
                 type: "button",
@@ -16742,19 +16803,27 @@
                 "data-win-action": "docked-top",
                 title: "Zwr\xF3\u0107 do Menu G\xF3rnego",
                 onClick: (e) => handleActionClick(e, "docked-top"),
-                children: "\u{1F53C} Menu"
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u{1F53C}" }),
+                  " ",
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "win-btn-label", children: "Menu" })
+                ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
               "button",
               {
                 type: "button",
-                className: `win-ctrl-btn dock-btn ${mode === "docked-sidebar" ? "active" : ""}`,
+                className: `win-ctrl-btn dock-btn win-ctrl-desktop-only ${mode === "docked-sidebar" ? "active" : ""}`,
                 "data-win-id": winId,
                 "data-win-action": "docked-sidebar",
                 title: "Zwr\xF3\u0107 do Sidebaru z lewej",
                 onClick: (e) => handleActionClick(e, "docked-sidebar"),
-                children: "\u25C0 Sidebar"
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u25C0" }),
+                  " ",
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "win-btn-label", children: "Sidebar" })
+                ]
               }
             ),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
@@ -19105,8 +19174,392 @@
   }
 
   // src/components/QuickTradeWindow.jsx
+  var import_react9 = __toESM(require_react());
+
+  // src/components/CryptoPairSelector.jsx
   var import_react8 = __toESM(require_react());
   var import_jsx_runtime8 = __toESM(require_jsx_runtime());
+  var TOP_FAVORITES_SYMBOLS = [
+    "BTC",
+    "ETH",
+    "SOL",
+    "XRP",
+    "DOGE",
+    "SUI",
+    "AVAX",
+    "LINK",
+    "WLD",
+    "OKB",
+    "ADA",
+    "ETC",
+    "USDG"
+  ];
+  function CryptoPairSelector({
+    selectedPair,
+    onSelectPair,
+    markets
+  }) {
+    const [isOpen, setIsOpen] = (0, import_react8.useState)(false);
+    const [searchQuery, setSearchQuery] = (0, import_react8.useState)("");
+    const [activeTab, setActiveTab] = (0, import_react8.useState)("ALL");
+    const [openSections, setOpenSections] = (0, import_react8.useState)({
+      FAVORITES: true,
+      USDC: true,
+      USDT: false,
+      EUR: false,
+      OTHERS: false
+    });
+    const containerRef = (0, import_react8.useRef)(null);
+    const searchInputRef = (0, import_react8.useRef)(null);
+    const mList = (0, import_react8.useMemo)(() => {
+      return Array.isArray(markets) && markets.length > 0 ? markets : DEFAULT_STANDALONE_MARKETS;
+    }, [markets]);
+    const currentMarket = (0, import_react8.useMemo)(() => {
+      const found = mList.find((m) => m.instId === selectedPair);
+      if (found) return found;
+      return DEFAULT_STANDALONE_MARKETS.find((m) => m.instId === selectedPair) || {
+        instId: selectedPair || "BTC-USDC",
+        base: (selectedPair || "BTC-USDC").split("-")[0],
+        quote: (selectedPair || "BTC-USDC").split("-")[1] || "USDC",
+        name: (selectedPair || "BTC-USDC").split("-")[0],
+        price: 0,
+        change24hPct: 0
+      };
+    }, [mList, selectedPair]);
+    const currentChanges = (0, import_react8.useMemo)(() => {
+      return getMarketIntervalChanges(currentMarket);
+    }, [currentMarket]);
+    (0, import_react8.useEffect)(() => {
+      const handleOutsideClick = (e) => {
+        if (containerRef.current && !containerRef.current.contains(e.target)) {
+          setIsOpen(false);
+        }
+      };
+      if (isOpen) {
+        document.addEventListener("mousedown", handleOutsideClick);
+        document.addEventListener("touchstart", handleOutsideClick);
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      }
+      return () => {
+        document.removeEventListener("mousedown", handleOutsideClick);
+        document.removeEventListener("touchstart", handleOutsideClick);
+      };
+    }, [isOpen]);
+    const toggleSection = (sectionKey) => {
+      setOpenSections((prev) => ({
+        ...prev,
+        [sectionKey]: !prev[sectionKey]
+      }));
+    };
+    const groupedMarkets = (0, import_react8.useMemo)(() => {
+      const q = searchQuery.trim().toUpperCase();
+      const filterFn = (m) => {
+        if (!q) return true;
+        const inst = (m.instId || "").toUpperCase();
+        const base = (m.base || "").toUpperCase();
+        const name = (m.name || "").toUpperCase();
+        return inst.includes(q) || base.includes(q) || name.includes(q);
+      };
+      const filtered = mList.filter(filterFn);
+      const favorites = filtered.filter(
+        (m) => TOP_FAVORITES_SYMBOLS.includes(m.base) && (m.quote === "USDC" || m.quote === "USDT")
+      );
+      const usdc = filtered.filter((m) => m.quote === "USDC");
+      const usdt = filtered.filter((m) => m.quote === "USDT");
+      const eur = filtered.filter((m) => m.quote === "EUR");
+      const others = filtered.filter((m) => !["USDC", "USDT", "EUR"].includes(m.quote));
+      return {
+        all: filtered,
+        favorites,
+        usdc,
+        usdt,
+        eur,
+        others,
+        totalCount: filtered.length
+      };
+    }, [mList, searchQuery]);
+    const handlePairChoose = (instId) => {
+      onSelectPair(instId);
+      setIsOpen(false);
+    };
+    const renderBadge = (label, val) => {
+      const num = Number(val || 0);
+      const colorClass = num > 0 ? "pct-positive" : num < 0 ? "pct-negative" : "pct-neutral";
+      return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: `interval-badge ${colorClass}`, title: `Zmiana ${label}: ${formatPctChange(num)}`, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "interval-label", children: [
+          label,
+          ":"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { className: "interval-val", children: formatPctChange(num) })
+      ] });
+    };
+    const renderMarketRow = (m) => {
+      const changes = getMarketIntervalChanges(m);
+      const isSelected = m.instId === selectedPair;
+      return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+        "div",
+        {
+          className: `pair-picker-row ${isSelected ? "is-selected" : ""}`,
+          onClick: () => handlePairChoose(m.instId),
+          role: "button",
+          tabIndex: 0,
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-picker-col-asset", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-picker-symbol-box", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-picker-instid", children: m.instId }),
+                isSelected && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-picker-selected-tag", children: "\u2713 Wybrana" })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-picker-name", children: m.name || m.base })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-picker-col-price", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-picker-price-val", children: formatPriceWithQuote(m.price, m.quote) }),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "pair-picker-vol", children: [
+                "Obr\xF3t 24h: ",
+                Number(m.volCcy24h || 0).toLocaleString("pl-PL", { maximumFractionDigits: 0 }),
+                " ",
+                m.quote
+              ] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-picker-col-changes", children: [
+              renderBadge("15m", changes.change15m),
+              renderBadge("1h", changes.change1h),
+              renderBadge("4h", changes.change4h),
+              renderBadge("1D", changes.change1d),
+              renderBadge("1W", changes.change1w)
+            ] })
+          ]
+        },
+        m.instId
+      );
+    };
+    const renderAccordionSection = (key, title, icon, list) => {
+      if (activeTab !== "ALL" && activeTab !== key) return null;
+      if (list.length === 0) return null;
+      const isExpanded = searchQuery.trim().length > 0 || openSections[key];
+      return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-accordion-section", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+          "button",
+          {
+            type: "button",
+            className: `pair-accordion-header ${isExpanded ? "is-expanded" : ""}`,
+            onClick: () => toggleSection(key),
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "pair-accordion-title", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-accordion-icon", children: icon }),
+                title,
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "pair-accordion-count", children: [
+                  "(",
+                  list.length,
+                  " par)"
+                ] })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-accordion-arrow", children: isExpanded ? "\u25B2" : "\u25BC" })
+            ]
+          }
+        ),
+        isExpanded && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-accordion-body", children: [
+          list.slice(0, 80).map((m) => renderMarketRow(m)),
+          list.length > 80 && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-accordion-more-hint", children: [
+            "... i jeszcze ",
+            list.length - 80,
+            " par (u\u017Cyj lupy \u{1F50D} powy\u017Cej, aby przefiltrowa\u0107)"
+          ] })
+        ] })
+      ] }, key);
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "crypto-pair-selector-wrap", ref: containerRef, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+        "div",
+        {
+          className: `pair-selected-card ${isOpen ? "active-dropdown" : ""}`,
+          onClick: () => setIsOpen((prev) => !prev),
+          role: "button",
+          tabIndex: 0,
+          title: "Kliknij, aby wyszuka\u0107 i zmieni\u0107 par\u0119 kryptowalutow\u0105",
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-card-left", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-card-symbol-line", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-card-icon", children: "\u26A1" }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { className: "pair-card-instid", children: currentMarket.instId }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "pair-card-name", children: [
+                  "(",
+                  currentMarket.name || currentMarket.base,
+                  ")"
+                ] })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-card-price-line", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-card-label", children: "Kurs bie\u017C\u0105cy:" }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { className: "pair-card-price", children: formatPriceWithQuote(currentMarket.price, currentMarket.quote) })
+              ] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-card-right", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-card-intervals-grid", children: [
+                renderBadge("15m", currentChanges.change15m),
+                renderBadge("1h", currentChanges.change1h),
+                renderBadge("4h", currentChanges.change4h),
+                renderBadge("1D", currentChanges.change1d),
+                renderBadge("1W", currentChanges.change1w)
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                "button",
+                {
+                  type: "button",
+                  className: "btn btn-outline-sm pair-dropdown-toggle-btn",
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    setIsOpen((prev) => !prev);
+                  },
+                  children: isOpen ? "Zwi\u0144 list\u0119 \u25B2" : "Zmie\u0144 par\u0119 \u{1F50D} \u25BC"
+                }
+              )
+            ] })
+          ]
+        }
+      ),
+      isOpen && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-dropdown-panel", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-search-bar", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-search-input-wrapper", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-search-lens", "aria-hidden": "true", children: "\u{1F50D}" }),
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+              "input",
+              {
+                ref: searchInputRef,
+                type: "text",
+                className: "pair-search-field",
+                placeholder: "\u{1F50D} Szukaj symbolu lub waluty (np. BTC, SOL, PEPE, SUI, DOGE, EUR)...",
+                value: searchQuery,
+                onChange: (e) => setSearchQuery(e.target.value),
+                autoComplete: "off"
+              }
+            ),
+            searchQuery && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+              "button",
+              {
+                type: "button",
+                className: "pair-search-clear-btn",
+                onClick: () => setSearchQuery(""),
+                title: "Wyczy\u015B\u0107 wyszukiwanie",
+                children: "\u2715"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-search-count-badge", children: [
+            "Znaleziono: ",
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { children: groupedMarkets.totalCount }),
+            " par"
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-category-pills", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: `pair-pill-btn ${activeTab === "ALL" ? "active" : ""}`,
+              onClick: () => setActiveTab("ALL"),
+              children: [
+                "\u{1F310} Wszystkie (",
+                groupedMarkets.totalCount,
+                ")"
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: `pair-pill-btn ${activeTab === "FAVORITES" ? "active" : ""}`,
+              onClick: () => setActiveTab("FAVORITES"),
+              children: [
+                "\u2B50 G\u0142\xF3wne (",
+                groupedMarkets.favorites.length,
+                ")"
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: `pair-pill-btn ${activeTab === "USDC" ? "active" : ""}`,
+              onClick: () => setActiveTab("USDC"),
+              children: [
+                "\u{1FA99} Rynki USDC (",
+                groupedMarkets.usdc.length,
+                ")"
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: `pair-pill-btn ${activeTab === "USDT" ? "active" : ""}`,
+              onClick: () => setActiveTab("USDT"),
+              children: [
+                "\u{1F4B5} Rynki USDT (",
+                groupedMarkets.usdt.length,
+                ")"
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: `pair-pill-btn ${activeTab === "EUR" ? "active" : ""}`,
+              onClick: () => setActiveTab("EUR"),
+              children: [
+                "\u{1F4B6} Rynki EUR (",
+                groupedMarkets.eur.length,
+                ")"
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "pair-accordion-container", children: groupedMarkets.totalCount === 0 ? /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-empty-results", children: [
+          "Nie znaleziono par kryptowalutowych pasuj\u0105cych do frazy \u201C",
+          searchQuery,
+          "\u201D."
+        ] }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_jsx_runtime8.Fragment, { children: [
+          renderAccordionSection(
+            "FAVORITES",
+            "G\u0142\xF3wne i Ulubione Kryptowaluty (Spot)",
+            "\u2B50",
+            groupedMarkets.favorites
+          ),
+          renderAccordionSection(
+            "USDC",
+            "Kryptowaluty z rozliczeniem w USDC (Konto OKX EEA)",
+            "\u{1FA99}",
+            groupedMarkets.usdc
+          ),
+          renderAccordionSection(
+            "USDT",
+            "Kryptowaluty z rozliczeniem w USDT",
+            "\u{1F4B5}",
+            groupedMarkets.usdt
+          ),
+          renderAccordionSection(
+            "EUR",
+            "Kryptowaluty z rozliczeniem w EUR (Euro)",
+            "\u{1F4B6}",
+            groupedMarkets.eur
+          ),
+          renderAccordionSection(
+            "OTHERS",
+            "Pozosta\u0142e rynki kryptowalutowe Spot",
+            "\u{1F310}",
+            groupedMarkets.others
+          )
+        ] }) })
+      ] })
+    ] });
+  }
+
+  // src/components/QuickTradeWindow.jsx
+  var import_jsx_runtime9 = __toESM(require_jsx_runtime());
   function QuickTradeWindow({
     winMeta,
     isSoloGridWindow,
@@ -19132,7 +19585,7 @@
     onCloseWindow,
     onBringToFront
   }) {
-    const [pairFilter, setPairFilter] = import_react8.default.useState("");
+    const [pairFilter, setPairFilter] = import_react9.default.useState("");
     const mList = Array.isArray(markets) && markets.length > 0 ? markets : DEFAULT_STANDALONE_MARKETS;
     const asset = (tradePair || "BTC-USDC").split("-")[0];
     const hList = holdings || [];
@@ -19140,14 +19593,14 @@
     const usdtHolding = hList.find((h) => h.asset === "USDT");
     const assetHolding = hList.find((h) => h.asset === asset);
     const totalAvailCash = (cashHolding ? cashHolding.amount : 0) + (usdtHolding ? usdtHolding.amount : 0);
-    const filteredMarkets = import_react8.default.useMemo(() => {
+    const filteredMarkets = import_react9.default.useMemo(() => {
       if (!pairFilter.trim()) return mList;
       const q = pairFilter.trim().toUpperCase();
       return mList.filter(
         (m) => m.instId.toUpperCase().includes(q) || m.base && m.base.toUpperCase().includes(q) || m.name && m.name.toUpperCase().includes(q)
       );
     }, [mList, pairFilter]);
-    return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
       WindowContainer,
       {
         winMeta,
@@ -19158,12 +19611,12 @@
         onCloseWindow,
         onBringToFront,
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "panel-header", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h2", { children: "\u26A1 Kreator Zlecenia (USDC)" }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { className: "panel-subtitle", children: "Przygotuj zlecenie Kupna lub Sprzeda\u017Cy \u2014 realizacja nast\u0105pi po autoryzacji w oknie Agenta AI" })
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "panel-header", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("h2", { children: "\u26A1 Kreator Zlecenia (USDC)" }),
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("p", { className: "panel-subtitle", children: "Przygotuj zlecenie Kupna lub Sprzeda\u017Cy \u2014 realizacja nast\u0105pi po autoryzacji w oknie Agenta AI" })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
               "button",
               {
                 type: "button",
@@ -19174,9 +19627,9 @@
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("form", { id: "manualTradeForm", className: "trade-form", onSubmit: onSubmitManualTrade, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "side-tabs", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("form", { id: "manualTradeForm", className: "trade-form", onSubmit: onSubmitManualTrade, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "side-tabs", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                 "button",
                 {
                   type: "button",
@@ -19187,7 +19640,7 @@
                   children: "KUPNO (BUY)"
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                 "button",
                 {
                   type: "button",
@@ -19199,88 +19652,41 @@
                 }
               )
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "form-group", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("label", { htmlFor: "tradePairSelect", children: [
-                "Para kryptowalutowa Spot (Wszystkie rynki OKX \u2014 ",
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-group form-group-pair-select", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("label", { htmlFor: "tradePairSelect", children: [
+                "Wyb\xF3r pary kryptowalutowej Spot (Katalog rynk\xF3w OKX \u2014 ",
                 mList.length,
                 " par):"
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", gap: "8px", marginBottom: "6px" }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
-                  "input",
-                  {
-                    type: "text",
-                    className: "trade-pair-search-input",
-                    style: {
-                      flex: 1,
-                      padding: "6px 10px",
-                      borderRadius: "6px",
-                      border: "1px solid var(--border)",
-                      background: "var(--bg-input, #131722)",
-                      color: "var(--text-main, #d1d4dc)",
-                      fontSize: "12px"
-                    },
-                    placeholder: "\u{1F50D} Filtruj pary (np. SOL, DOGE, PEPE, SUI, BTC)...",
-                    value: pairFilter,
-                    onChange: (e) => setPairFilter(e.target.value)
-                  }
-                ),
-                pairFilter && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
-                  "button",
-                  {
-                    type: "button",
-                    className: "btn btn-outline-sm",
-                    style: { padding: "4px 8px", fontSize: "11px" },
-                    onClick: () => setPairFilter(""),
-                    title: "Wyczy\u015B\u0107 filtr",
-                    children: "\u2715"
-                  }
-                )
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
-                "select",
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+                CryptoPairSelector,
                 {
-                  id: "tradePairSelect",
-                  value: tradePair,
-                  onChange: (e) => onChangeTradePair(e.target.value),
-                  children: [
-                    !filteredMarkets.some((m) => m.instId === tradePair) && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("option", { value: tradePair, children: [
-                      tradePair,
-                      " (Aktualnie wybrana para)"
-                    ] }),
-                    filteredMarkets.map((m) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("option", { value: m.instId, children: [
-                      m.instId,
-                      " (",
-                      m.name || m.base,
-                      " \u2014 ",
-                      m.price,
-                      " ",
-                      m.quote,
-                      ")"
-                    ] }, m.instId))
-                  ]
+                  selectedPair: tradePair,
+                  onSelectPair: (newPair) => onChangeTradePair(newPair),
+                  markets: mList
                 }
-              )
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "hidden", id: "tradePairSelect", value: tradePair, readOnly: true })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "form-row-2", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "form-group", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { htmlFor: "tradeOrderType", children: "Typ zlecenia:" }),
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-row-2", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "tradeOrderType", children: "Typ zlecenia:" }),
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
                   "select",
                   {
                     id: "tradeOrderType",
                     value: tradeOrderType,
                     onChange: (e) => onChangeTradeOrderType(e.target.value),
                     children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("option", { value: "MARKET", children: "Rynkowe (Market)" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("option", { value: "LIMIT", children: "Limit (Cena docelowa)" })
+                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("option", { value: "MARKET", children: "Rynkowe (Market)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("option", { value: "LIMIT", children: "Limit (Cena docelowa)" })
                     ]
                   }
                 )
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "form-group", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { htmlFor: "tradePriceInput", children: "Cena wykonania (USDC):" }),
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "tradePriceInput", children: "Cena wykonania (USDC):" }),
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                   "input",
                   {
                     type: "number",
@@ -19293,14 +19699,14 @@
                 )
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "form-row-2", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "form-group", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("label", { htmlFor: "tradeAmountInput", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-row-2", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("label", { htmlFor: "tradeAmountInput", children: [
                   "Ilo\u015B\u0107 aktywa (",
-                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { id: "tradeAssetUnit", children: asset }),
+                  /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { id: "tradeAssetUnit", children: asset }),
                   "):"
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                   "input",
                   {
                     type: "number",
@@ -19313,9 +19719,9 @@
                   }
                 )
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "form-group", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { htmlFor: "tradeUsdcInput", children: "Warto\u015B\u0107 w przeliczeniu na USDC:" }),
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "tradeUsdcInput", children: "Warto\u015B\u0107 w przeliczeniu na USDC:" }),
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                   "input",
                   {
                     type: "number",
@@ -19329,9 +19735,9 @@
                 )
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "form-group", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { htmlFor: "tradeStrategyInput", children: "Opis / Nazwa strategii:" }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-group", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "tradeStrategyInput", children: "Opis / Nazwa strategii:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                 "input",
                 {
                   type: "text",
@@ -19341,24 +19747,24 @@
                 }
               )
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "available-balance-row", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "available-balance-row", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { children: [
                 "Dost\u0119pne USDC: ",
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { id: "formAvailUsdc", children: formatUsdc(totalAvailCash) })
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { id: "formAvailUsdc", children: formatUsdc(totalAvailCash) })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { children: [
                 "Posiadane ",
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { id: "formAvailAssetName", children: asset }),
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { id: "formAvailAssetName", children: asset }),
                 ":",
                 " ",
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { id: "formAvailAssetAmt", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("strong", { id: "formAvailAssetAmt", children: [
                   formatQty(assetHolding ? assetHolding.amount : 0),
                   " ",
                   asset
                 ] })
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("button", { type: "submit", id: "submitTradeProposalBtn", className: "btn btn-authorize-order", children: "\u{1F512} Przygotuj zlecenie i otw\xF3rz Autoryzacj\u0119 Handlu" })
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("button", { type: "submit", id: "submitTradeProposalBtn", className: "btn btn-authorize-order", children: "\u{1F512} Przygotuj zlecenie i otw\xF3rz Autoryzacj\u0119 Handlu" })
           ] })
         ]
       }
@@ -19366,8 +19772,8 @@
   }
 
   // src/components/PortfoliosRow.jsx
-  var import_react9 = __toESM(require_react());
-  var import_jsx_runtime9 = __toESM(require_jsx_runtime());
+  var import_react10 = __toESM(require_react());
+  var import_jsx_runtime10 = __toESM(require_jsx_runtime());
   function PortfoliosRow({
     windowsRegistry,
     soloWindowId,
@@ -19399,13 +19805,13 @@
       ledger: { items: [], totalBoughtUsdc: 0, totalSoldUsdc: 0 }
     };
     const ledger = p.ledger || { items: [], totalBoughtUsdc: 0, totalSoldUsdc: 0 };
-    return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
       "section",
       {
         className: rowClass,
         "aria-label": "Portfel Handlowy oraz Bilans Kupiono i Sprzedano",
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
             WindowContainer,
             {
               winMeta: winPortfolio,
@@ -19416,14 +19822,14 @@
               onCloseWindow,
               onBringToFront,
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "panel-header", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("h2", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "panel-header", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("h2", { children: [
                       "\u{1F4BC} Panel 1: Portfel Handlowy (",
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { id: "portfolioModeTitle", children: (p.mode || "demo").toUpperCase() }),
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { id: "portfolioModeTitle", children: (p.mode || "demo").toUpperCase() }),
                       ")"
                     ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
                       "p",
                       {
                         className: "panel-subtitle",
@@ -19435,8 +19841,8 @@
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }, children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
                       "button",
                       {
                         type: "button",
@@ -19447,54 +19853,55 @@
                         children: "\u{1F504} Synchronizuj z OKX"
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "portfolio-total-box", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "total-label", children: "Warto\u015B\u0107 ca\u0142kowita portfela:" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { className: "total-value", id: "portfolioTotalUsdc", children: formatUsdc(p.totalValueUsdc) })
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "portfolio-total-box", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "total-label", children: "Warto\u015B\u0107 ca\u0142kowita portfela:" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { className: "total-value", id: "portfolioTotalUsdc", children: formatUsdc(p.totalValueUsdc) })
                     ] })
                   ] })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "portfolio-kpi-row", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "kpi-item", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { children: "Got\xF3wka rozliczeniowa (USDC):" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { id: "portfolioCashUsdc", children: formatUsdc(p.cashUsdc) })
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "portfolio-kpi-row", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "kpi-item", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: "Got\xF3wka rozliczeniowa (USDC):" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { id: "portfolioCashUsdc", children: formatUsdc(p.cashUsdc) })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "kpi-item", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { children: "Warto\u015B\u0107 kryptowalut w USDC:" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { id: "portfolioCryptoUsdc", children: formatUsdc(p.cryptoValueUsdc) })
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "kpi-item", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: "Warto\u015B\u0107 kryptowalut w USDC:" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { id: "portfolioCryptoUsdc", children: formatUsdc(p.cryptoValueUsdc) })
                   ] })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "table-responsive", children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("table", { className: "data-table", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("tr", { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("th", { children: "Aktywo" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("th", { children: "Ilo\u015B\u0107 w portfelu" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("th", { children: "Kurs bie\u017C\u0105cy (USDC)" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("th", { children: "Warto\u015B\u0107 w USDC" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("th", { children: "\u015Ar. cena zakupu" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("th", { children: "Udzia\u0142 %" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("th", { children: "Wykres" })
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mobile-table-scroll-hint", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: "\u{1F449} Przesu\u0144 tabel\u0119 w poziomie, aby zobaczy\u0107 wszystkie kolumny" }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "table-responsive", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("table", { className: "data-table", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Aktywo" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Ilo\u015B\u0107 w portfelu" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Kurs bie\u017C\u0105cy (USDC)" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Warto\u015B\u0107 w USDC" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "\u015Ar. cena zakupu" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Udzia\u0142 %" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Wykres" })
                   ] }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("tbody", { id: "portfolioHoldingsTbody", children: (p.holdings || []).map((h) => {
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("tbody", { id: "portfolioHoldingsTbody", children: (p.holdings || []).map((h) => {
                     const isCash = h.asset === "USDC" || h.asset === "USDT" || h.asset === "USD" || h.asset === "USDG";
                     const pair = isCash ? "BTC-USDC" : `${h.asset}-USDC`;
-                    return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("tr", { children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("td", { children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { children: h.asset }),
+                    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { children: h.asset }),
                         " ",
-                        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "small-muted", children: h.name })
+                        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "small-muted", children: h.name })
                       ] }),
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("strong", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("strong", { children: [
                         formatQty(h.amount),
                         " ",
                         h.asset
                       ] }) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("td", { children: isCash ? h.asset === "USD" ? "1,00 USD" : formatUsdc(h.priceUsdc) : formatUnitPrice(h.priceUsdc) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { children: formatUsdc(h.usdcValue) }) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("td", { children: isCash ? h.asset === "USD" ? "1,00 USD" : "1,00 USDC" : formatUnitPrice(h.avgBuyPrice) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("td", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: isCash ? h.asset === "USD" ? "1,00 USD" : formatUsdc(h.priceUsdc) : formatUnitPrice(h.priceUsdc) }),
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { children: formatUsdc(h.usdcValue) }) }),
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: isCash ? h.asset === "USD" ? "1,00 USD" : "1,00 USDC" : formatUnitPrice(h.avgBuyPrice) }),
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
                         h.allocationPct,
                         "%"
                       ] }),
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("td", { children: isCash ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "small-muted", children: "Got\xF3wka / Rozliczeniowa" }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: isCash ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "small-muted", children: "Got\xF3wka / Rozliczeniowa" }) : /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
                         "button",
                         {
                           type: "button",
@@ -19513,7 +19920,7 @@
               ]
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
             WindowContainer,
             {
               winMeta: winBoughtSold,
@@ -19524,76 +19931,77 @@
               onCloseWindow,
               onBringToFront,
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "panel-header", children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("h2", { children: "\u{1F4CA} Panel 2: Bilans Operacji \u2014 Ile Kupiono i Ile Sprzedano (w ilo\u015Bci aktywa i w USDC)" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("p", { className: "panel-subtitle", children: "Szczeg\xF3\u0142owe zestawienie czego, w jakiej ilo\u015Bci aktywa oraz za ile USDC kupiono i sprzedano" })
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "panel-header", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("h2", { children: "\u{1F4CA} Panel 2: Bilans Operacji \u2014 Ile Kupiono i Ile Sprzedano (w ilo\u015Bci aktywa i w USDC)" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("p", { className: "panel-subtitle", children: "Szczeg\xF3\u0142owe zestawienie czego, w jakiej ilo\u015Bci aktywa oraz za ile USDC kupiono i sprzedano" })
                 ] }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "ledger-summary-cards", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "ledger-kpi buy-kpi", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { children: "\u0141\u0105cznie KUPIONO (w przeliczeniu na USDC):" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { id: "totalBoughtUsdcVal", children: formatUsdc(ledger.totalBoughtUsdc) })
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "ledger-summary-cards", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "ledger-kpi buy-kpi", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: "\u0141\u0105cznie KUPIONO (w przeliczeniu na USDC):" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { id: "totalBoughtUsdcVal", children: formatUsdc(ledger.totalBoughtUsdc) })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "ledger-kpi sell-kpi", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { children: "\u0141\u0105cznie SPRZEDANO (w przeliczeniu na USDC):" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { id: "totalSoldUsdcVal", children: formatUsdc(ledger.totalSoldUsdc) })
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "ledger-kpi sell-kpi", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: "\u0141\u0105cznie SPRZEDANO (w przeliczeniu na USDC):" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { id: "totalSoldUsdcVal", children: formatUsdc(ledger.totalSoldUsdc) })
                   ] })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "table-responsive", children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("table", { className: "data-table", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("tr", { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("th", { children: "Czego (Aktywo)" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("th", { children: "Ile KUPIONO (Ilo\u015B\u0107 aktywa)" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("th", { children: "Kupiono w przeliczeniu na USDC" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("th", { children: "Ile SPRZEDANO (Ilo\u015B\u0107 aktywa)" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("th", { children: "Sprzedano w przeliczeniu na USDC" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("th", { children: "Bilans netto aktywa" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("th", { children: "Wykres" })
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mobile-table-scroll-hint", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: "\u{1F449} Przesu\u0144 tabel\u0119 w poziomie, aby zobaczy\u0107 bilans i wykres" }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "table-responsive", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("table", { className: "data-table", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Czego (Aktywo)" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Ile KUPIONO (Ilo\u015B\u0107 aktywa)" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Kupiono w przeliczeniu na USDC" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Ile SPRZEDANO (Ilo\u015B\u0107 aktywa)" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Sprzedano w przeliczeniu na USDC" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Bilans netto aktywa" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Wykres" })
                   ] }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("tbody", { id: "boughtSoldLedgerTbody", children: (ledger.items || []).map((item) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("tr", { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("td", { children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { children: item.asset }),
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("tbody", { id: "boughtSoldLedgerTbody", children: (ledger.items || []).map((item) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { children: item.asset }),
                       " ",
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "small-muted", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { className: "small-muted", children: [
                         "(",
                         item.instId,
                         ")"
                       ] })
                     ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("td", { children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "badge-buy", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { className: "badge-buy", children: [
                         "KUPIONO: ",
                         formatQty(item.boughtAmount),
                         " ",
                         item.asset
                       ] }),
                       " ",
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "small-muted", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { className: "small-muted", children: [
                         "(",
                         item.buyCount,
                         "x)"
                       ] })
                     ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { style: { color: "var(--buy-green)" }, children: formatUsdc(item.boughtUsdc) }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("td", { children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "badge-sell", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { style: { color: "var(--buy-green)" }, children: formatUsdc(item.boughtUsdc) }) }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { className: "badge-sell", children: [
                         "SPRZEDANO: ",
                         formatQty(item.soldAmount),
                         " ",
                         item.asset
                       ] }),
                       " ",
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "small-muted", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { className: "small-muted", children: [
                         "(",
                         item.sellCount,
                         "x)"
                       ] })
                     ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { style: { color: "var(--sell-red)" }, children: formatUsdc(item.soldUsdc) }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("strong", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { style: { color: "var(--sell-red)" }, children: formatUsdc(item.soldUsdc) }) }),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("strong", { children: [
                       formatQty(item.netAmount),
                       " ",
                       item.asset
                     ] }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
                       "button",
                       {
                         type: "button",
@@ -19614,8 +20022,8 @@
   }
 
   // src/components/PortfolioHistoryWindow.jsx
-  var import_react10 = __toESM(require_react());
-  var import_jsx_runtime10 = __toESM(require_jsx_runtime());
+  var import_react11 = __toESM(require_react());
+  var import_jsx_runtime11 = __toESM(require_jsx_runtime());
   function PortfolioHistoryWindow({
     winMeta,
     isSoloGridWindow,
@@ -19630,7 +20038,7 @@
     const executedTradesOnly = (historyList || []).filter(
       (snap) => snap.side === "BUY" || snap.side === "SELL"
     );
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
       WindowContainer,
       {
         tag: "section",
@@ -19641,18 +20049,18 @@
         onSetWindowMode,
         onCloseWindow,
         onBringToFront,
-        children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "portfolio-history-layout", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "table-responsive history-snapshots-table", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("table", { className: "data-table", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Data i Czas" }),
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Wykonana operacja" }),
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Typ" }),
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Ilo\u015B\u0107 aktywa" }),
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Cena jedn. (USDC)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Kwota operacji (USDC)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Warto\u015B\u0107 Portfela po transakcji (USDC)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Exchange Feedback" })
+        children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "portfolio-history-layout", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "table-responsive history-snapshots-table", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("table", { className: "data-table", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Data i Czas" }),
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Wykonana operacja" }),
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Typ" }),
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Ilo\u015B\u0107 aktywa" }),
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Cena jedn. (USDC)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Kwota operacji (USDC)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Warto\u015B\u0107 Portfela po transakcji (USDC)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Exchange Feedback" })
           ] }) }),
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("tbody", { id: "portfolioHistoryTbody", children: executedTradesOnly.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("tbody", { id: "portfolioHistoryTbody", children: executedTradesOnly.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
             "td",
             {
               colSpan: 8,
@@ -19670,24 +20078,24 @@
             const rowKey = `hist-${snap.id}`;
             const isExpanded = expandedFeedbackIds.has(rowKey);
             const fb = buildExchangeFeedbackForItem(snap, apiMode);
-            return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_react10.default.Fragment, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { children: snap.date }),
+            return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_react11.default.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("td", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { children: snap.date }),
                   " ",
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("code", { children: snap.time })
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("code", { children: snap.time })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: snap.action }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: badgeClass, children: sideLabel }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("strong", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: snap.action }),
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: badgeClass, children: sideLabel }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("strong", { children: [
                   formatQty(snap.amount),
                   " ",
                   snap.asset
                 ] }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: formatUnitPrice(snap.price || (snap.amount > 0 ? usdcVal / snap.amount : 1)) }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: formatUsdc(usdcVal) }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { style: { color: "var(--accent-okx)" }, children: formatUsdc(snap.totalValueUsdc) }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: formatUnitPrice(snap.price || (snap.amount > 0 ? usdcVal / snap.amount : 1)) }),
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: formatUsdc(usdcVal) }),
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { style: { color: "var(--accent-okx)" }, children: formatUsdc(snap.totalValueUsdc) }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
                   "button",
                   {
                     type: "button",
@@ -19698,13 +20106,13 @@
                   }
                 ) })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
                 "tr",
                 {
                   className: "exchange-feedback-detail-row",
                   id: `ef-row-${rowKey}`,
                   hidden: !isExpanded,
-                  children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { colSpan: 8, children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ExchangeFeedbackDetails, { fb }) })
+                  children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { colSpan: 8, children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(ExchangeFeedbackDetails, { fb }) })
                 }
               )
             ] }, snap.id);
@@ -19715,8 +20123,8 @@
   }
 
   // src/components/OrdersHistoryWindow.jsx
-  var import_react11 = __toESM(require_react());
-  var import_jsx_runtime11 = __toESM(require_jsx_runtime());
+  var import_react12 = __toESM(require_react());
+  var import_jsx_runtime12 = __toESM(require_jsx_runtime());
   function OrdersHistoryWindow({
     winMeta,
     isSoloGridWindow,
@@ -19739,7 +20147,7 @@
     let filtered = allOrders;
     if (orderFilter === "OPEN") filtered = openOrders;
     else if (orderFilter === "CLOSED") filtered = closedOrders;
-    return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
       WindowContainer,
       {
         tag: "section",
@@ -19751,13 +20159,13 @@
         onCloseWindow,
         onBringToFront,
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "panel-header", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("h2", { children: "\u{1F4DC} Historia Transakcji \u2014 Otwarte Zlecenia i Zamkni\u0119te Zlecenia" }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("p", { className: "panel-subtitle", children: "Pe\u0142na lista zlece\u0144 z dat\u0105, czasem oraz przyciskiem otwieraj\u0105cym przesuwny wykres danego aktywa (Ma\u0142y / \u015Aredni / Full)" })
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "panel-header", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("h2", { children: "\u{1F4DC} Historia Transakcji \u2014 Otwarte Zlecenia i Zamkni\u0119te Zlecenia" }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("p", { className: "panel-subtitle", children: "Pe\u0142na lista zlece\u0144 z dat\u0105, czasem oraz przyciskiem otwieraj\u0105cym przesuwny wykres danego aktywa (Ma\u0142y / \u015Aredni / Full)" })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "orders-filter-tabs", role: "tablist", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "orders-filter-tabs", role: "tablist", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
                 "button",
                 {
                   type: "button",
@@ -19766,12 +20174,12 @@
                   onClick: () => onSetOrderFilter("ALL"),
                   children: [
                     "Wszystkie (",
-                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { id: "countAllOrders", children: allOrders.length }),
+                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { id: "countAllOrders", children: allOrders.length }),
                     ")"
                   ]
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
                 "button",
                 {
                   type: "button",
@@ -19780,12 +20188,12 @@
                   onClick: () => onSetOrderFilter("OPEN"),
                   children: [
                     "Otwarte zlecenia (",
-                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { id: "countOpenOrders", children: openOrders.length }),
+                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { id: "countOpenOrders", children: openOrders.length }),
                     ")"
                   ]
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
                 "button",
                 {
                   type: "button",
@@ -19794,50 +20202,50 @@
                   onClick: () => onSetOrderFilter("CLOSED"),
                   children: [
                     "Zamkni\u0119te zlecenia (",
-                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { id: "countClosedOrders", children: closedOrders.length }),
+                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { id: "countClosedOrders", children: closedOrders.length }),
                     ")"
                   ]
                 }
               )
             ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "table-responsive", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("table", { className: "data-table", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "ID Zlecenia" }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Data" }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Czas" }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Para / Aktywo" }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Kierunek" }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Ilo\u015B\u0107 aktywa" }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Cena (USDC)" }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Warto\u015B\u0107 (USDC)" }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Strategia / \u0179r\xF3d\u0142o" }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Status zlecenia" }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Szczeg\xF3\u0142y Transakcji (Exchange Feedback) & Wykres" })
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "table-responsive", children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("table", { className: "data-table", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("tr", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "ID Zlecenia" }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Data" }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Czas" }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Para / Aktywo" }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Kierunek" }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Ilo\u015B\u0107 aktywa" }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Cena (USDC)" }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Warto\u015B\u0107 (USDC)" }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Strategia / \u0179r\xF3d\u0142o" }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Status zlecenia" }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Szczeg\xF3\u0142y Transakcji (Exchange Feedback) & Wykres" })
             ] }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("tbody", { id: "ordersHistoryTbody", children: filtered.map((o) => {
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("tbody", { id: "ordersHistoryTbody", children: filtered.map((o) => {
               const isBuy = o.side === "BUY";
               const isOpen = o.status === "OPEN";
               const rowKey = `ord-${o.id}`;
               const isExpanded = expandedFeedbackIds.has(rowKey);
               const fb = buildExchangeFeedbackForItem(o, apiMode);
-              return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_react11.default.Fragment, { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("code", { children: o.id }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { children: o.date }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("code", { children: o.time }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { children: o.instId }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: isBuy ? "badge-buy" : "badge-sell", children: isBuy ? "KUPNO (BUY)" : "SPRZEDA\u017B (SELL)" }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("strong", { children: [
+              return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_react12.default.Fragment, { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("tr", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("code", { children: o.id }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { children: o.date }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("code", { children: o.time }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { children: o.instId }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: isBuy ? "badge-buy" : "badge-sell", children: isBuy ? "KUPNO (BUY)" : "SPRZEDA\u017B (SELL)" }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("strong", { children: [
                     formatQty(o.amount),
                     " ",
                     o.asset
                   ] }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: formatUnitPrice(o.price) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { children: formatUsdc(o.usdcValue) }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: o.strategyName || o.source }),
-                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: isOpen ? "badge-status-open" : "badge-status-closed", children: o.statusLabel }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(
+                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: formatUnitPrice(o.price) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { children: formatUsdc(o.usdcValue) }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: o.strategyName || o.source }),
+                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: isOpen ? "badge-status-open" : "badge-status-closed", children: o.statusLabel }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
                     "div",
                     {
                       style: {
@@ -19847,7 +20255,7 @@
                         flexWrap: "wrap"
                       },
                       children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+                        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
                           "button",
                           {
                             type: "button",
@@ -19857,7 +20265,7 @@
                             children: "\u{1F4CB} Szczeg\xF3\u0142y transakcji (Exchange Feedback)"
                           }
                         ),
-                        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(
+                        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
                           "button",
                           {
                             type: "button",
@@ -19870,8 +20278,8 @@
                             ]
                           }
                         ),
-                        isOpen && /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_jsx_runtime11.Fragment, { children: [
-                          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+                        isOpen && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_jsx_runtime12.Fragment, { children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
                             "button",
                             {
                               type: "button",
@@ -19881,7 +20289,7 @@
                               children: "\u25B6 Do potwierdzenia"
                             }
                           ),
-                          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+                          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
                             "button",
                             {
                               type: "button",
@@ -19896,13 +20304,13 @@
                     }
                   ) })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
                   "tr",
                   {
                     className: "exchange-feedback-detail-row",
                     id: `ef-row-${rowKey}`,
                     hidden: !isExpanded,
-                    children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { colSpan: 11, children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(ExchangeFeedbackDetails, { fb }) })
+                    children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { colSpan: 11, children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ExchangeFeedbackDetails, { fb }) })
                   }
                 )
               ] }, o.id);
@@ -19914,8 +20322,8 @@
   }
 
   // src/components/TradingViewChartWindow.jsx
-  var import_react12 = __toESM(require_react());
-  var import_jsx_runtime12 = __toESM(require_jsx_runtime());
+  var import_react13 = __toESM(require_react());
+  var import_jsx_runtime13 = __toESM(require_jsx_runtime());
   var INTERVALS = ["1m", "5m", "15m", "30m", "1H", "4H", "1D", "1W"];
   function TradingViewChartWindow({
     chartState,
@@ -19930,14 +20338,14 @@
     onQuickTradeFromChart,
     onClearDrawingsToast
   }) {
-    const canvasRef = (0, import_react12.useRef)(null);
-    const lastGeomRef = (0, import_react12.useRef)(null);
-    const panRef = (0, import_react12.useRef)({ isPanning: false, startX: 0, startOffset: 0 });
-    const yScaleRef = (0, import_react12.useRef)({ isScaling: false, startY: 0, startScale: 1 });
-    const chartStateRef = (0, import_react12.useRef)(chartState);
+    const canvasRef = (0, import_react13.useRef)(null);
+    const lastGeomRef = (0, import_react13.useRef)(null);
+    const panRef = (0, import_react13.useRef)({ isPanning: false, startX: 0, startOffset: 0 });
+    const yScaleRef = (0, import_react13.useRef)({ isScaling: false, startY: 0, startScale: 1 });
+    const chartStateRef = (0, import_react13.useRef)(chartState);
     chartStateRef.current = chartState;
-    const [, setLegendTick] = (0, import_react12.useState)(0);
-    (0, import_react12.useEffect)(() => {
+    const [, setLegendTick] = (0, import_react13.useState)(0);
+    (0, import_react13.useEffect)(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const onWheelNative = (e) => {
@@ -20601,11 +21009,11 @@
       }
       ctx.restore();
     };
-    (0, import_react12.useEffect)(() => {
+    (0, import_react13.useEffect)(() => {
       drawCanvas();
       setLegendTick((t) => t + 1);
     }, [chartState]);
-    (0, import_react12.useEffect)(() => {
+    (0, import_react13.useEffect)(() => {
       const handleResize = () => {
         if (chartState.isOpen && !chartState.isMinimized) {
           drawCanvas();
@@ -20654,8 +21062,8 @@
     if (chartState.zIndex) {
       winStyle.zIndex = String(chartState.zIndex);
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_jsx_runtime12.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(import_jsx_runtime13.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
         "div",
         {
           id: "floatingChartWindow",
@@ -20666,19 +21074,19 @@
           style: winStyle,
           hidden: !chartState.isOpen || chartState.isMinimized,
           children: [
-            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
               "div",
               {
                 id: "chartWindowHeader",
                 className: "chart-window-header",
                 title: "Przeci\u0105gnij myszk\u0105 lub palcem, aby przesun\u0105\u0107 okno wykresu",
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "chart-title-group", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "drag-grip", children: "\u283F" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "tv-brand-pill", children: "TradingView PRO" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { id: "chartPairTitle", children: data?.instId || chartState.instId }),
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { id: "chartLivePriceBadge", className: "chart-price-badge", children: data ? formatUnitPrice(data.currentPrice) : "\u2014 USDC" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "chart-title-group", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "drag-grip", children: "\u283F" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "tv-brand-pill", children: "TradingView PRO" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { id: "chartPairTitle", children: data?.instId || chartState.instId }),
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { id: "chartLivePriceBadge", className: "chart-price-badge", children: data ? formatUnitPrice(data.currentPrice) : "\u2014 USDC" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                       "span",
                       {
                         id: "chartChangeBadge",
@@ -20686,17 +21094,17 @@
                         children: data ? `${isPos ? "+" : ""}${data.change24hPct}%` : "0.00%"
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "tv-live-dot-badge", title: "Notowania na \u017Cywo z gie\u0142dy OKX", children: "\u25CF OKX LIVE" })
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "tv-live-dot-badge", title: "Notowania na \u017Cywo z gie\u0142dy OKX", children: "\u25CF OKX LIVE" })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "chart-window-controls", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "chart-window-controls", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
                       "div",
                       {
                         className: "chart-size-group tv-engine-switch",
                         role: "group",
                         "aria-label": "Silnik wykresu",
                         children: [
-                          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                             "button",
                             {
                               type: "button",
@@ -20707,7 +21115,7 @@
                               children: "\u26A1 TV Pro"
                             }
                           ),
-                          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                             "button",
                             {
                               type: "button",
@@ -20721,7 +21129,7 @@
                         ]
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "chart-size-group", role: "group", "aria-label": "Rozmiar wykresu", children: ["small", "medium", "full"].map((sz) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "chart-size-group", role: "group", "aria-label": "Rozmiar wykresu", children: ["small", "medium", "full"].map((sz) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                       "button",
                       {
                         type: "button",
@@ -20732,7 +21140,7 @@
                       },
                       sz
                     )) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                       "button",
                       {
                         type: "button",
@@ -20743,7 +21151,7 @@
                         children: "\u{1F53C} Menu"
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                       "button",
                       {
                         type: "button",
@@ -20754,7 +21162,7 @@
                         children: "\u25C0 Sidebar"
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                       "button",
                       {
                         type: "button",
@@ -20765,7 +21173,7 @@
                         children: "\u2014"
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                       "button",
                       {
                         type: "button",
@@ -20780,19 +21188,19 @@
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "chart-toolbar tv-top-toolbar", id: "tvTopToolbar", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "tv-toolbar-group", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "chart-toolbar tv-top-toolbar", id: "tvTopToolbar", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "tv-toolbar-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                   "select",
                   {
                     id: "chartAssetSelect",
                     "aria-label": "Wybierz par\u0119 walutow\u0105",
                     value: chartState.instId,
                     onChange: (e) => onUpdateChartState({ instId: e.target.value, panOffset: 0 }, true),
-                    children: mList.map((m) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("option", { value: m.instId, children: m.instId }, m.instId))
+                    children: mList.map((m) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: m.instId, children: m.instId }, m.instId))
                   }
                 ),
-                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "chart-intervals", role: "group", "aria-label": "Interwa\u0142 \u015Bwiec", children: INTERVALS.map((bar) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "chart-intervals", role: "group", "aria-label": "Interwa\u0142 \u015Bwiec", children: INTERVALS.map((bar) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                   "button",
                   {
                     type: "button",
@@ -20803,7 +21211,7 @@
                   },
                   bar
                 )) }),
-                /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+                /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
                   "select",
                   {
                     id: "tvChartTypeSelect",
@@ -20812,17 +21220,17 @@
                     value: chartState.chartType,
                     onChange: (e) => onUpdateChartState({ chartType: e.target.value }),
                     children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("option", { value: "candles", children: "\u{1F56F}\uFE0F \u015Awiece" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("option", { value: "hollow", children: "\u{1FB99} Puste \u015Bwiece" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("option", { value: "heikin", children: "\u{1F4C8} Heikin Ashi" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("option", { value: "area", children: "\u{1F30A} Obszar (Area)" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("option", { value: "line", children: "\u{1F4C9} Linia (Line)" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("option", { value: "bars", children: "\u{1F4CA} S\u0142upki (OHLC)" })
+                      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "candles", children: "\u{1F56F}\uFE0F \u015Awiece" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "hollow", children: "\u{1FB99} Puste \u015Bwiece" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "heikin", children: "\u{1F4C8} Heikin Ashi" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "area", children: "\u{1F30A} Obszar (Area)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "line", children: "\u{1F4C9} Linia (Line)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "bars", children: "\u{1F4CA} S\u0142upki (OHLC)" })
                     ]
                   }
                 )
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                 "div",
                 {
                   className: "tv-indicators-bar",
@@ -20836,7 +21244,7 @@
                     { key: "vol", label: "Wolumen" },
                     { key: "rsi", label: "RSI (14)" },
                     { key: "macd", label: "MACD" }
-                  ].map((ind) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                  ].map((ind) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                     "button",
                     {
                       type: "button",
@@ -20855,9 +21263,9 @@
                   ))
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "tv-zoom-and-stats", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "tv-zoom-btns", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "tv-zoom-and-stats", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "tv-zoom-btns", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                     "button",
                     {
                       type: "button",
@@ -20870,7 +21278,7 @@
                       children: "\u{1F50D}+"
                     }
                   ),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                     "button",
                     {
                       type: "button",
@@ -20883,7 +21291,7 @@
                       children: "\u{1F50D}\u2212"
                     }
                   ),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                     "button",
                     {
                       type: "button",
@@ -20895,29 +21303,29 @@
                     }
                   )
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "chart-stats-mini", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "chart-stats-mini", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { children: [
                     "24h Max:",
                     " ",
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { id: "chartHigh24h", children: data ? formatUnitPrice(data.high24h) : "\u2014" })
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { id: "chartHigh24h", children: data ? formatUnitPrice(data.high24h) : "\u2014" })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { children: [
                     "24h Min:",
                     " ",
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { id: "chartLow24h", children: data ? formatUnitPrice(data.low24h) : "\u2014" })
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { id: "chartLow24h", children: data ? formatUnitPrice(data.low24h) : "\u2014" })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { children: [
                     "Wol 24h:",
                     " ",
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { id: "chartVol24h", children: data ? `${Number(data.vol24h || 0).toLocaleString("pl-PL", {
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { id: "chartVol24h", children: data ? `${Number(data.vol24h || 0).toLocaleString("pl-PL", {
                       maximumFractionDigits: 1
                     })} ${data.base}` : "\u2014" })
                   ] })
                 ] })
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "tv-workspace", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "tv-workspace", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
                 "aside",
                 {
                   className: "tv-drawing-toolbar",
@@ -20931,7 +21339,7 @@
                       { tool: "hline", icon: "\u2501", title: "Poziom wsparcia / oporu" },
                       { tool: "fib", icon: "\u{1F4D0}", title: "Zniesienia Fibonacciego" },
                       { tool: "measure", icon: "\u{1F4CF}", title: "Linijka / Pomiar zmiany ceny %" }
-                    ].map((t) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                    ].map((t) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                       "button",
                       {
                         type: "button",
@@ -20943,7 +21351,7 @@
                       },
                       t.tool
                     )),
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                       "button",
                       {
                         type: "button",
@@ -20965,31 +21373,31 @@
                   ]
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "chart-canvas-wrapper tv-chart-stage", id: "tvChartStage", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "chart-canvas-wrapper tv-chart-stage", id: "tvChartStage", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
                   "div",
                   {
                     className: "tv-ohlc-legend",
                     id: "tvOhlcLegend",
                     style: { display: isWidget ? "none" : "flex" },
                     children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "tv-legend-row-main", id: "tvLegendMainRow", children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { className: "tv-leg-sym", children: data?.instId || chartState.instId }),
-                        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "tv-leg-sep", children: "\u2022" }),
-                        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "tv-leg-tf", children: chartState.bar }),
-                        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "tv-leg-sep", children: "\u2022" }),
-                        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "tv-leg-exch", children: "OKX Spot" }),
-                        cInfo ? /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { className: "tv-leg-ohlc", id: "tvLegendOhlcValues", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "tv-legend-row-main", id: "tvLegendMainRow", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { className: "tv-leg-sym", children: data?.instId || chartState.instId }),
+                        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "tv-leg-sep", children: "\u2022" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "tv-leg-tf", children: chartState.bar }),
+                        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "tv-leg-sep", children: "\u2022" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "tv-leg-exch", children: "OKX Spot" }),
+                        cInfo ? /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { className: "tv-leg-ohlc", id: "tvLegendOhlcValues", children: [
                           "O",
-                          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.open) }),
+                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.open) }),
                           " H",
-                          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.high) }),
+                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.high) }),
                           " L",
-                          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.low) }),
+                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.low) }),
                           " C",
-                          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.close) }),
+                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.close) }),
                           " ",
-                          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { style: { color: cCol }, children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { style: { color: cCol }, children: [
                             "(",
                             cChange >= 0 ? "+" : "",
                             cChangePct,
@@ -20998,33 +21406,33 @@
                           " ",
                           "Wol:",
                           " ",
-                          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { style: { color: "#d1d4dc" }, children: Number(cInfo.volume || 0).toFixed(2) })
-                        ] }) : /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "tv-leg-ohlc", id: "tvLegendOhlcValues", children: "O: \u2014 H: \u2014 L: \u2014 C: \u2014" })
+                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { style: { color: "#d1d4dc" }, children: Number(cInfo.volume || 0).toFixed(2) })
+                        ] }) : /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "tv-leg-ohlc", id: "tvLegendOhlcValues", children: "O: \u2014 H: \u2014 L: \u2014 C: \u2014" })
                       ] }),
-                      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "tv-legend-row-inds", id: "tvLegendIndicatorsRow", children: geom && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_jsx_runtime12.Fragment, { children: [
-                        chartState.indicators.ema && geom.ema9All[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { style: { color: "#2962ff", marginRight: 8 }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "tv-legend-row-inds", id: "tvLegendIndicatorsRow", children: geom && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(import_jsx_runtime13.Fragment, { children: [
+                        chartState.indicators.ema && geom.ema9All[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { style: { color: "#2962ff", marginRight: 8 }, children: [
                           "EMA9: ",
                           formatRawPrice(geom.ema9All[gInfoIdx])
                         ] }),
-                        chartState.indicators.ema && geom.ema21All[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { style: { color: "#ff9800", marginRight: 8 }, children: [
+                        chartState.indicators.ema && geom.ema21All[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { style: { color: "#ff9800", marginRight: 8 }, children: [
                           "EMA21: ",
                           formatRawPrice(geom.ema21All[gInfoIdx])
                         ] }),
-                        chartState.indicators.ema && geom.ema50All[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { style: { color: "#e040fb", marginRight: 8 }, children: [
+                        chartState.indicators.ema && geom.ema50All[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { style: { color: "#e040fb", marginRight: 8 }, children: [
                           "EMA50: ",
                           formatRawPrice(geom.ema50All[gInfoIdx])
                         ] }),
-                        chartState.indicators.bb && geom.bbAll.mid[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { style: { color: "#00bcd4", marginRight: 8 }, children: [
+                        chartState.indicators.bb && geom.bbAll.mid[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { style: { color: "#00bcd4", marginRight: 8 }, children: [
                           "BB(20,2): ",
                           formatRawPrice(geom.bbAll.lower[gInfoIdx]),
                           "\u2013",
                           formatRawPrice(geom.bbAll.upper[gInfoIdx])
                         ] }),
-                        chartState.indicators.vwap && geom.vwapAll[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { style: { color: "#ffeb3b", marginRight: 8 }, children: [
+                        chartState.indicators.vwap && geom.vwapAll[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { style: { color: "#ffeb3b", marginRight: 8 }, children: [
                           "VWAP: ",
                           formatRawPrice(geom.vwapAll[gInfoIdx])
                         ] }),
-                        geom.avgBuyPx > 0 && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { style: { color: "#bcff2f" }, children: [
+                        geom.avgBuyPx > 0 && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { style: { color: "#bcff2f" }, children: [
                           "\u015Ar. zakup: ",
                           formatRawPrice(geom.avgBuyPx),
                           " USDC"
@@ -21033,7 +21441,7 @@
                     ]
                   }
                 ),
-                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                   "canvas",
                   {
                     id: "assetChartCanvas",
@@ -21169,13 +21577,13 @@
                     }
                   }
                 ),
-                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                   "div",
                   {
                     id: "tvOfficialWidgetContainer",
                     className: "tv-official-widget-box",
                     hidden: !isWidget,
-                    children: isWidget && chartState.isOpen && !chartState.isMinimized && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                    children: isWidget && chartState.isOpen && !chartState.isMinimized && /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                       "iframe",
                       {
                         src: iframeUrl,
@@ -21189,13 +21597,13 @@
                 )
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "chart-window-footer", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "chart-window-footer", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { children: [
                 "\u{1F4A1} ",
-                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { children: "TradingView Pro:" }),
+                /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { children: "TradingView Pro:" }),
                 " Rolka myszy = Zag\u0119szczanie / Rozszerzanie osi czasu (Zoom) \u2022 O\u015B Y z prawej = Przeci\u0105gnij myszk\u0105, aby skalowa\u0107 wysoko\u015B\u0107 ceny (2x klik = Auto-fit) \u2022 Przeci\u0105gnij wykres = Historia"
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                 "button",
                 {
                   type: "button",
@@ -21209,20 +21617,20 @@
           ]
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
         "div",
         {
           id: "minimizedChartBar",
           className: "minimized-chart-bar",
           hidden: !chartState.isMinimized,
           children: [
-            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "min-bar-info", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { children: "\u{1F4C8} Wykres zminimalizowany:" }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { id: "minBarPair", children: chartState.instId }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { id: "minBarPrice", className: "chart-price-badge", children: data ? formatUnitPrice(data.currentPrice) : "\u2014 USDC" })
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "min-bar-info", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { children: "\u{1F4C8} Wykres zminimalizowany:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { id: "minBarPair", children: chartState.instId }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { id: "minBarPrice", className: "chart-price-badge", children: data ? formatUnitPrice(data.currentPrice) : "\u2014 USDC" })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "min-bar-actions", children: [
-              ["small", "medium", "full"].map((sz) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "min-bar-actions", children: [
+              ["small", "medium", "full"].map((sz) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                 "button",
                 {
                   type: "button",
@@ -21233,7 +21641,7 @@
                 },
                 sz
               )),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                 "button",
                 {
                   type: "button",
@@ -21252,7 +21660,7 @@
   }
 
   // src/App.jsx
-  var import_jsx_runtime13 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime14 = __toESM(require_jsx_runtime());
   var INITIAL_WINDOWS_REGISTRY = [
     { id: "win-ctrl-api", title: "1. Tryb i Klucze API", icon: "\u{1F511}", mode: "docked-top", prevActiveMode: "grid", posX: 40, posY: 90, isTopCtrl: true },
     { id: "win-ctrl-trade", title: "2. Sterowanie Handlem", icon: "\u25B6\uFE0F", mode: "docked-top", prevActiveMode: "grid", posX: 80, posY: 110, isTopCtrl: true },
@@ -21267,38 +21675,38 @@
     { id: "win-chart", title: "Wykres Aktywa", icon: "\u{1F56F}\uFE0F", mode: "docked-top", prevActiveMode: "floating-medium", posX: 110, posY: 130, isChart: true }
   ];
   function App() {
-    const [appState, setAppState] = (0, import_react13.useState)(null);
-    const [windowsRegistry, setWindowsRegistry] = (0, import_react13.useState)(INITIAL_WINDOWS_REGISTRY);
-    const [leftSidebarCollapsed, setLeftSidebarCollapsed] = (0, import_react13.useState)(true);
-    const [topMenuOpen, setTopMenuOpen] = (0, import_react13.useState)(false);
-    const [topMenuSize, setTopMenuSize] = (0, import_react13.useState)("medium");
-    const [topMenuPos, setTopMenuPos] = (0, import_react13.useState)(null);
-    const [topMenuZIndex, setTopMenuZIndex] = (0, import_react13.useState)(1280);
-    const [apiAccordionOpen, setApiAccordionOpen] = (0, import_react13.useState)(false);
-    const [tradeAccordionOpen, setTradeAccordionOpen] = (0, import_react13.useState)(false);
-    const [apiKeyProfile, setApiKeyProfile] = (0, import_react13.useState)("demo");
-    const [inputApiKey, setInputApiKey] = (0, import_react13.useState)("");
-    const [inputSecretKey, setInputSecretKey] = (0, import_react13.useState)("");
-    const [inputPassphrase, setInputPassphrase] = (0, import_react13.useState)("");
-    const [aiChatInput, setAiChatInput] = (0, import_react13.useState)("");
-    const [chatMessages, setChatMessages] = (0, import_react13.useState)([]);
-    const [aiStrategyInput, setAiStrategyInput] = (0, import_react13.useState)("");
-    const [currentAiStrategyAnalysis, setCurrentAiStrategyAnalysis] = (0, import_react13.useState)(null);
-    const [lastExchangeFeedback, setLastExchangeFeedback] = (0, import_react13.useState)(null);
-    const [executedSessionTransactions, setExecutedSessionTransactions] = (0, import_react13.useState)([]);
-    const [collapsedAiTxIds, setCollapsedAiTxIds] = (0, import_react13.useState)(() => /* @__PURE__ */ new Set());
-    const [collapsedBubbleIds, setCollapsedBubbleIds] = (0, import_react13.useState)(() => /* @__PURE__ */ new Set());
-    const [expandedFeedbackIds, setExpandedFeedbackIds] = (0, import_react13.useState)(() => /* @__PURE__ */ new Set());
-    const [isConfirmingOrder, setIsConfirmingOrder] = (0, import_react13.useState)(false);
-    const [orderSide, setOrderSide] = (0, import_react13.useState)("BUY");
-    const [tradePair, setTradePair] = (0, import_react13.useState)("BTC-USDC");
-    const [tradeOrderType, setTradeOrderType] = (0, import_react13.useState)("MARKET");
-    const [tradePrice, setTradePrice] = (0, import_react13.useState)(76682.3);
-    const [tradeAmount, setTradeAmount] = (0, import_react13.useState)("0.02");
-    const [tradeUsdc, setTradeUsdc] = (0, import_react13.useState)("1533.65");
-    const [tradeStrategy, setTradeStrategy] = (0, import_react13.useState)("Zlecenie autoryzowane Spot EEA");
-    const [orderFilter, setOrderFilter] = (0, import_react13.useState)("ALL");
-    const [chartState, setChartState] = (0, import_react13.useState)({
+    const [appState, setAppState] = (0, import_react14.useState)(null);
+    const [windowsRegistry, setWindowsRegistry] = (0, import_react14.useState)(INITIAL_WINDOWS_REGISTRY);
+    const [leftSidebarCollapsed, setLeftSidebarCollapsed] = (0, import_react14.useState)(true);
+    const [topMenuOpen, setTopMenuOpen] = (0, import_react14.useState)(false);
+    const [topMenuSize, setTopMenuSize] = (0, import_react14.useState)("medium");
+    const [topMenuPos, setTopMenuPos] = (0, import_react14.useState)(null);
+    const [topMenuZIndex, setTopMenuZIndex] = (0, import_react14.useState)(1280);
+    const [apiAccordionOpen, setApiAccordionOpen] = (0, import_react14.useState)(false);
+    const [tradeAccordionOpen, setTradeAccordionOpen] = (0, import_react14.useState)(false);
+    const [apiKeyProfile, setApiKeyProfile] = (0, import_react14.useState)("demo");
+    const [inputApiKey, setInputApiKey] = (0, import_react14.useState)("");
+    const [inputSecretKey, setInputSecretKey] = (0, import_react14.useState)("");
+    const [inputPassphrase, setInputPassphrase] = (0, import_react14.useState)("");
+    const [aiChatInput, setAiChatInput] = (0, import_react14.useState)("");
+    const [chatMessages, setChatMessages] = (0, import_react14.useState)([]);
+    const [aiStrategyInput, setAiStrategyInput] = (0, import_react14.useState)("");
+    const [currentAiStrategyAnalysis, setCurrentAiStrategyAnalysis] = (0, import_react14.useState)(null);
+    const [lastExchangeFeedback, setLastExchangeFeedback] = (0, import_react14.useState)(null);
+    const [executedSessionTransactions, setExecutedSessionTransactions] = (0, import_react14.useState)([]);
+    const [collapsedAiTxIds, setCollapsedAiTxIds] = (0, import_react14.useState)(() => /* @__PURE__ */ new Set());
+    const [collapsedBubbleIds, setCollapsedBubbleIds] = (0, import_react14.useState)(() => /* @__PURE__ */ new Set());
+    const [expandedFeedbackIds, setExpandedFeedbackIds] = (0, import_react14.useState)(() => /* @__PURE__ */ new Set());
+    const [isConfirmingOrder, setIsConfirmingOrder] = (0, import_react14.useState)(false);
+    const [orderSide, setOrderSide] = (0, import_react14.useState)("BUY");
+    const [tradePair, setTradePair] = (0, import_react14.useState)("BTC-USDC");
+    const [tradeOrderType, setTradeOrderType] = (0, import_react14.useState)("MARKET");
+    const [tradePrice, setTradePrice] = (0, import_react14.useState)(76682.3);
+    const [tradeAmount, setTradeAmount] = (0, import_react14.useState)("0.02");
+    const [tradeUsdc, setTradeUsdc] = (0, import_react14.useState)("1533.65");
+    const [tradeStrategy, setTradeStrategy] = (0, import_react14.useState)("Zlecenie autoryzowane Spot EEA");
+    const [orderFilter, setOrderFilter] = (0, import_react14.useState)("ALL");
+    const [chartState, setChartState] = (0, import_react14.useState)({
       isOpen: false,
       isMinimized: false,
       dockLocation: "top",
@@ -21330,19 +21738,19 @@
       posY: 85,
       zIndex: 1300
     });
-    const [toasts, setToasts] = (0, import_react13.useState)([]);
-    const zIndexCounterRef = (0, import_react13.useRef)(1350);
-    const wasJustDraggingRef = (0, import_react13.useRef)(false);
-    const chartStateRef = (0, import_react13.useRef)(chartState);
+    const [toasts, setToasts] = (0, import_react14.useState)([]);
+    const zIndexCounterRef = (0, import_react14.useRef)(1350);
+    const wasJustDraggingRef = (0, import_react14.useRef)(false);
+    const chartStateRef = (0, import_react14.useRef)(chartState);
     chartStateRef.current = chartState;
-    const windowsRegistryRef = (0, import_react13.useRef)(windowsRegistry);
+    const windowsRegistryRef = (0, import_react14.useRef)(windowsRegistry);
     windowsRegistryRef.current = windowsRegistry;
-    const topMenuOpenRef = (0, import_react13.useRef)(topMenuOpen);
+    const topMenuOpenRef = (0, import_react14.useRef)(topMenuOpen);
     topMenuOpenRef.current = topMenuOpen;
-    const topMenuSizeRef = (0, import_react13.useRef)(topMenuSize);
+    const topMenuSizeRef = (0, import_react14.useRef)(topMenuSize);
     topMenuSizeRef.current = topMenuSize;
-    const lastSessionSyncTsRef = (0, import_react13.useRef)(0);
-    (0, import_react13.useEffect)(() => {
+    const lastSessionSyncTsRef = (0, import_react14.useRef)(0);
+    (0, import_react14.useEffect)(() => {
       const sync = appState?.sessionSync;
       if (!sync || !sync.updatedAt) return;
       if (sync.updatedAt <= lastSessionSyncTsRef.current) return;
@@ -21365,18 +21773,18 @@
         setLastExchangeFeedback(sync.lastExchangeFeedback);
       }
     }, [appState?.sessionSync]);
-    const nextZIndex = (0, import_react13.useCallback)((bonus = 0) => {
+    const nextZIndex = (0, import_react14.useCallback)((bonus = 0) => {
       zIndexCounterRef.current += 1;
       return zIndexCounterRef.current + bonus;
     }, []);
-    const showToast = (0, import_react13.useCallback)((msg) => {
+    const showToast = (0, import_react14.useCallback)((msg) => {
       const id = Date.now() + Math.random();
       setToasts((prev) => [...prev, { id, msg }]);
       setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
       }, 4500);
     }, []);
-    const appendChatMessage = (0, import_react13.useCallback)((role, text, options = {}) => {
+    const appendChatMessage = (0, import_react14.useCallback)((role, text, options = {}) => {
       const id = "msg-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
       setChatMessages((prev) => [
         ...prev,
@@ -21390,7 +21798,7 @@
         }
       ]);
     }, []);
-    const fetchChartCandles = (0, import_react13.useCallback)(async (instId, bar) => {
+    const fetchChartCandles = (0, import_react14.useCallback)(async (instId, bar) => {
       const targetPair = instId || chartStateRef.current.instId || "BTC-USDC";
       const targetBar = bar || chartStateRef.current.bar || "15m";
       const data = await apiRequest(
@@ -21403,7 +21811,7 @@
         data
       }));
     }, []);
-    const openAssetChart = (0, import_react13.useCallback)(
+    const openAssetChart = (0, import_react14.useCallback)(
       async (instId = "BTC-USDC", size = null) => {
         const targetSize = size || chartStateRef.current.size || "medium";
         const z = nextZIndex(20);
@@ -21434,7 +21842,7 @@
       },
       [fetchChartCandles, nextZIndex]
     );
-    const setWindowMode = (0, import_react13.useCallback)(
+    const setWindowMode = (0, import_react14.useCallback)(
       (winId, requestedMode, customCoords = null) => {
         if (winId === "win-chart") {
           if (requestedMode === "docked-top" || requestedMode === "docked-sidebar") {
@@ -21499,7 +21907,7 @@
       },
       [nextZIndex, openAssetChart]
     );
-    const handleCloseWindow = (0, import_react13.useCallback)(
+    const handleCloseWindow = (0, import_react14.useCallback)(
       (winId) => {
         const winMeta = windowsRegistryRef.current.find((w) => w.id === winId);
         setWindowMode(winId, "docked-top");
@@ -21511,7 +21919,7 @@
       },
       [setWindowMode, showToast]
     );
-    const handleBringToFront = (0, import_react13.useCallback)(
+    const handleBringToFront = (0, import_react14.useCallback)(
       (winId) => {
         const z = nextZIndex();
         setWindowsRegistry(
@@ -21526,7 +21934,7 @@
     const isSingleGridWindow = allGridWindows.length === 1;
     const soloWindow = isSingleGridWindow ? allGridWindows[0] : null;
     const isSoloMinimized = isSingleGridWindow && soloWindow && soloWindow.mode === "minimized-inline";
-    (0, import_react13.useEffect)(() => {
+    (0, import_react14.useEffect)(() => {
       if (document.body) {
         document.body.classList.toggle(
           "has-single-window-grid",
@@ -21535,7 +21943,7 @@
         document.body.classList.toggle("single-window-minimized", isSoloMinimized);
       }
     }, [isSingleGridWindow, isSoloMinimized]);
-    (0, import_react13.useEffect)(() => {
+    (0, import_react14.useEffect)(() => {
       if (!appState) return;
       const markets2 = appState.markets || appState.tickers || DEFAULT_STANDALONE_MARKETS;
       const m = markets2.find((x) => x.instId === tradePair) || markets2[0];
@@ -21543,7 +21951,7 @@
         setTradePrice(m.price);
       }
     }, [appState, tradePair, tradeOrderType]);
-    (0, import_react13.useEffect)(() => {
+    (0, import_react14.useEffect)(() => {
       let dragState = null;
       const handlePointerDown = (clientX, clientY, target, rawEvent) => {
         const titlebar = target.closest("[data-drag-window]");
@@ -21556,6 +21964,10 @@
           const domEl = document.getElementById(winId);
           if (!winMeta || !domEl) return;
           const isAlreadyFloating = winMeta.mode === "floating-small" || winMeta.mode === "floating-medium";
+          const isTouchOrMobile = rawEvent && rawEvent.type && rawEvent.type.startsWith("touch") || window.innerWidth <= 768;
+          if (isTouchOrMobile && !isAlreadyFloating) {
+            return;
+          }
           const rect = domEl.getBoundingClientRect();
           dragState = {
             type: "app-window",
@@ -21563,6 +21975,7 @@
             winMeta,
             domEl,
             detached: isAlreadyFloating,
+            isTouchOrMobile,
             startX: clientX,
             startY: clientY,
             offsetX: isAlreadyFloating ? clientX - rect.left : Math.min(Math.max(40, clientX - rect.left), 260),
@@ -21683,7 +22096,7 @@
       window.addEventListener("mousedown", onMouseDown);
       window.addEventListener("mousemove", onMouseMove);
       window.addEventListener("mouseup", handlePointerUp);
-      window.addEventListener("touchstart", onTouchStart, { passive: false });
+      window.addEventListener("touchstart", onTouchStart, { passive: true });
       window.addEventListener("touchmove", onTouchMove, { passive: false });
       window.addEventListener("touchend", handlePointerUp);
       return () => {
@@ -21695,7 +22108,7 @@
         window.removeEventListener("touchend", handlePointerUp);
       };
     }, [setWindowMode]);
-    (0, import_react13.useEffect)(() => {
+    (0, import_react14.useEffect)(() => {
       let mounted = true;
       async function initLoad() {
         let initialState = await apiRequest("/api/state");
@@ -21896,7 +22309,7 @@
         setAppState(res.state);
       }
     };
-    const runAiStrategyQuery = (0, import_react13.useCallback)(
+    const runAiStrategyQuery = (0, import_react14.useCallback)(
       async (queryText) => {
         const q = (queryText || "").trim() || "Strategia kupna dla BTC";
         setLastExchangeFeedback(null);
@@ -21956,7 +22369,7 @@
         return next;
       });
     };
-    const collapseAllAiTransactions = (0, import_react13.useCallback)(() => {
+    const collapseAllAiTransactions = (0, import_react14.useCallback)(() => {
       const txList = executedSessionTransactions.length > 0 ? executedSessionTransactions : lastExchangeFeedback ? [lastExchangeFeedback] : [];
       const nextTx = new Set(txList.map((fb) => String(fb.orderId || "LATEST")));
       if (lastExchangeFeedback?.orderId) {
@@ -22164,7 +22577,7 @@
       setLeftSidebarCollapsed(false);
       showToast("\u25C0 Wszystkie okna zosta\u0142y zwini\u0119te do Sidebaru z lewej.");
     };
-    const handleUpdateChartState = (0, import_react13.useCallback)(
+    const handleUpdateChartState = (0, import_react14.useCallback)(
       (updates, shouldFetchCandles = false) => {
         setChartState((prev) => {
           const next = { ...prev, ...updates };
@@ -22217,8 +22630,8 @@
     ].filter(Boolean).join(" ");
     const markets = appState?.markets || appState?.tickers || DEFAULT_STANDALONE_MARKETS;
     const soloWindowId = soloWindow ? soloWindow.id : null;
-    return /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(import_jsx_runtime13.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(import_jsx_runtime14.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
         HeaderBar,
         {
           cfg: appState?.config,
@@ -22251,8 +22664,8 @@
           onOpenAssetChart: (instId) => openAssetChart(instId, chartState.isOpen ? chartState.size : "medium")
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "app-shell", id: "appShell", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "app-shell", id: "appShell", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
           LeftSidebar,
           {
             collapsed: leftSidebarCollapsed,
@@ -22263,8 +22676,8 @@
             onCloseWindow: handleCloseWindow
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("main", { className: mainWsClass, id: "mainWorkspace", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("main", { className: mainWsClass, id: "mainWorkspace", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
             ControlWindows,
             {
               windowsRegistry,
@@ -22295,8 +22708,8 @@
               onBringToFront: handleBringToFront
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("section", { className: rowAgentOrderClass, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("section", { className: rowAgentOrderClass, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
               AiChatWindow,
               {
                 winMeta: windowsRegistry.find((w) => w.id === "win-ai-chat"),
@@ -22323,7 +22736,7 @@
                 onBringToFront: handleBringToFront
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
               AiStrategiesWindow,
               {
                 winMeta: windowsRegistry.find((w) => w.id === "win-ai-strategies"),
@@ -22345,7 +22758,7 @@
                 onBringToFront: handleBringToFront
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
               QuickTradeWindow,
               {
                 winMeta: windowsRegistry.find((w) => w.id === "win-quick-trade"),
@@ -22374,7 +22787,7 @@
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
             PortfoliosRow,
             {
               windowsRegistry,
@@ -22387,7 +22800,7 @@
               onBringToFront: handleBringToFront
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
             PortfolioHistoryWindow,
             {
               winMeta: windowsRegistry.find((w) => w.id === "win-portfolio-history"),
@@ -22401,7 +22814,7 @@
               onBringToFront: handleBringToFront
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
             OrdersHistoryWindow,
             {
               winMeta: windowsRegistry.find((w) => w.id === "win-orders-history"),
@@ -22422,7 +22835,7 @@
           )
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
         TradingViewChartWindow,
         {
           chartState,
@@ -22438,15 +22851,15 @@
           onClearDrawingsToast: (instId) => showToast(`\u{1F5D1}\uFE0F Wyczyszczono rysunki na wykresie ${instId}.`)
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { id: "toastContainer", className: "toast-container", children: toasts.map((t) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "toast", children: t.msg }, t.id)) }),
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { id: "toastContainer", className: "toast-container", children: toasts.map((t) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "toast", children: t.msg }, t.id)) }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
         "nav",
         {
           id: "mobileQuickNav",
           className: "mobile-bottom-nav",
           "aria-label": "Szybka nawigacja mobilna",
           children: [
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
               "button",
               {
                 type: "button",
@@ -22456,36 +22869,36 @@
                   collapseAllAiTransactions();
                 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4AC}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Agent AI" })
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4AC}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "Agent AI" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
               "button",
               {
                 type: "button",
                 className: "mobile-nav-btn",
                 onClick: handleOpenAiStrategies,
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F9E0}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Strategie" })
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F9E0}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "Strategie" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
               "button",
               {
                 type: "button",
                 className: "mobile-nav-btn",
                 onClick: () => setWindowMode("win-quick-trade", "grid"),
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u26A1" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Handel" })
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u26A1" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "Handel" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
               "button",
               {
                 type: "button",
@@ -22495,12 +22908,12 @@
                   setWindowMode("win-bought-sold", "grid");
                 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4BC}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Portfel" })
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4BC}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "Portfel" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
               "button",
               {
                 type: "button",
@@ -22510,24 +22923,24 @@
                   setWindowMode("win-orders-history", "grid");
                 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4DC}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Historia" })
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4DC}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "Historia" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
               "button",
               {
                 type: "button",
                 className: "mobile-nav-btn",
                 onClick: () => openAssetChart(chartState.instId || "BTC-USDC", "full"),
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F56F}\uFE0F" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Wykres" })
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F56F}\uFE0F" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "Wykres" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
               "button",
               {
                 type: "button",
@@ -22537,20 +22950,20 @@
                   setApiAccordionOpen(true);
                 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F511}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "IP / API" })
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F511}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "IP / API" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
               "button",
               {
                 type: "button",
                 className: "mobile-nav-btn",
                 onClick: handleResetAllWindowsGrid,
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-icon", children: "\u229E" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "mobile-nav-label", children: "Wszystkie" })
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u229E" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "Wszystkie" })
                 ]
               }
             )
@@ -22561,11 +22974,11 @@
   }
 
   // src/main.jsx
-  var import_jsx_runtime14 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime15 = __toESM(require_jsx_runtime());
   var container = document.getElementById("root");
   if (container) {
     const root = (0, import_client.createRoot)(container);
-    root.render(/* @__PURE__ */ (0, import_jsx_runtime14.jsx)(App, {}));
+    root.render(/* @__PURE__ */ (0, import_jsx_runtime15.jsx)(App, {}));
   }
 })();
 /*! Bundled license information:

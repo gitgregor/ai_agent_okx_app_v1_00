@@ -106,6 +106,10 @@ export function PortfoliosRow({
           </div>
         </div>
 
+        <div className="mobile-table-scroll-hint">
+          <span>👉 Przesuń tabelę w poziomie, aby zobaczyć wszystkie kolumny</span>
+        </div>
+
         <div className="table-responsive">
           <table className="data-table">
             <thead>
@@ -209,6 +213,10 @@ export function PortfoliosRow({
             <span>Łącznie SPRZEDANO (w przeliczeniu na USDC):</span>
             <strong id="totalSoldUsdcVal">{formatUsdc(ledger.totalSoldUsdc)}</strong>
           </div>
+        </div>
+
+        <div className="mobile-table-scroll-hint">
+          <span>👉 Przesuń tabelę w poziomie, aby zobaczyć bilans i wykres</span>
         </div>
 
         <div className="table-responsive">

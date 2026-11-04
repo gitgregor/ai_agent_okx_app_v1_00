@@ -1,6 +1,7 @@
 import React from 'react';
 import { WindowContainer } from './WindowContainer';
 import { formatUsdc, formatQty, DEFAULT_STANDALONE_MARKETS } from '../engine/okxClientEngine';
+import { CryptoPairSelector } from './CryptoPairSelector';
 
 export function QuickTradeWindow({
   winMeta,
@@ -97,55 +98,17 @@ export function QuickTradeWindow({
           </button>
         </div>
 
-        <div className="form-group">
+        <div className="form-group form-group-pair-select">
           <label htmlFor="tradePairSelect">
-            Para kryptowalutowa Spot (Wszystkie rynki OKX — {mList.length} par):
+            Wybór pary kryptowalutowej Spot (Katalog rynków OKX — {mList.length} par):
           </label>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
-            <input
-              type="text"
-              className="trade-pair-search-input"
-              style={{
-                flex: 1,
-                padding: '6px 10px',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-input, #131722)',
-                color: 'var(--text-main, #d1d4dc)',
-                fontSize: '12px'
-              }}
-              placeholder="🔍 Filtruj pary (np. SOL, DOGE, PEPE, SUI, BTC)..."
-              value={pairFilter}
-              onChange={(e) => setPairFilter(e.target.value)}
-            />
-            {pairFilter && (
-              <button
-                type="button"
-                className="btn btn-outline-sm"
-                style={{ padding: '4px 8px', fontSize: '11px' }}
-                onClick={() => setPairFilter('')}
-                title="Wyczyść filtr"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-          <select
-            id="tradePairSelect"
-            value={tradePair}
-            onChange={(e) => onChangeTradePair(e.target.value)}
-          >
-            {!filteredMarkets.some((m) => m.instId === tradePair) && (
-              <option value={tradePair}>
-                {tradePair} (Aktualnie wybrana para)
-              </option>
-            )}
-            {filteredMarkets.map((m) => (
-              <option key={m.instId} value={m.instId}>
-                {m.instId} ({m.name || m.base} — {m.price} {m.quote})
-              </option>
-            ))}
-          </select>
+          <CryptoPairSelector
+            selectedPair={tradePair}
+            onSelectPair={(newPair) => onChangeTradePair(newPair)}
+            markets={mList}
+          />
+          {/* Kompatybilność z elementem id=tradePairSelect dla skryptów testowych */}
+          <input type="hidden" id="tradePairSelect" value={tradePair} readOnly />
         </div>
 
         <div className="form-row-2">

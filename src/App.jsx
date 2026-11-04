@@ -382,6 +382,16 @@ export function App() {
 
         const isAlreadyFloating =
           winMeta.mode === 'floating-small' || winMeta.mode === 'floating-medium';
+        const isTouchOrMobile =
+          (rawEvent && rawEvent.type && rawEvent.type.startsWith('touch')) ||
+          window.innerWidth <= 768;
+
+        // Na urządzeniach mobilnych dotyk na nagłówku okna siatki nie powinien odczepiać go do okna pływającego,
+        // aby nie blokować naturalnego pionowego przewijania strony palcem
+        if (isTouchOrMobile && !isAlreadyFloating) {
+          return;
+        }
+
         const rect = domEl.getBoundingClientRect();
 
         dragState = {
@@ -390,6 +400,7 @@ export function App() {
           winMeta,
           domEl,
           detached: isAlreadyFloating,
+          isTouchOrMobile,
           startX: clientX,
           startY: clientY,
           offsetX: isAlreadyFloating
@@ -536,7 +547,7 @@ export function App() {
     window.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', handlePointerUp);
-    window.addEventListener('touchstart', onTouchStart, { passive: false });
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
     window.addEventListener('touchmove', onTouchMove, { passive: false });
     window.addEventListener('touchend', handlePointerUp);
 

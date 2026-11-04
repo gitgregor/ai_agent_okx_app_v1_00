@@ -62,7 +62,7 @@ export function WindowTitlebar({
           title="Osadź w siatce"
           onClick={(e) => handleActionClick(e, 'grid')}
         >
-          ⊞ Siatka
+          <span>⊞</span> <span className="win-btn-label">Siatka</span>
         </button>
         <button
           type="button"
@@ -72,27 +72,27 @@ export function WindowTitlebar({
           title="Minimalizuj okno w miejscu"
           onClick={(e) => handleActionClick(e, 'minimized-inline')}
         >
-          —
+          <span>—</span>
         </button>
         <button
           type="button"
-          className={`win-ctrl-btn ${mode === 'floating-small' ? 'active' : ''}`}
+          className={`win-ctrl-btn ${mode === 'floating-small' || mode === 'floating-medium' ? 'active' : ''}`}
           data-win-id={winId}
           data-win-action="floating-small"
           title="Zmniejsz do małego okna przesuwnego"
           onClick={(e) => handleActionClick(e, 'floating-small')}
         >
-          🗗 Małe
+          <span>🗗</span> <span className="win-btn-label">Małe</span>
         </button>
         <button
           type="button"
-          className={`win-ctrl-btn ${mode === 'floating-medium' ? 'active' : ''}`}
+          className={`win-ctrl-btn win-ctrl-desktop-only ${mode === 'floating-medium' ? 'active' : ''}`}
           data-win-id={winId}
           data-win-action="floating-medium"
           title="Zmniejsz do średniego okna przesuwnego"
           onClick={(e) => handleActionClick(e, 'floating-medium')}
         >
-          🗗 Średnie
+          <span>🗗</span> <span className="win-btn-label">Średnie</span>
         </button>
         <button
           type="button"
@@ -102,7 +102,7 @@ export function WindowTitlebar({
           title="Otwórz na cały ekran"
           onClick={(e) => handleActionClick(e, 'fullscreen')}
         >
-          ⛶ Cały ekran
+          <span>⛶</span> <span className="win-btn-label">Cały</span>
         </button>
         <button
           type="button"
@@ -112,17 +112,17 @@ export function WindowTitlebar({
           title="Zwróć do Menu Górnego"
           onClick={(e) => handleActionClick(e, 'docked-top')}
         >
-          🔼 Menu
+          <span>🔼</span> <span className="win-btn-label">Menu</span>
         </button>
         <button
           type="button"
-          className={`win-ctrl-btn dock-btn ${mode === 'docked-sidebar' ? 'active' : ''}`}
+          className={`win-ctrl-btn dock-btn win-ctrl-desktop-only ${mode === 'docked-sidebar' ? 'active' : ''}`}
           data-win-id={winId}
           data-win-action="docked-sidebar"
           title="Zwróć do Sidebaru z lewej"
           onClick={(e) => handleActionClick(e, 'docked-sidebar')}
         >
-          ◀ Sidebar
+          <span>◀</span> <span className="win-btn-label">Sidebar</span>
         </button>
         <button
           type="button"
