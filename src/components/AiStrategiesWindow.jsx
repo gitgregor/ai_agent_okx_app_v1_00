@@ -66,12 +66,16 @@ export function AiStrategiesWindow({
   const [showHistory, setShowHistory] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
 
-  // Strategia wygenerowana w BIEŻĄCYM otwarciu okna (gdy okno zostanie zamknięte i otwarte na nowo, resetujemy)
+  // Strategia wygenerowana w BIEŻĄCYM otwarciu okna — domyślnie po otwarciu okna jest ZAMKNIĘTA/CZYSTA (null)
   const [activeSessionAnalysis, setActiveSessionAnalysis] = useState(null);
   const [isRecommendationOpen, setIsRecommendationOpen] = useState(false);
 
-  // Rozwinięte szczegóły w historii
+  // Rozwinięte szczegóły giełdowe w panelu historii
   const [expandedHistoryTxIds, setExpandedHistoryTxIds] = useState(new Set());
+
+  // Zapamiętujemy timestamp ostatniej analizy z momentu startu komponentu —
+  // dzięki temu stara analiza z poprzedniej sesji NIE pojawi się automatycznie na ekranie!
+  const prevAnalysisTsRef = useRef(currentAiStrategyAnalysis?.timestamp || 0);
 
   // Resetowanie po zamknięciu i ponownym otwarciu okna:
   // Okno po ponownym otwarciu ma być CZYSTE — nie pokazuje starej wykonanej strategii!
@@ -89,7 +93,7 @@ export function AiStrategiesWindow({
       curr === 'fullscreen';
 
     if (wasClosed && isNowOpen) {
-      // Okno zostało ponownie wywołane — czyścimy widok ostatniej strategii z głównego ekranu
+      // Okno zostało ponownie otwarte — czyścimy widok ostatniej strategii z głównego ekranu
       setActiveSessionAnalysis(null);
       setIsRecommendationOpen(false);
       setShowInstruction(false);
@@ -98,8 +102,7 @@ export function AiStrategiesWindow({
     }
   }, [winMeta?.mode]);
 
-  // Gdy użytkownik właśnie wygenerował nową analizę z formularza — pokazujemy ją w bieżącym oknie
-  const prevAnalysisTsRef = useRef(currentAiStrategyAnalysis?.timestamp || 0);
+  // TYLKO gdy użytkownik W TEJ CHWILI zada nowe zapytanie i powstanie NOWY timestamp — wtedy pokazujemy rekomendację
   useEffect(() => {
     if (
       currentAiStrategyAnalysis?.timestamp &&
@@ -134,7 +137,7 @@ export function AiStrategiesWindow({
   const candidateStrategies = [];
   const seenOrderIds = new Set();
 
-  // 1. Jeśli w trakcie realizacji jest activeTradeOrder (np. oczekuje na potwierdzenie lub in progress)
+  // 1. Zlecenie w trakcie realizacji (activeTradeOrder)
   if (activeTradeOrder && activeTradeOrder.id) {
     seenOrderIds.add(String(activeTradeOrder.id));
     candidateStrategies.push({
@@ -145,7 +148,7 @@ export function AiStrategiesWindow({
     });
   }
 
-  // 2. Strategie z session transactions i zleceń sesji
+  // 2. Strategie z bazy zleceń
   const allRawOrders = [...(orders || [])];
   for (const o of allRawOrders) {
     if (!o || !o.id) continue;
@@ -162,7 +165,7 @@ export function AiStrategiesWindow({
     }
   }
 
-  // 3. Dodaj również transakcje z executedSessionTransactions (jeśli brakuje ich w orders)
+  // 3. Strategie z transakcji sesji
   for (const fb of executedSessionTransactions || []) {
     if (!fb) continue;
     const ordId = String(fb.orderId || fb.id || '');
@@ -195,7 +198,7 @@ export function AiStrategiesWindow({
     }
   }
 
-  // Sortujemy strategie od najnowszych
+  // Sortujemy strategie chronologicznie od najnowszych
   candidateStrategies.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
   // Belka kontrolek w nagłówku okna pomiędzy "W siatce" a "Siatka"
@@ -225,7 +228,7 @@ export function AiStrategiesWindow({
           setShowExamples(false);
         }}
       >
-        <span>ℹ️</span> <span className="win-btn-label">Instrukcja</span>
+        <span>ℹ️</span> <span className="ai-pill-btn-label">Instrukcja</span>
       </button>
 
       <button
@@ -244,7 +247,7 @@ export function AiStrategiesWindow({
           setShowExamples(false);
         }}
       >
-        <span>📜</span> <span className="win-btn-label">Historia ({candidateStrategies.length})</span>
+        <span>📜</span> <span className="ai-pill-btn-label">Historia ({candidateStrategies.length})</span>
       </button>
 
       <button
@@ -263,7 +266,7 @@ export function AiStrategiesWindow({
           setShowHistory(false);
         }}
       >
-        <span>💡</span> <span className="win-btn-label">Przykłady strategii</span>
+        <span>💡</span> <span className="ai-pill-btn-label">Przykłady strategii</span>
       </button>
     </div>
   );
@@ -281,7 +284,81 @@ export function AiStrategiesWindow({
       onCloseWindow={onCloseWindow}
       onBringToFront={onBringToFront}
     >
-      {/* 1. TOOLTIP / TOAST INSTRUKCJA (pojawia się po kliknięciu przycisku Instrukcja w belce) */}
+      {/* DODATKOWY WEWNĘTRZNY PASEK NARZĘDZIOWY (Gwarantuje dostęp do przycisków na telefonach i we wszystkich trybach okna) */}
+      <div
+        className="ai-strat-inner-toolbar"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          flexWrap: 'wrap',
+          padding: '8px 12px',
+          marginBottom: '12px',
+          background: 'rgba(15, 23, 42, 0.6)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: 'var(--radius-md)'
+        }}
+      >
+        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+          Narzędzia Agenta AI:
+        </span>
+
+        <button
+          type="button"
+          className={`btn btn-outline-sm ${showInstruction ? 'btn-active-tool' : ''}`}
+          style={{
+            borderColor: showInstruction ? 'var(--accent-blue)' : 'rgba(56, 189, 248, 0.4)',
+            color: showInstruction ? '#ffffff' : '#38bdf8',
+            background: showInstruction ? 'rgba(56, 189, 248, 0.25)' : 'rgba(56, 189, 248, 0.08)',
+            fontWeight: 700
+          }}
+          onClick={() => {
+            setShowInstruction((prev) => !prev);
+            setShowHistory(false);
+            setShowExamples(false);
+          }}
+        >
+          ℹ️ Instrukcja {showInstruction ? '▲' : '▼'}
+        </button>
+
+        <button
+          type="button"
+          className={`btn btn-outline-sm ${showHistory ? 'btn-active-tool' : ''}`}
+          style={{
+            borderColor: showHistory ? '#a855f7' : 'rgba(168, 85, 247, 0.4)',
+            color: showHistory ? '#ffffff' : '#c084fc',
+            background: showHistory ? 'rgba(168, 85, 247, 0.25)' : 'rgba(168, 85, 247, 0.08)',
+            fontWeight: 700
+          }}
+          onClick={() => {
+            setShowHistory((prev) => !prev);
+            setShowInstruction(false);
+            setShowExamples(false);
+          }}
+        >
+          📜 Historia strategii ({candidateStrategies.length}) {showHistory ? '▲' : '▼'}
+        </button>
+
+        <button
+          type="button"
+          className={`btn btn-outline-sm ${showExamples ? 'btn-active-tool' : ''}`}
+          style={{
+            borderColor: showExamples ? 'var(--warn-amber)' : 'rgba(245, 158, 11, 0.4)',
+            color: showExamples ? '#ffffff' : '#fbbf24',
+            background: showExamples ? 'rgba(245, 158, 11, 0.25)' : 'rgba(245, 158, 11, 0.08)',
+            fontWeight: 700
+          }}
+          onClick={() => {
+            setShowExamples((prev) => !prev);
+            setShowInstruction(false);
+            setShowHistory(false);
+          }}
+        >
+          💡 Przykłady strategii {showExamples ? '▲' : '▼'}
+        </button>
+      </div>
+
+      {/* 1. TOOLTIP / TOAST INSTRUKCJA (pojawia się po kliknięciu przycisku Instrukcja) */}
       {showInstruction && (
         <div className="ai-strat-instruction-banner">
           <div className="instruction-banner-top">
@@ -344,7 +421,7 @@ export function AiStrategiesWindow({
           <div className="history-strategies-full-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {candidateStrategies.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)' }}>
-                Brak zarejestrowanych strategii w tej sesji. Wpisz zapytanie w polu powyżej, aby wygenerować nową strategię.
+                Brak zarejestrowanych strategii w tej sesji. Wpisz zapytanie w polu poniżej, aby wygenerować nową strategię.
               </div>
             ) : (
               candidateStrategies.map((ord) => {
@@ -454,7 +531,7 @@ export function AiStrategiesWindow({
                       </div>
                     </div>
 
-                    {/* ROZWINIĘTE SZCZEGÓŁY GIEŁDOWE LUB FORMULARZ POTWIERDZENIA GDY W TRAKCIE */}
+                    {/* JEŚLI ZLECENIE W TRAKCIE REALIZACJI — POKAZUJEMY PRZYCISKI POTWIERDŹ ORAZ ODRZUĆ TRANSAKCJĘ */}
                     {isPending && ord.isCurrentlyActive && (
                       <InlineOrderConfirmCard
                         active={ord}
@@ -758,7 +835,7 @@ export function AiStrategiesWindow({
         </div>
       )}
 
-      {/* 6. OKNO NA DOLE: PRZYKŁADY STRATEGII I MOŻLIWOŚCI (wywoływane przyciskiem Przykłady strategii w belce) */}
+      {/* 6. OKNO NA DOLE: PRZYKŁADY STRATEGII I MOŻLIWOŚCI (wywoływane przyciskiem Przykłady strategii) */}
       {showExamples && (
         <div className="ai-strat-capabilities-grid">
           <div className="ai-strat-info-card">

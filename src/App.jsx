@@ -314,6 +314,9 @@ export function App() {
   const handleCloseWindow = useCallback(
     (winId) => {
       const winMeta = windowsRegistryRef.current.find((w) => w.id === winId);
+      if (winId === 'win-ai-strategies') {
+        setCurrentAiStrategyAnalysis(null);
+      }
       setWindowMode(winId, 'docked-top');
       if (winMeta) {
         showToast(
@@ -1145,6 +1148,8 @@ export function App() {
       setTradeAccordionOpen(true);
     } else if (winId === 'win-ai-chat') {
       collapseAllAiTransactions();
+    } else if (winId === 'win-ai-strategies') {
+      setCurrentAiStrategyAnalysis(null);
     }
 
     showToast(`🗔 Otwarto okno „${winMeta.title}” (pozostałe okna zwinięte do Menu).`);

@@ -3137,6 +3137,17 @@ body.has-single-window-grid.single-window-minimized .app-shell {
   transition: all 0.15s ease !important;
 }
 
+.ai-pill-btn-label {
+  display: inline !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+}
+
+.ai-strat-inner-toolbar .btn-active-tool {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
 .ai-strat-instruction-banner {
   background: linear-gradient(135deg, rgba(14, 165, 233, 0.14) 0%, rgba(15, 23, 42, 0.95) 100%);
   border: 1px solid rgba(56, 189, 248, 0.45);

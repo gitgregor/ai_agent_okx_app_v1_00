@@ -18820,6 +18820,7 @@
     const [activeSessionAnalysis, setActiveSessionAnalysis] = (0, import_react7.useState)(null);
     const [isRecommendationOpen, setIsRecommendationOpen] = (0, import_react7.useState)(false);
     const [expandedHistoryTxIds, setExpandedHistoryTxIds] = (0, import_react7.useState)(/* @__PURE__ */ new Set());
+    const prevAnalysisTsRef = (0, import_react7.useRef)(currentAiStrategyAnalysis?.timestamp || 0);
     const prevModeRef = (0, import_react7.useRef)(winMeta?.mode);
     (0, import_react7.useEffect)(() => {
       const prev = prevModeRef.current;
@@ -18835,7 +18836,6 @@
         setShowExamples(false);
       }
     }, [winMeta?.mode]);
-    const prevAnalysisTsRef = (0, import_react7.useRef)(currentAiStrategyAnalysis?.timestamp || 0);
     (0, import_react7.useEffect)(() => {
       if (currentAiStrategyAnalysis?.timestamp && currentAiStrategyAnalysis.timestamp !== prevAnalysisTsRef.current) {
         prevAnalysisTsRef.current = currentAiStrategyAnalysis.timestamp;
@@ -18939,7 +18939,7 @@
               children: [
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u2139\uFE0F" }),
                 " ",
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "win-btn-label", children: "Instrukcja" })
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "ai-pill-btn-label", children: "Instrukcja" })
               ]
             }
           ),
@@ -18959,7 +18959,7 @@
               children: [
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u{1F4DC}" }),
                 " ",
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { className: "win-btn-label", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { className: "ai-pill-btn-label", children: [
                   "Historia (",
                   candidateStrategies.length,
                   ")"
@@ -18983,7 +18983,7 @@
               children: [
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u{1F4A1}" }),
                 " ",
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "win-btn-label", children: "Przyk\u0142ady strategii" })
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "ai-pill-btn-label", children: "Przyk\u0142ady strategii" })
               ]
             }
           )
@@ -19003,6 +19003,94 @@
         onCloseWindow,
         onBringToFront,
         children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+            "div",
+            {
+              className: "ai-strat-inner-toolbar",
+              style: {
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                flexWrap: "wrap",
+                padding: "8px 12px",
+                marginBottom: "12px",
+                background: "rgba(15, 23, 42, 0.6)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "var(--radius-md)"
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { style: { fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)" }, children: "Narz\u0119dzia Agenta AI:" }),
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+                  "button",
+                  {
+                    type: "button",
+                    className: `btn btn-outline-sm ${showInstruction ? "btn-active-tool" : ""}`,
+                    style: {
+                      borderColor: showInstruction ? "var(--accent-blue)" : "rgba(56, 189, 248, 0.4)",
+                      color: showInstruction ? "#ffffff" : "#38bdf8",
+                      background: showInstruction ? "rgba(56, 189, 248, 0.25)" : "rgba(56, 189, 248, 0.08)",
+                      fontWeight: 700
+                    },
+                    onClick: () => {
+                      setShowInstruction((prev) => !prev);
+                      setShowHistory(false);
+                      setShowExamples(false);
+                    },
+                    children: [
+                      "\u2139\uFE0F Instrukcja ",
+                      showInstruction ? "\u25B2" : "\u25BC"
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+                  "button",
+                  {
+                    type: "button",
+                    className: `btn btn-outline-sm ${showHistory ? "btn-active-tool" : ""}`,
+                    style: {
+                      borderColor: showHistory ? "#a855f7" : "rgba(168, 85, 247, 0.4)",
+                      color: showHistory ? "#ffffff" : "#c084fc",
+                      background: showHistory ? "rgba(168, 85, 247, 0.25)" : "rgba(168, 85, 247, 0.08)",
+                      fontWeight: 700
+                    },
+                    onClick: () => {
+                      setShowHistory((prev) => !prev);
+                      setShowInstruction(false);
+                      setShowExamples(false);
+                    },
+                    children: [
+                      "\u{1F4DC} Historia strategii (",
+                      candidateStrategies.length,
+                      ") ",
+                      showHistory ? "\u25B2" : "\u25BC"
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+                  "button",
+                  {
+                    type: "button",
+                    className: `btn btn-outline-sm ${showExamples ? "btn-active-tool" : ""}`,
+                    style: {
+                      borderColor: showExamples ? "var(--warn-amber)" : "rgba(245, 158, 11, 0.4)",
+                      color: showExamples ? "#ffffff" : "#fbbf24",
+                      background: showExamples ? "rgba(245, 158, 11, 0.25)" : "rgba(245, 158, 11, 0.08)",
+                      fontWeight: 700
+                    },
+                    onClick: () => {
+                      setShowExamples((prev) => !prev);
+                      setShowInstruction(false);
+                      setShowHistory(false);
+                    },
+                    children: [
+                      "\u{1F4A1} Przyk\u0142ady strategii ",
+                      showExamples ? "\u25B2" : "\u25BC"
+                    ]
+                  }
+                )
+              ]
+            }
+          ),
           showInstruction && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "ai-strat-instruction-banner", children: [
             /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "instruction-banner-top", children: [
               /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "instruction-banner-title", children: [
@@ -19056,7 +19144,7 @@
               )
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "panel-subtitle", style: { marginBottom: "12px", color: "var(--text-secondary)" }, children: "Poni\u017Cej znajduje si\u0119 pe\u0142na historia strategii z dok\u0142adn\u0105 dat\u0105 i czasem otworzenia strategii oraz momentem jej zrealizowania na gie\u0142dzie OKX." }),
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "history-strategies-full-list", style: { display: "flex", flexDirection: "column", gap: "10px" }, children: candidateStrategies.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { textAlign: "center", padding: "24px", color: "var(--text-secondary)" }, children: "Brak zarejestrowanych strategii w tej sesji. Wpisz zapytanie w polu powy\u017Cej, aby wygenerowa\u0107 now\u0105 strategi\u0119." }) : candidateStrategies.map((ord) => {
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "history-strategies-full-list", style: { display: "flex", flexDirection: "column", gap: "10px" }, children: candidateStrategies.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { textAlign: "center", padding: "24px", color: "var(--text-secondary)" }, children: "Brak zarejestrowanych strategii w tej sesji. Wpisz zapytanie w polu poni\u017Cej, aby wygenerowa\u0107 now\u0105 strategi\u0119." }) : candidateStrategies.map((ord) => {
               const timing = getStrategyTiming(ord);
               const isBuy = ord.side === "BUY";
               const isPending = !timing.isFilled;
@@ -22515,6 +22603,9 @@
     const handleCloseWindow = (0, import_react14.useCallback)(
       (winId) => {
         const winMeta = windowsRegistryRef.current.find((w) => w.id === winId);
+        if (winId === "win-ai-strategies") {
+          setCurrentAiStrategyAnalysis(null);
+        }
         setWindowMode(winId, "docked-top");
         if (winMeta) {
           showToast(
@@ -23199,6 +23290,8 @@
         setTradeAccordionOpen(true);
       } else if (winId === "win-ai-chat") {
         collapseAllAiTransactions();
+      } else if (winId === "win-ai-strategies") {
+        setCurrentAiStrategyAnalysis(null);
       }
       showToast(`\u{1F5D4} Otwarto okno \u201E${winMeta.title}\u201D (pozosta\u0142e okna zwini\u0119te do Menu).`);
       setTimeout(() => {
