@@ -7,6 +7,9 @@ export function PortfoliosRow({
   soloWindowId,
   portfolio,
   onManualSyncOkx,
+  onForceDeviceSync,
+  onExportSyncData,
+  onImportSyncData,
   onOpenAssetChart,
   onSetWindowMode,
   onCloseWindow,
@@ -76,7 +79,33 @@ export function PortfoliosRow({
                 'Aktualny stan posiadanych aktywów i gotówki z Twojego konta OKX (aktualizowany na żywo)'}
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              id="btnForceDeviceSync"
+              className="btn btn-outline-sm"
+              style={{ background: 'rgba(59, 130, 246, 0.12)', borderColor: '#3b82f6', color: '#60a5fa' }}
+              title="Wymuś synchronizację transakcji pomiędzy telefonem a laptopem przez Bramę Domową"
+              onClick={onForceDeviceSync}
+            >
+              🔄 Synchronizuj Telefon ⇄ Laptop
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-sm"
+              title="Kopiuj do schowka wszystkie zlecenia i historię wykonaną na tym urządzeniu (np. z telefonu, aby wkleić na laptopie)"
+              onClick={onExportSyncData}
+            >
+              📋 Kopiuj z tego urządzenia
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-sm"
+              title="Wklej i zaimportuj transakcje z drugiego urządzenia do bazy i portfela"
+              onClick={onImportSyncData}
+            >
+              📥 Wklej z drugiego urządzenia
+            </button>
             <button
               type="button"
               id="btnSyncPortfolioPanel"

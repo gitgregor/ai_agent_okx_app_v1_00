@@ -14731,11 +14731,12 @@
     const collected = [];
     const seen = /* @__PURE__ */ new Set();
     const addOrd = (o) => {
-      if (!o || !o.id || seen.has(o.id)) return;
-      if (String(o.id).startsWith("OKX-EEA-") || o.source && o.source.includes("AI")) {
-        seen.add(o.id);
-        collected.push(o);
-      }
+      if (!o || !o.id) return;
+      const id = String(o.id);
+      if (seen.has(id)) return;
+      if (id.startsWith("OKX-DEMO-17924") || id.startsWith("OKX-DEMO-POS-") || id.startsWith("OKX-LIVE-POS-")) return;
+      seen.add(id);
+      collected.push(o);
     };
     try {
       const raw = localStorage.getItem(LS_AI_EXECUTED_ORDERS_KEY);
@@ -14753,6 +14754,32 @@
         if (st?.portfolio?.orders && Array.isArray(st.portfolio.orders)) {
           st.portfolio.orders.forEach(addOrd);
         }
+        if (st?.sessionSync?.executedSessionTransactions && Array.isArray(st.sessionSync.executedSessionTransactions)) {
+          st.sessionSync.executedSessionTransactions.forEach((tx) => {
+            if (tx && (tx.orderId || tx.id)) {
+              addOrd({
+                id: tx.orderId || tx.id,
+                instId: tx.instId,
+                asset: tx.asset,
+                side: tx.side,
+                orderType: tx.orderType || "MARKET",
+                amount: tx.amount,
+                price: tx.price,
+                usdcValue: tx.usdcValue,
+                feeRate: tx.feeRate || "0.10%",
+                feeUsdc: tx.feeUsdc,
+                feeAsset: tx.feeAsset,
+                totalUsdcWithFee: tx.totalUsdcWithFee,
+                status: "CLOSED",
+                source: tx.strategyName || "Agent AI (Sesja)",
+                date: tx.date,
+                time: tx.time,
+                timestamp: tx.timestamp,
+                exchangeFeedback: tx
+              });
+            }
+          });
+        }
       }
     } catch (e) {
     }
@@ -14762,10 +14789,72 @@
     if (typeof window === "undefined" || !order || !order.id) return;
     try {
       const current = loadSavedAiExecutedOrders();
-      const filtered = current.filter((o) => o.id !== order.id);
+      const filtered = current.filter((o) => String(o.id) !== String(order.id));
       filtered.unshift(order);
       localStorage.setItem(LS_AI_EXECUTED_ORDERS_KEY, JSON.stringify(filtered.slice(0, 100)));
     } catch (e) {
+    }
+  }
+  function exportDeviceSyncCode() {
+    if (typeof window === "undefined") return "";
+    const orders = loadSavedAiExecutedOrders();
+    let portfolioHistory = [];
+    let chatMessages = [];
+    try {
+      const stRaw = localStorage.getItem("okx_standalone_state_v8");
+      if (stRaw) {
+        const st = JSON.parse(stRaw);
+        if (Array.isArray(st?.portfolio?.portfolioHistory)) {
+          portfolioHistory = st.portfolio.portfolioHistory.slice(0, 50);
+        }
+        if (Array.isArray(st?.sessionSync?.chatMessages)) {
+          chatMessages = st.sessionSync.chatMessages.slice(-30);
+        }
+      }
+    } catch (e) {
+    }
+    const payload = {
+      exportedAt: Date.now(),
+      device: typeof navigator !== "undefined" && /mobile/i.test(navigator.userAgent) ? "MOBILE" : "DESKTOP",
+      orders,
+      portfolioHistory,
+      chatMessages
+    };
+    return JSON.stringify(payload, null, 2);
+  }
+  async function importDeviceSyncCode(rawInput) {
+    if (!rawInput || typeof rawInput !== "string") throw new Error("Brak danych do importu");
+    let parsed;
+    try {
+      parsed = JSON.parse(rawInput.trim());
+    } catch (e) {
+      throw new Error("Nieprawid\u0142owy format JSON");
+    }
+    const orders = Array.isArray(parsed.orders) ? parsed.orders : [];
+    for (const o of orders) {
+      saveAiExecutedOrderToLocal(o);
+    }
+    try {
+      const res = await apiRequest("/api/session/sync-orders", "POST", {
+        orders,
+        portfolioHistory: parsed.portfolioHistory || [],
+        sessionSync: {
+          chatMessages: parsed.chatMessages || [],
+          executedSessionTransactions: orders.map((o) => o.exchangeFeedback || o).filter(Boolean)
+        }
+      });
+      return { ok: true, count: orders.length, state: res?.state };
+    } catch (err) {
+      if (_standaloneState && Array.isArray(_standaloneState.portfolio?.orders)) {
+        const existing = new Set(_standaloneState.portfolio.orders.map((o) => String(o.id)));
+        for (const o of orders) {
+          if (!existing.has(String(o.id))) {
+            _standaloneState.portfolio.orders.unshift(o);
+          }
+        }
+        saveStandaloneState();
+      }
+      return { ok: true, count: orders.length, standaloneMerged: true };
     }
   }
   function detectInitialGatewayConfig() {
@@ -14861,18 +14950,18 @@
         if (!res.ok) continue;
         const j = await res.json();
         const found = [];
-        if (j.cloudflareTunnelUrl) {
+        if (j.cloudflareTunnelUrl && !j.cloudflareTunnelUrl.includes("api.trycloudflare.com")) {
           _discoveredCloudflareUrl = j.cloudflareTunnelUrl.replace(/\/+$/, "");
           found.push(_discoveredCloudflareUrl);
         }
-        if (j.primaryTunnelUrl) {
+        if (j.primaryTunnelUrl && !j.primaryTunnelUrl.includes("api.trycloudflare.com")) {
           const p = j.primaryTunnelUrl.replace(/\/+$/, "");
           if (!found.includes(p)) found.push(p);
         }
         if (Array.isArray(j.tunnels)) {
           for (const t of j.tunnels) {
             const cleanT = String(t || "").trim().replace(/\/+$/, "");
-            if (cleanT && !found.includes(cleanT)) found.push(cleanT);
+            if (cleanT && !cleanT.includes("api.trycloudflare.com") && !found.includes(cleanT)) found.push(cleanT);
           }
         }
         if (found.length > 0) {
@@ -16409,9 +16498,9 @@
           _discoveredCloudflareUrl = targetState.config.remoteGateway.cloudflareTunnelUrl.replace(/\/+$/, "");
         }
         if (!url.startsWith("/api/session/sync-orders") && Array.isArray(targetState.portfolio?.orders)) {
-          const localAiOrders = loadSavedAiExecutedOrders();
-          const serverOrderIds = new Set(targetState.portfolio.orders.map((o) => o.id));
-          const missingOnServer = localAiOrders.filter((o) => o && o.id && !serverOrderIds.has(o.id));
+          const localOrders = loadSavedAiExecutedOrders();
+          const serverOrderIds = new Set(targetState.portfolio.orders.map((o) => String(o.id)));
+          const missingOnServer = localOrders.filter((o) => o && o.id && !serverOrderIds.has(String(o.id)));
           if (missingOnServer.length > 0) {
             try {
               const syncRes = await fetchWithTimeout(
@@ -16424,6 +16513,7 @@
                   },
                   body: JSON.stringify({
                     orders: missingOnServer,
+                    portfolioHistory: (_standaloneState?.portfolio?.portfolioHistory || []).slice(0, 30),
                     sessionSync: _standaloneState?.sessionSync || null
                   })
                 },
@@ -19779,6 +19869,9 @@
     soloWindowId,
     portfolio,
     onManualSyncOkx,
+    onForceDeviceSync,
+    onExportSyncData,
+    onImportSyncData,
     onOpenAssetChart,
     onSetWindowMode,
     onCloseWindow,
@@ -19841,7 +19934,39 @@
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                      "button",
+                      {
+                        type: "button",
+                        id: "btnForceDeviceSync",
+                        className: "btn btn-outline-sm",
+                        style: { background: "rgba(59, 130, 246, 0.12)", borderColor: "#3b82f6", color: "#60a5fa" },
+                        title: "Wymu\u015B synchronizacj\u0119 transakcji pomi\u0119dzy telefonem a laptopem przez Bram\u0119 Domow\u0105",
+                        onClick: onForceDeviceSync,
+                        children: "\u{1F504} Synchronizuj Telefon \u21C4 Laptop"
+                      }
+                    ),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                      "button",
+                      {
+                        type: "button",
+                        className: "btn btn-outline-sm",
+                        title: "Kopiuj do schowka wszystkie zlecenia i histori\u0119 wykonan\u0105 na tym urz\u0105dzeniu (np. z telefonu, aby wklei\u0107 na laptopie)",
+                        onClick: onExportSyncData,
+                        children: "\u{1F4CB} Kopiuj z tego urz\u0105dzenia"
+                      }
+                    ),
+                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                      "button",
+                      {
+                        type: "button",
+                        className: "btn btn-outline-sm",
+                        title: "Wklej i zaimportuj transakcje z drugiego urz\u0105dzenia do bazy i portfela",
+                        onClick: onImportSyncData,
+                        children: "\u{1F4E5} Wklej z drugiego urz\u0105dzenia"
+                      }
+                    ),
                     /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
                       "button",
                       {
@@ -20137,6 +20262,9 @@
     onOpenAssetChart,
     onActivateOpenOrder,
     onCancelOpenOrder,
+    onForceDeviceSync,
+    onExportSyncData,
+    onImportSyncData,
     onSetWindowMode,
     onCloseWindow,
     onBringToFront
@@ -20163,6 +20291,39 @@
             /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { children: [
               /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("h2", { children: "\u{1F4DC} Historia Transakcji \u2014 Otwarte Zlecenia i Zamkni\u0119te Zlecenia" }),
               /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("p", { className: "panel-subtitle", children: "Pe\u0142na lista zlece\u0144 z dat\u0105, czasem oraz przyciskiem otwieraj\u0105cym przesuwny wykres danego aktywa (Ma\u0142y / \u015Aredni / Full)" })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                "button",
+                {
+                  type: "button",
+                  className: "btn btn-outline-sm",
+                  style: { background: "rgba(59, 130, 246, 0.12)", borderColor: "#3b82f6", color: "#60a5fa" },
+                  title: "Wymu\u015B synchronizacj\u0119 zlece\u0144 mi\u0119dzy telefonem a laptopem przez Bram\u0119 Domow\u0105",
+                  onClick: onForceDeviceSync,
+                  children: "\u{1F504} Synchronizuj Telefon \u21C4 Laptop"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                "button",
+                {
+                  type: "button",
+                  className: "btn btn-outline-sm",
+                  title: "Kopiuj do schowka zlecenia wykonane na tym urz\u0105dzeniu",
+                  onClick: onExportSyncData,
+                  children: "\u{1F4CB} Kopiuj z tego urz\u0105dzenia"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                "button",
+                {
+                  type: "button",
+                  className: "btn btn-outline-sm",
+                  title: "Wklej zlecenia z drugiego urz\u0105dzenia",
+                  onClick: onImportSyncData,
+                  children: "\u{1F4E5} Wklej z drugiego urz\u0105dzenia"
+                }
+              )
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "orders-filter-tabs", role: "tablist", children: [
               /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
@@ -22201,6 +22362,54 @@
         );
       }
     };
+    const handleExportSyncData = () => {
+      try {
+        const code = exportDeviceSyncCode();
+        if (!code) {
+          showToast("\u26A0\uFE0F Brak transakcji w pami\u0119ci podr\u0119cznej tego urz\u0105dzenia.");
+          return;
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code).then(() => {
+            showToast("\u{1F4CB} Skopiowano dane transakcji do schowka! Wklej je na drugim urz\u0105dzeniu.");
+          }).catch(() => {
+            prompt("Skopiuj poni\u017Csze dane transakcji r\u0119cznie (Ctrl+C):", code);
+          });
+        } else {
+          prompt("Skopiuj poni\u017Csze dane transakcji r\u0119cznie (Ctrl+C):", code);
+        }
+      } catch (e) {
+        showToast("\u274C B\u0142\u0105d eksportu: " + e.message);
+      }
+    };
+    const handleImportSyncData = async () => {
+      const input = prompt("Wklej dane synchronizacji transakcji z telefonu / drugiego urz\u0105dzenia (JSON):");
+      if (!input || !input.trim()) return;
+      try {
+        showToast("\u23F3 Importowanie i scalanie transakcji w bazie...");
+        const res = await importDeviceSyncCode(input);
+        if (res.state) {
+          setAppState(res.state);
+        } else {
+          const live = await apiRequest("/api/state");
+          if (live) setAppState(live);
+        }
+        showToast(`\u2705 Pomy\u015Blnie zaimportowano ${res.count || 0} transakcji do bazy i portfela!`);
+      } catch (e) {
+        alert("B\u0142\u0105d importu transakcji: " + e.message);
+      }
+    };
+    const handleForceDeviceSync = async () => {
+      showToast("\u{1F504} \u0141\u0105czenie z bram\u0105 laptopa i synchronizacja zlece\u0144...");
+      try {
+        await probeHomeGateway(true);
+        const res = await apiRequest("/api/state");
+        if (res) setAppState(res);
+        showToast("\u2705 Zsynchronizowano transakcje i portfel z Bram\u0105 Domow\u0105 laptopa!");
+      } catch (e) {
+        showToast("\u26A0\uFE0F Brak bezpo\u015Bredniego po\u0142\u0105czenia z bram\u0105. U\u017Cyj przycisku [Kopiuj z tego urz\u0105dzenia] i wklej na laptopie.");
+      }
+    };
     const handleDisconnectApiKeys = async () => {
       const mode = apiKeyProfile;
       const res = await apiRequest("/api/config", "POST", {
@@ -22794,6 +23003,9 @@
               soloWindowId,
               portfolio: appState?.portfolio,
               onManualSyncOkx: handleManualSyncOkx,
+              onForceDeviceSync: handleForceDeviceSync,
+              onExportSyncData: handleExportSyncData,
+              onImportSyncData: handleImportSyncData,
               onOpenAssetChart: (instId) => openAssetChart(instId, chartState.isOpen ? chartState.size : "medium"),
               onSetWindowMode: setWindowMode,
               onCloseWindow: handleCloseWindow,
@@ -22828,6 +23040,9 @@
               onOpenAssetChart: (instId) => openAssetChart(instId, chartState.isOpen ? chartState.size : "medium"),
               onActivateOpenOrder: handleActivateOpenOrder,
               onCancelOpenOrder: handleCancelOpenOrder,
+              onForceDeviceSync: handleForceDeviceSync,
+              onExportSyncData: handleExportSyncData,
+              onImportSyncData: handleImportSyncData,
               onSetWindowMode: setWindowMode,
               onCloseWindow: handleCloseWindow,
               onBringToFront: handleBringToFront

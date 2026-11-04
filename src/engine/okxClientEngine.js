@@ -174,16 +174,18 @@ const DEFAULT_HOME_GATEWAYS = [
 let _discoveredCloudflareUrl = '';
 let _discoveredGatewayList = [];
 
-function loadSavedAiExecutedOrders() {
+export function loadSavedAiExecutedOrders() {
   if (typeof window === 'undefined') return [];
   const collected = [];
   const seen = new Set();
   const addOrd = (o) => {
-    if (!o || !o.id || seen.has(o.id)) return;
-    if (String(o.id).startsWith('OKX-EEA-') || (o.source && o.source.includes('AI'))) {
-      seen.add(o.id);
-      collected.push(o);
-    }
+    if (!o || !o.id) return;
+    const id = String(o.id);
+    if (seen.has(id)) return;
+    // Skip static initial demo baseline from October 19
+    if (id.startsWith('OKX-DEMO-17924') || id.startsWith('OKX-DEMO-POS-') || id.startsWith('OKX-LIVE-POS-')) return;
+    seen.add(id);
+    collected.push(o);
   };
   try {
     const raw = localStorage.getItem(LS_AI_EXECUTED_ORDERS_KEY);
@@ -192,7 +194,7 @@ function loadSavedAiExecutedOrders() {
       if (Array.isArray(parsed)) parsed.forEach(addOrd);
     }
   } catch (e) {}
-  // Also scan any previous standalone state keys in localStorage so no yesterday/today AI orders are ever lost
+  // Also scan any previous standalone state keys in localStorage so no yesterday/today orders are ever lost
   try {
     for (const k of ['okx_standalone_state_v8', 'okx_standalone_state_v7', 'okx_standalone_state_v6']) {
       const stRaw = localStorage.getItem(k);
@@ -201,19 +203,113 @@ function loadSavedAiExecutedOrders() {
       if (st?.portfolio?.orders && Array.isArray(st.portfolio.orders)) {
         st.portfolio.orders.forEach(addOrd);
       }
+      if (st?.sessionSync?.executedSessionTransactions && Array.isArray(st.sessionSync.executedSessionTransactions)) {
+        st.sessionSync.executedSessionTransactions.forEach((tx) => {
+          if (tx && (tx.orderId || tx.id)) {
+            addOrd({
+              id: tx.orderId || tx.id,
+              instId: tx.instId,
+              asset: tx.asset,
+              side: tx.side,
+              orderType: tx.orderType || 'MARKET',
+              amount: tx.amount,
+              price: tx.price,
+              usdcValue: tx.usdcValue,
+              feeRate: tx.feeRate || '0.10%',
+              feeUsdc: tx.feeUsdc,
+              feeAsset: tx.feeAsset,
+              totalUsdcWithFee: tx.totalUsdcWithFee,
+              status: 'CLOSED',
+              source: tx.strategyName || 'Agent AI (Sesja)',
+              date: tx.date,
+              time: tx.time,
+              timestamp: tx.timestamp,
+              exchangeFeedback: tx
+            });
+          }
+        });
+      }
     }
   } catch (e) {}
   return collected;
 }
 
-function saveAiExecutedOrderToLocal(order) {
+export function saveAiExecutedOrderToLocal(order) {
   if (typeof window === 'undefined' || !order || !order.id) return;
   try {
     const current = loadSavedAiExecutedOrders();
-    const filtered = current.filter((o) => o.id !== order.id);
+    const filtered = current.filter((o) => String(o.id) !== String(order.id));
     filtered.unshift(order);
     localStorage.setItem(LS_AI_EXECUTED_ORDERS_KEY, JSON.stringify(filtered.slice(0, 100)));
   } catch (e) {}
+}
+
+export function exportDeviceSyncCode() {
+  if (typeof window === 'undefined') return '';
+  const orders = loadSavedAiExecutedOrders();
+  let portfolioHistory = [];
+  let chatMessages = [];
+  try {
+    const stRaw = localStorage.getItem('okx_standalone_state_v8');
+    if (stRaw) {
+      const st = JSON.parse(stRaw);
+      if (Array.isArray(st?.portfolio?.portfolioHistory)) {
+        portfolioHistory = st.portfolio.portfolioHistory.slice(0, 50);
+      }
+      if (Array.isArray(st?.sessionSync?.chatMessages)) {
+        chatMessages = st.sessionSync.chatMessages.slice(-30);
+      }
+    }
+  } catch (e) {}
+
+  const payload = {
+    exportedAt: Date.now(),
+    device: typeof navigator !== 'undefined' && /mobile/i.test(navigator.userAgent) ? 'MOBILE' : 'DESKTOP',
+    orders,
+    portfolioHistory,
+    chatMessages
+  };
+  return JSON.stringify(payload, null, 2);
+}
+
+export async function importDeviceSyncCode(rawInput) {
+  if (!rawInput || typeof rawInput !== 'string') throw new Error('Brak danych do importu');
+  let parsed;
+  try {
+    parsed = JSON.parse(rawInput.trim());
+  } catch (e) {
+    throw new Error('Nieprawidłowy format JSON');
+  }
+
+  const orders = Array.isArray(parsed.orders) ? parsed.orders : [];
+  for (const o of orders) {
+    saveAiExecutedOrderToLocal(o);
+  }
+
+  // If connected to gateway or local server, push immediately
+  try {
+    const res = await apiRequest('/api/session/sync-orders', 'POST', {
+      orders,
+      portfolioHistory: parsed.portfolioHistory || [],
+      sessionSync: {
+        chatMessages: parsed.chatMessages || [],
+        executedSessionTransactions: orders.map((o) => o.exchangeFeedback || o).filter(Boolean)
+      }
+    });
+    return { ok: true, count: orders.length, state: res?.state };
+  } catch (err) {
+    // Standalone fallback: merge into local standalone state
+    if (_standaloneState && Array.isArray(_standaloneState.portfolio?.orders)) {
+      const existing = new Set(_standaloneState.portfolio.orders.map((o) => String(o.id)));
+      for (const o of orders) {
+        if (!existing.has(String(o.id))) {
+          _standaloneState.portfolio.orders.unshift(o);
+        }
+      }
+      saveStandaloneState();
+    }
+    return { ok: true, count: orders.length, standaloneMerged: true };
+  }
 }
 
 function detectInitialGatewayConfig() {
@@ -318,18 +414,18 @@ async function discoverLatestGatewayJson() {
       if (!res.ok) continue;
       const j = await res.json();
       const found = [];
-      if (j.cloudflareTunnelUrl) {
+      if (j.cloudflareTunnelUrl && !j.cloudflareTunnelUrl.includes('api.trycloudflare.com')) {
         _discoveredCloudflareUrl = j.cloudflareTunnelUrl.replace(/\/+$/, '');
         found.push(_discoveredCloudflareUrl);
       }
-      if (j.primaryTunnelUrl) {
+      if (j.primaryTunnelUrl && !j.primaryTunnelUrl.includes('api.trycloudflare.com')) {
         const p = j.primaryTunnelUrl.replace(/\/+$/, '');
         if (!found.includes(p)) found.push(p);
       }
       if (Array.isArray(j.tunnels)) {
         for (const t of j.tunnels) {
           const cleanT = String(t || '').trim().replace(/\/+$/, '');
-          if (cleanT && !found.includes(cleanT)) found.push(cleanT);
+          if (cleanT && !cleanT.includes('api.trycloudflare.com') && !found.includes(cleanT)) found.push(cleanT);
         }
       }
       if (found.length > 0) {
@@ -2030,11 +2126,11 @@ export async function apiRequest(url, method = 'GET', body = null) {
         _discoveredCloudflareUrl = targetState.config.remoteGateway.cloudflareTunnelUrl.replace(/\/+$/, '');
       }
 
-      // Sync any locally executed AI Agent orders to the server so they are never lost across sessions/devices
+      // Sync any locally executed orders to the server so they are never lost across sessions/devices
       if (!url.startsWith('/api/session/sync-orders') && Array.isArray(targetState.portfolio?.orders)) {
-        const localAiOrders = loadSavedAiExecutedOrders();
-        const serverOrderIds = new Set(targetState.portfolio.orders.map((o) => o.id));
-        const missingOnServer = localAiOrders.filter((o) => o && o.id && !serverOrderIds.has(o.id));
+        const localOrders = loadSavedAiExecutedOrders();
+        const serverOrderIds = new Set(targetState.portfolio.orders.map((o) => String(o.id)));
+        const missingOnServer = localOrders.filter((o) => o && o.id && !serverOrderIds.has(String(o.id)));
         if (missingOnServer.length > 0) {
           try {
             const syncRes = await fetchWithTimeout(
@@ -2047,6 +2143,7 @@ export async function apiRequest(url, method = 'GET', body = null) {
                 },
                 body: JSON.stringify({
                   orders: missingOnServer,
+                  portfolioHistory: (_standaloneState?.portfolio?.portfolioHistory || []).slice(0, 30),
                   sessionSync: _standaloneState?.sessionSync || null
                 })
               },

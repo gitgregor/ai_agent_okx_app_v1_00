@@ -295,7 +295,8 @@ class OkxEeaTradingEngine {
       for (const ord of payload.orders) {
         if (!ord || !ord.id) continue;
         const idStr = String(ord.id);
-        if (idStr.startsWith('OKX-DEMO-') || idStr.startsWith('OKX-LIVE-POS-')) continue;
+        const isInitialOctoberDemo = idStr.startsWith('OKX-DEMO-17924') || idStr.startsWith('OKX-DEMO-POS-');
+        if (isInitialOctoberDemo || idStr.startsWith('OKX-LIVE-POS-')) continue;
         if (!existingIds.has(idStr) && !allKnownIds.has(idStr)) {
           existingIds.add(idStr);
           allKnownIds.add(idStr);
@@ -305,7 +306,7 @@ class OkxEeaTradingEngine {
           if (ord.exchangeFeedback) {
             const fbId = String(ord.exchangeFeedback.orderId || ord.id);
             const hasFb = (this.sessionSync.executedSessionTransactions || []).some(
-              (t) => String(t.orderId) === fbId
+              (t) => String(t.orderId || t.id) === fbId
             );
             if (!hasFb) {
               this.sessionSync.executedSessionTransactions = [
@@ -318,6 +319,23 @@ class OkxEeaTradingEngine {
             }
           }
         }
+      }
+    }
+
+    if (Array.isArray(payload.portfolioHistory)) {
+      if (!Array.isArray(targetPortfolio.portfolioHistory)) targetPortfolio.portfolioHistory = [];
+      const histIds = new Set(targetPortfolio.portfolioHistory.map((h) => String(h.id || h.orderId)));
+      for (const h of payload.portfolioHistory) {
+        if (!h) continue;
+        const hKey = String(h.id || h.orderId || `${h.date}_${h.time}_${h.action}`);
+        if (!histIds.has(hKey)) {
+          histIds.add(hKey);
+          targetPortfolio.portfolioHistory.push(h);
+          changed = true;
+        }
+      }
+      if (changed) {
+        targetPortfolio.portfolioHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
       }
     }
 

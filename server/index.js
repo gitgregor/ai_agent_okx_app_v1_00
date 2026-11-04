@@ -343,11 +343,43 @@ function startCloudflareGatewayTunnel() {
     activeCloudflareTunnel = cfTunnel;
     reconnectingCloudflare = false;
 
+    const handlePotentialUrl = (rawUrl) => {
+      if (!rawUrl || typeof rawUrl !== 'string') return;
+      const clean = rawUrl.trim().replace(/\/+$/, '');
+      if (!clean.startsWith('https://')) return;
+      if (clean.includes('api.trycloudflare.com')) return;
+
+      const m = clean.match(/^https:\/\/([a-z0-9-]+)\.trycloudflare\.com$/i);
+      if (m && m[1].toLowerCase() !== 'api') {
+        if (activeCloudflareUrl !== clean) {
+          activeCloudflareUrl = clean;
+          console.log(`⚡ [Cloudflare Brama Domowa IP / OKX Whitelist] Tunel główny aktywny: ${activeCloudflareUrl}`);
+          updateAndPublishGatewayStatus();
+        }
+      }
+    };
+
     cfTunnel.on('url', (url) => {
-      if (url && url.startsWith('https://')) {
-        activeCloudflareUrl = url.replace(/\/+$/, '');
-        console.log(`⚡ [Cloudflare Brama Domowa IP / OKX Whitelist] Tunel główny aktywny: ${activeCloudflareUrl}`);
-        updateAndPublishGatewayStatus();
+      handlePotentialUrl(url);
+    });
+
+    cfTunnel.on('stdout', (data) => {
+      const text = String(data || '');
+      const matches = text.matchAll(/https:\/\/([a-z0-9-]+)\.trycloudflare\.com/gi);
+      for (const m of matches) {
+        if (m[1] && m[1].toLowerCase() !== 'api') {
+          handlePotentialUrl(m[0]);
+        }
+      }
+    });
+
+    cfTunnel.on('stderr', (data) => {
+      const text = String(data || '');
+      const matches = text.matchAll(/https:\/\/([a-z0-9-]+)\.trycloudflare\.com/gi);
+      for (const m of matches) {
+        if (m[1] && m[1].toLowerCase() !== 'api') {
+          handlePotentialUrl(m[0]);
+        }
       }
     });
 
@@ -450,7 +482,7 @@ async function probeExternalUrl(url) {
 }
 
 setInterval(async () => {
-  if (activeCloudflareUrl) {
+  if (activeCloudflareUrl && !activeCloudflareUrl.includes('api.trycloudflare.com')) {
     const cfOk = await probeExternalUrl(activeCloudflareUrl);
     if (cfOk) {
       cfConsecutiveFailures = 0;

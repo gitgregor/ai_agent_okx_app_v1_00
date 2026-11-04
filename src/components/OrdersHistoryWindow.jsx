@@ -20,6 +20,9 @@ export function OrdersHistoryWindow({
   onOpenAssetChart,
   onActivateOpenOrder,
   onCancelOpenOrder,
+  onForceDeviceSync,
+  onExportSyncData,
+  onImportSyncData,
   onSetWindowMode,
   onCloseWindow,
   onBringToFront
@@ -50,6 +53,33 @@ export function OrdersHistoryWindow({
             Pełna lista zleceń z datą, czasem oraz przyciskiem otwierającym przesuwny wykres
             danego aktywa (Mały / Średni / Full)
           </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn btn-outline-sm"
+            style={{ background: 'rgba(59, 130, 246, 0.12)', borderColor: '#3b82f6', color: '#60a5fa' }}
+            title="Wymuś synchronizację zleceń między telefonem a laptopem przez Bramę Domową"
+            onClick={onForceDeviceSync}
+          >
+            🔄 Synchronizuj Telefon ⇄ Laptop
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline-sm"
+            title="Kopiuj do schowka zlecenia wykonane na tym urządzeniu"
+            onClick={onExportSyncData}
+          >
+            📋 Kopiuj z tego urządzenia
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline-sm"
+            title="Wklej zlecenia z drugiego urządzenia"
+            onClick={onImportSyncData}
+          >
+            📥 Wklej z drugiego urządzenia
+          </button>
         </div>
         <div className="orders-filter-tabs" role="tablist">
           <button

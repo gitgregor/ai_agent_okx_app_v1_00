@@ -8,6 +8,9 @@ import {
   saveKeysToLocalStorage,
   clearKeysFromLocalStorage,
   getKeysFromLocalStorage,
+  exportDeviceSyncCode,
+  importDeviceSyncCode,
+  probeHomeGateway,
   DEFAULT_STANDALONE_MARKETS
 } from './engine/okxClientEngine';
 import { HeaderBar } from './components/HeaderBar';
@@ -677,6 +680,60 @@ export function App() {
           'Wklej klucze API z konta Demo OKX w Oknie 1, aby pobrać swój portfel.'
         }`
       );
+    }
+  };
+
+  const handleExportSyncData = () => {
+    try {
+      const code = exportDeviceSyncCode();
+      if (!code) {
+        showToast('⚠️ Brak transakcji w pamięci podręcznej tego urządzenia.');
+        return;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard
+          .writeText(code)
+          .then(() => {
+            showToast('📋 Skopiowano dane transakcji do schowka! Wklej je na drugim urządzeniu.');
+          })
+          .catch(() => {
+            prompt('Skopiuj poniższe dane transakcji ręcznie (Ctrl+C):', code);
+          });
+      } else {
+        prompt('Skopiuj poniższe dane transakcji ręcznie (Ctrl+C):', code);
+      }
+    } catch (e) {
+      showToast('❌ Błąd eksportu: ' + e.message);
+    }
+  };
+
+  const handleImportSyncData = async () => {
+    const input = prompt('Wklej dane synchronizacji transakcji z telefonu / drugiego urządzenia (JSON):');
+    if (!input || !input.trim()) return;
+    try {
+      showToast('⏳ Importowanie i scalanie transakcji w bazie...');
+      const res = await importDeviceSyncCode(input);
+      if (res.state) {
+        setAppState(res.state);
+      } else {
+        const live = await apiRequest('/api/state');
+        if (live) setAppState(live);
+      }
+      showToast(`✅ Pomyślnie zaimportowano ${res.count || 0} transakcji do bazy i portfela!`);
+    } catch (e) {
+      alert('Błąd importu transakcji: ' + e.message);
+    }
+  };
+
+  const handleForceDeviceSync = async () => {
+    showToast('🔄 Łączenie z bramą laptopa i synchronizacja zleceń...');
+    try {
+      await probeHomeGateway(true);
+      const res = await apiRequest('/api/state');
+      if (res) setAppState(res);
+      showToast('✅ Zsynchronizowano transakcje i portfel z Bramą Domową laptopa!');
+    } catch (e) {
+      showToast('⚠️ Brak bezpośredniego połączenia z bramą. Użyj przycisku [Kopiuj z tego urządzenia] i wklej na laptopie.');
     }
   };
 
@@ -1356,6 +1413,9 @@ export function App() {
             soloWindowId={soloWindowId}
             portfolio={appState?.portfolio}
             onManualSyncOkx={handleManualSyncOkx}
+            onForceDeviceSync={handleForceDeviceSync}
+            onExportSyncData={handleExportSyncData}
+            onImportSyncData={handleImportSyncData}
             onOpenAssetChart={(instId) =>
               openAssetChart(instId, chartState.isOpen ? chartState.size : 'medium')
             }
@@ -1390,6 +1450,9 @@ export function App() {
             }
             onActivateOpenOrder={handleActivateOpenOrder}
             onCancelOpenOrder={handleCancelOpenOrder}
+            onForceDeviceSync={handleForceDeviceSync}
+            onExportSyncData={handleExportSyncData}
+            onImportSyncData={handleImportSyncData}
             onSetWindowMode={setWindowMode}
             onCloseWindow={handleCloseWindow}
             onBringToFront={handleBringToFront}
