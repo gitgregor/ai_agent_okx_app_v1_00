@@ -702,37 +702,6 @@
   "sessionSync": {
     "chatMessages": [
       {
-        "id": "user-1793688976493",
-        "role": "user",
-        "text": "kup 255 sol"
-      },
-      {
-        "id": "ai-1793688976494",
-        "role": "assistant",
-        "text": "🤖 **Przygotowano strategię i zlecenie na giełdę OKX Europe (`eea.okx.com`):**\n- **Założona strategia:** Strategia AI MCP (Kupno SOL-USDC Live)\n- **Data i czas:** `2026-11-03 06:56:16` • **ID:** `OKX-EEA-72608`\n- **Operacja:** **KUPNO (BUY)** `255 SOL` po kursie **91,52 USDC**\n- **Przeliczenie na USDC:** **`23317.20 USDC`** • **Opłata (Fee 0.10%):** **`23.32 USDC`** (`0.255 SOL`)\n- **Całkowite rozliczenie w USDC:** **`23340.52 USDC`**\n\n👇 Kliknij przycisk **Potwierdź** w karcie zlecenia powyżej, aby natychmiast zrealizować transakcję na giełdzie.",
-        "orderId": "OKX-EEA-72608",
-        "isPendingTx": true
-      },
-      {
-        "id": "exec-4066346946768424960-1793688983293",
-        "role": "assistant",
-        "text": "✅ **KOMUNIKAT ZWROTNY Z GIEŁDY OKX EUROPE (EXCHANGE FEEDBACK) — #4066346946768424960:**\n- **Założenie strategii i proces:** Założono strategię „Strategia AI MCP (Kupno SOL-USDC Live)” oraz uruchomiono proces KUPNA (BUY) dla pary SOL-USDC.\n- **Potwierdzenie z giełdy:** Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #4066346946768424960: Kupiono 255 SOL po kursie 91.44 USDC (Przeliczenie: 23317.20 USDC, Fee 0.10%: 23.32 USDC / 0.255 SOL, Rozliczenie całkowite: 23340.52 USDC). (Zlecenie wykonane na serwerze OKX DEMO, ID OKX: 4066346946768424960)\n- 💾 *Rezultat został zapisany w historii transakcji i historii portfela — dostępny po naciśnięciu klawisza **Szczegóły transakcji (Exchange Feedback)**.*",
-        "orderId": "4066346946768424960",
-        "isExecutedTx": true
-      },
-      {
-        "id": "user-1793694751407",
-        "role": "user",
-        "text": "kup 108 pendle za usdc"
-      },
-      {
-        "id": "ai-1793694751408",
-        "role": "assistant",
-        "text": "🤖 **Przygotowano strategię i zlecenie na giełdę OKX Europe (`eea.okx.com`):**\n- **Założona strategia:** Strategia AI MCP (Kupno BTC-USDC Live)\n- **Data i czas:** `2026-11-03 08:32:31` • **ID:** `OKX-EEA-92868`\n- **Operacja:** **KUPNO (BUY)** `0.001411 BTC` po kursie **76 530,5 USDC**\n- **Przeliczenie na USDC:** **`107.98 USDC`** • **Opłata (Fee 0.10%):** **`0.11 USDC`** (`0.000001 BTC`)\n- **Całkowite rozliczenie w USDC:** **`108.09 USDC`**\n\n👇 Kliknij przycisk **Potwierdź** w karcie zlecenia powyżej, aby natychmiast zrealizować transakcję na giełdzie.",
-        "orderId": "OKX-EEA-92868",
-        "isPendingTx": true
-      },
-      {
         "id": "exec-4066543090106650624-1793694828511",
         "role": "assistant",
         "text": "✅ **KOMUNIKAT ZWROTNY Z GIEŁDY OKX EUROPE (EXCHANGE FEEDBACK) — #4066543090106650624:**\n- **Założenie strategii i proces:** Założono strategię „Strategia AI MCP (Kupno BTC-USDC Live)” oraz uruchomiono proces KUPNA (BUY) dla pary BTC-USDC.\n- **Potwierdzenie z giełdy:** Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #4066543090106650624: Kupiono 0.001411 BTC po kursie 76510.9 USDC (Przeliczenie: 107.96 USDC, Fee 0.10%: 0.11 USDC / 0.000001 BTC, Rozliczenie całkowite: 108.07 USDC). (Zlecenie wykonane na serwerze OKX DEMO, ID OKX: 4066543090106650624)\n- 💾 *Rezultat został zapisany w historii transakcji i historii portfela — dostępny po naciśnięciu klawisza **Szczegóły transakcji (Exchange Feedback)**.*",
@@ -943,98 +912,134 @@
         "text": "✅ **KOMUNIKAT ZWROTNY Z GIEŁDY OKX EUROPE (EXCHANGE FEEDBACK) — #OKX-EEA-66020:**\n- **Założenie strategii i proces:** Założono strategię „Strategia Kupna OKX AI Spot Grid (AVAX-USDC)” oraz uruchomiono proces KUPNA (BUY) dla pary AVAX-USDC.\n- **Potwierdzenie z giełdy:** Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #OKX-EEA-66020: Kupiono 115.380178 AVAX po kursie 8.671 USDC (Przeliczenie: 1000.46 USDC, Fee 0.10%: 1.00 USDC / 0.11538 AVAX, Rozliczenie całkowite: 1001.46 USDC). (Status OKX API: All operations failed)\n- 💾 *Rezultat został zapisany w historii transakcji i historii portfela — dostępny po naciśnięciu klawisza **Szczegóły transakcji (Exchange Feedback)**.*",
         "orderId": "OKX-EEA-66020",
         "isExecutedTx": true
+      },
+      {
+        "id": "strat-user-1793805537883",
+        "role": "user",
+        "text": "[AI Strategies] Strategia kupna dla AVAX"
+      },
+      {
+        "id": "strat-ai-1793805537884",
+        "role": "assistant",
+        "text": "🧠 **Analiza Agenta AI z OKX (`eea.okx.com`) — Strategia Kupna dla `AVAX-USDC`:**\n- **Rekomendowana strategia:** **Strategia Kupna OKX AI Momentum (AVAX-USDC)**\n- **Kurs OKX Live:** **9,066 USDC** (24h: `+6.15%` • RSI-14: `74` • VWAP: `8.832 USDC`)\n- **Poziomy techniczne OKX:** Wsparcie S1: `8.467 USDC` • S2: `8.207 USDC` | Cele: **TP1 `9.383 USDC`**, **TP2 `9.746 USDC`** | Stop-Loss: `8.776 USDC`\n- **Przygotowane zlecenie kupna:** `165.453342 AVAX` = **`1503.31 USDC`** + Fee (0.10%): **`1.50 USDC`** (Razem: **`1504.81 USDC`**)\n\n👇 Możesz od razu kliknąć **Potwierdź**, aby zrealizować tę strategię kupna na giełdzie OKX.",
+        "orderId": "OKX-EEA-30139",
+        "isPendingTx": true
+      },
+      {
+        "id": "strat-user-1793805565146",
+        "role": "user",
+        "text": "[AI Strategies] Strategia kupna dla AVAX"
+      },
+      {
+        "id": "strat-ai-1793805565147",
+        "role": "assistant",
+        "text": "🧠 **Analiza Agenta AI z OKX (`eea.okx.com`) — Strategia Kupna dla `AVAX-USDC`:**\n- **Rekomendowana strategia:** **Strategia Kupna OKX AI Momentum (AVAX-USDC)**\n- **Kurs OKX Live:** **9,05 USDC** (24h: `+5.97%` • RSI-14: `73.1` • VWAP: `8.827 USDC`)\n- **Poziomy techniczne OKX:** Wsparcie S1: `8.467 USDC` • S2: `8.207 USDC` | Cele: **TP1 `9.367 USDC`**, **TP2 `9.729 USDC`** | Stop-Loss: `8.76 USDC`\n- **Przygotowane zlecenie kupna:** `165.745856 AVAX` = **`1503.31 USDC`** + Fee (0.10%): **`1.50 USDC`** (Razem: **`1504.81 USDC`**)\n\n👇 Możesz od razu kliknąć **Potwierdź**, aby zrealizować tę strategię kupna na giełdzie OKX.",
+        "orderId": "OKX-EEA-32338",
+        "isPendingTx": true
+      },
+      {
+        "id": "strat-user-1793805839238",
+        "role": "user",
+        "text": "[AI Strategies] BTC"
+      },
+      {
+        "id": "strat-ai-1793805839239",
+        "role": "assistant",
+        "text": "🧠 **Analiza Agenta AI z OKX (`eea.okx.com`) — Strategia Kupna dla `BTC-USDC`:**\n- **Rekomendowana strategia:** **Strategia Kupna OKX AI Momentum (BTC-USDC)**\n- **Kurs OKX Live:** **80 683,2 USDC** (24h: `+4.48%` • RSI-14: `69.8` • VWAP: `79149.9 USDC`)\n- **Poziomy techniczne OKX:** Wsparcie S1: `76847.03 USDC` • S2: `75034.88 USDC` | Cele: **TP1 `83507.11 USDC`**, **TP2 `86734.44 USDC`** | Stop-Loss: `78101.34 USDC`\n- **Przygotowane zlecenie kupna:** `0.018591 BTC` = **`1500.11 USDC`** + Fee (0.10%): **`1.50 USDC`** (Razem: **`1501.61 USDC`**)\n\n👇 Możesz od razu kliknąć **Potwierdź**, aby zrealizować tę strategię kupna na giełdzie OKX.",
+        "orderId": "OKX-EEA-25148",
+        "isPendingTx": true
       }
     ],
     "currentAiStrategyAnalysis": {
       "engine": "@okx_ai/okx-trade-mcp • okx/agent-trade-kit (eea.okx.com v5)",
       "mode": "DEMO",
-      "query": "Zbuduj strategię Spot Grid dla AVAX za 1000 USDC",
+      "query": "BTC",
       "date": "2026-11-04",
-      "time": "13:58:49",
-      "asset": "AVAX",
-      "assetName": "Avalanche",
-      "instId": "AVAX-USDC",
+      "time": "15:23:59",
+      "asset": "BTC",
+      "assetName": "Bitcoin",
+      "instId": "BTC-USDC",
       "market": {
-        "price": 8.667,
-        "bidPx": 8.663,
-        "askPx": 8.676,
-        "spreadPct": 0.15,
-        "open24h": 8.595,
-        "high24h": 8.751,
-        "low24h": 8.273,
-        "vol24h": 86281.8,
-        "change24hPct": 0.84,
-        "volatility24hPct": 5.78,
-        "rangePositionPct": 82.4
+        "price": 80683.2,
+        "bidPx": 80689.9,
+        "askPx": 80690,
+        "spreadPct": 0.0001,
+        "open24h": 77220,
+        "high24h": 81126.5,
+        "low24h": 75640,
+        "vol24h": 1045.7,
+        "change24hPct": 4.48,
+        "volatility24hPct": 7.25,
+        "rangePositionPct": 91.9
       },
       "technicals": {
-        "trendLabel": "Konsolidacja akumulacyjna z przewagą popytu (Neutral-Bullish)",
+        "trendLabel": "Wzrostowy (Bullish Momentum na OKX Spot)",
         "signalBadge": "REKOMENDACJA AI OKX: KUPUJ / AKUMULUJ (BUY)",
-        "rsi14": 57.5,
-        "rsiStatus": "Optymalna strefa akumulacji (brak przegrzania rynku)",
-        "ema20": 8.647,
-        "ema50": 8.627,
-        "vwap": 8.564,
-        "support1": 8.378,
-        "support2": 8.207,
-        "takeProfit1": 8.97,
-        "takeProfit2": 9.317,
-        "takeProfit3": 9.75,
-        "stopLoss": 8.39,
+        "rsi14": 69.8,
+        "rsiStatus": "Wykupienie (zalecane wejście transzami DCA przy korekcie do S1)",
+        "ema20": 79671.11,
+        "ema50": 78695.17,
+        "vwap": 79149.9,
+        "support1": 76847.03,
+        "support2": 75034.88,
+        "takeProfit1": 83507.11,
+        "takeProfit2": 86734.44,
+        "takeProfit3": 90768.6,
+        "stopLoss": 78101.34,
         "riskReward": "1 : 2.65"
       },
       "portfolioContext": {
-        "availUsdc": 63815.51,
-        "totalPortfolioUsdc": 462069.31,
-        "currentAssetAmount": 0,
-        "currentAvgBuyPrice": 0,
-        "newTotalAssetAmount": 115.380178
+        "availUsdc": 62815.05,
+        "totalPortfolioUsdc": 469067.36,
+        "currentAssetAmount": 1.534382,
+        "currentAvgBuyPrice": 80752.33,
+        "newTotalAssetAmount": 1.552973
       },
       "recommendedStrategy": {
-        "strategyType": "OKX AI Spot Grid Bot Strategy",
-        "strategyName": "Strategia Kupna OKX AI Spot Grid (AVAX-USDC)",
-        "rationale": "Agent AI OKX przeanalizował księgę zleceń i strukturę świec dla pary AVAX-USDC na giełdzie OKX Europe (eea.okx.com). Kurs bieżący wynosi 8.667 USDC (zmiana 24h: +0.84%, zmienność dobowa: 5.78%, RSI-14: 57.5). Cena znajduje się na poziomie 82.4% kanału dobowego (8.273 – 8.751 USDC) względem VWAP (8.564 USDC). Rekomendowana strategia zakłada wejście kupna (BUY) z docelowym poziomem realizacji zysku TP1 8.97 USDC (+3.5%), TP2 9.317 USDC (+7.5%) oraz zabezpieczeniem Stop-Loss na 8.39 USDC (-3.2%).",
+        "strategyType": "OKX AI Momentum Breakout Buy",
+        "strategyName": "Strategia Kupna OKX AI Momentum (BTC-USDC)",
+        "rationale": "Agent AI OKX przeanalizował księgę zleceń i strukturę świec dla pary BTC-USDC na giełdzie OKX Europe (eea.okx.com). Kurs bieżący wynosi 80683.2 USDC (zmiana 24h: +4.48%, zmienność dobowa: 7.25%, RSI-14: 69.8). Cena znajduje się na poziomie 91.9% kanału dobowego (75640 – 81126.5 USDC) względem VWAP (79149.9 USDC). Rekomendowana strategia zakłada wejście kupna (BUY) z docelowym poziomem realizacji zysku TP1 83507.11 USDC (+3.5%), TP2 86734.44 USDC (+7.5%) oraz zabezpieczeniem Stop-Loss na 78101.34 USDC (-3.2%).",
         "spotExecution": {
-          "orderId": "OKX-EEA-66020",
-          "amount": 115.380178,
-          "price": 8.676,
-          "usdcValue": 1001.04,
+          "orderId": "OKX-EEA-25148",
+          "amount": 0.018591,
+          "price": 80690,
+          "usdcValue": 1500.11,
           "feeRate": "0.10%",
-          "feeUsdc": 1,
-          "feeAsset": 0.11538,
-          "totalUsdcWithFee": 1002.04
+          "feeUsdc": 1.5,
+          "feeAsset": 0.000019,
+          "totalUsdcWithFee": 1501.61
         },
         "dcaTranches": [
           {
             "step": "Transza 1 (40% kapitału — Wejście Spot Market)",
-            "price": 8.667,
-            "usdcValue": 400,
-            "amount": 46.152071,
+            "price": 80683.2,
+            "usdcValue": 600,
+            "amount": 0.007436,
             "condition": "Natychmiastowy zakup po bieżącym kursie OKX Spot"
           },
           {
             "step": "Transza 2 (35% kapitału — Wsparcie S1 -2.0%)",
-            "price": 8.378,
-            "usdcValue": 350,
-            "amount": 41.77608,
-            "condition": "Zlecenie oczekujące Limit Buy w strefie popytu S1 (8.378 USDC)"
+            "price": 76847.03,
+            "usdcValue": 525,
+            "amount": 0.006832,
+            "condition": "Zlecenie oczekujące Limit Buy w strefie popytu S1 (76847.03 USDC)"
           },
           {
             "step": "Transza 3 (25% kapitału — Głębokie Wsparcie S2 -4.5%)",
-            "price": 8.207,
-            "usdcValue": 250,
-            "amount": 30.461801,
-            "condition": "Zlecenie obronne Limit Buy na wsparciu S2 (8.207 USDC)"
+            "price": 75034.88,
+            "usdcValue": 375,
+            "amount": 0.004998,
+            "condition": "Zlecenie obronne Limit Buy na wsparciu S2 (75034.88 USDC)"
           }
         ],
-        "avgDcaPrice": 8.447,
-        "totalDcaAmt": 118.389952,
+        "avgDcaPrice": 77857.37,
+        "totalDcaAmt": 0.019266,
         "gridPlan": {
-          "lowerPrice": 8.207,
-          "upperPrice": 9.317,
+          "lowerPrice": 75034.88,
+          "upperPrice": 86734.44,
           "gridLevels": 12,
           "profitPerGrid": "0.55% – 0.85% (po odliczeniu Fee 0.10%)",
-          "allocatedUsdc": 1000
+          "allocatedUsdc": 1500
         }
       }
     },
@@ -1414,6 +1419,6 @@
       "strategyMessage": "Założono strategię „Strategia Kupna OKX AI Spot Grid (AVAX-USDC)” oraz uruchomiono proces KUPNA (BUY) dla pary AVAX-USDC.",
       "exchangeMessage": "Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #OKX-EEA-66020: Kupiono 115.380178 AVAX po kursie 8.671 USDC (Przeliczenie: 1000.46 USDC, Fee 0.10%: 1.00 USDC / 0.11538 AVAX, Rozliczenie całkowite: 1001.46 USDC). (Status OKX API: All operations failed)"
     },
-    "updatedAt": 1793800884742
+    "updatedAt": 1793805839238
   }
 }

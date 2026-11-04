@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { WindowContainer } from './WindowContainer';
-import { InlineOrderConfirmCard, CollapsibleExecutedTx } from './ExchangeFeedbackBox';
+import { InlineOrderConfirmCard, ExchangeFeedbackDetails } from './ExchangeFeedbackBox';
 import { formatUsdc, formatUnitPrice, formatQty } from '../engine/okxClientEngine';
 
 const QUICK_ASSETS = [
@@ -18,15 +18,26 @@ const QUICK_ASSETS = [
   'SUI'
 ];
 
-const LS_STRAT_HISTORY_KEY = 'okx_ai_strat_queries_history_v1';
+function getStrategyTiming(ord) {
+  if (!ord) return { openDate: '', openTime: '', execDate: '', execTime: '', isFilled: false };
+  const openDate = ord.createdAtDate || ord.date || '';
+  const openTime = ord.createdAtTime || ord.time || '';
+  const isFilled =
+    ord.status === 'CLOSED' ||
+    ord.status === 'FILLED' ||
+    ord.rawState === 'filled' ||
+    Boolean(ord.exchangeFeedback && ord.exchangeFeedback.status && ord.exchangeFeedback.status.includes('FILLED'));
+  const execDate = ord.date || openDate;
+  const execTime = ord.time || openTime;
 
-const INITIAL_SAMPLE_QUERIES = [
-  { query: 'Analiza agenta AI z OKX i strategia kupna dla PENDLE', date: '2026-11-04', time: '05:57:09', asset: 'PENDLE' },
-  { query: 'Stwórz strategię kupna dla BTC za 2500 USDC', date: '2026-11-04', time: '08:35:10', asset: 'BTC' },
-  { query: 'Strategia kupna SOL DCA za 1200 USDC z TP/SL', date: '2026-11-04', time: '08:37:00', asset: 'SOL' },
-  { query: 'Przeanalizuj XRP na giełdzie OKX i przygotuj strategię akumulacji', date: '2026-11-03', time: '10:50:20', asset: 'XRP' },
-  { query: 'Zrób analizę i strategię kupna DCA dla ETH za 1800 USDC', date: '2026-11-03', time: '10:45:29', asset: 'ETH' }
-];
+  return {
+    openDate,
+    openTime,
+    execDate,
+    execTime,
+    isFilled
+  };
+}
 
 export function AiStrategiesWindow({
   winMeta,
@@ -43,87 +54,149 @@ export function AiStrategiesWindow({
   onSubmitAiStrategy,
   onRunAiStrategyQuery,
   onConfirmOrder,
+  onRejectOrder,
   onToggleAiExecutedTx,
   onOpenAssetChart,
   onSetWindowMode,
   onCloseWindow,
   onBringToFront
 }) {
-  const a = currentAiStrategyAnalysis;
-
   // Stany kontrolek górnej belki:
   const [showInstruction, setShowInstruction] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
 
-  // Okno rekomendacji: domyślnie po otworzeniu ZAMKNIĘTE (zgodnie z życzeniem użytkownika)
+  // Strategia wygenerowana w BIEŻĄCYM otwarciu okna (gdy okno zostanie zamknięte i otwarte na nowo, resetujemy)
+  const [activeSessionAnalysis, setActiveSessionAnalysis] = useState(null);
   const [isRecommendationOpen, setIsRecommendationOpen] = useState(false);
 
-  // Historia zapytań o strategie
-  const [queryHistory, setQueryHistory] = useState(() => {
-    if (typeof window === 'undefined') return INITIAL_SAMPLE_QUERIES;
-    try {
-      const saved = localStorage.getItem(LS_STRAT_HISTORY_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {}
-    return INITIAL_SAMPLE_QUERIES;
-  });
+  // Rozwinięte szczegóły w historii
+  const [expandedHistoryTxIds, setExpandedHistoryTxIds] = useState(new Set());
 
-  // Po wygenerowaniu nowej analizy przez Agenta AI — automatycznie otwieramy rekomendację
-  const prevTimestampRef = useRef(a?.timestamp || 0);
+  // Resetowanie po zamknięciu i ponownym otwarciu okna:
+  // Okno po ponownym otwarciu ma być CZYSTE — nie pokazuje starej wykonanej strategii!
+  const prevModeRef = useRef(winMeta?.mode);
   useEffect(() => {
-    if (a?.timestamp && a.timestamp !== prevTimestampRef.current) {
-      prevTimestampRef.current = a.timestamp;
+    const prev = prevModeRef.current;
+    const curr = winMeta?.mode;
+    prevModeRef.current = curr;
+
+    const wasClosed = prev === 'docked-top' || prev === 'docked-sidebar' || !prev;
+    const isNowOpen =
+      curr === 'grid' ||
+      curr === 'floating-small' ||
+      curr === 'floating-medium' ||
+      curr === 'fullscreen';
+
+    if (wasClosed && isNowOpen) {
+      // Okno zostało ponownie wywołane — czyścimy widok ostatniej strategii z głównego ekranu
+      setActiveSessionAnalysis(null);
+      setIsRecommendationOpen(false);
+      setShowInstruction(false);
+      setShowHistory(false);
+      setShowExamples(false);
+    }
+  }, [winMeta?.mode]);
+
+  // Gdy użytkownik właśnie wygenerował nową analizę z formularza — pokazujemy ją w bieżącym oknie
+  const prevAnalysisTsRef = useRef(currentAiStrategyAnalysis?.timestamp || 0);
+  useEffect(() => {
+    if (
+      currentAiStrategyAnalysis?.timestamp &&
+      currentAiStrategyAnalysis.timestamp !== prevAnalysisTsRef.current
+    ) {
+      prevAnalysisTsRef.current = currentAiStrategyAnalysis.timestamp;
+      setActiveSessionAnalysis(currentAiStrategyAnalysis);
       setIsRecommendationOpen(true);
     }
-  }, [a?.timestamp]);
-
-  const saveQueryToHistory = (queryText) => {
-    if (!queryText || !queryText.trim()) return;
-    const clean = queryText.trim();
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0, 10);
-    const timeStr = now.toTimeString().slice(0, 8);
-    const newItem = { query: clean, date: dateStr, time: timeStr };
-
-    setQueryHistory((prev) => {
-      const filtered = prev.filter((item) => item.query.toLowerCase() !== clean.toLowerCase());
-      const updated = [newItem, ...filtered].slice(0, 25);
-      try {
-        localStorage.setItem(LS_STRAT_HISTORY_KEY, JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
-  };
+  }, [currentAiStrategyAnalysis]);
 
   const handleFormSubmit = (e) => {
     if (e) e.preventDefault();
-    if (aiStrategyInput && aiStrategyInput.trim()) {
-      saveQueryToHistory(aiStrategyInput.trim());
-      setIsRecommendationOpen(true);
-    }
     if (onSubmitAiStrategy) onSubmitAiStrategy(e);
   };
 
   const handleRunQuery = (queryText) => {
-    if (queryText && queryText.trim()) {
-      saveQueryToHistory(queryText.trim());
-      setIsRecommendationOpen(true);
-    }
     if (onRunAiStrategyQuery) onRunAiStrategyQuery(queryText);
   };
 
-  // Zrealizowane zakupy i zlecenia ze strategii AI
-  const aiOrdersList = (orders || []).filter(
-    (o) =>
-      o &&
-      (String(o.id).startsWith('OKX-EEA-') ||
-        (o.source && (o.source.includes('AI') || o.source.includes('Strategia') || o.source.includes('Agent'))) ||
-        (o.strategyName && (o.strategyName.includes('AI') || o.strategyName.includes('Strategia'))))
-  );
+  const toggleHistoryItemDetails = (id) => {
+    setExpandedHistoryTxIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Budujemy listę WSZYSTKICH strategii, które są W TRAKCIE REALIZACJI lub ZOSTAŁY ZREALIZOWANE:
+  // Tylko takie mają być pokazywane pod przyciskiem Historia z dokładnymi czasami otwarcia i realizacji!
+  const candidateStrategies = [];
+  const seenOrderIds = new Set();
+
+  // 1. Jeśli w trakcie realizacji jest activeTradeOrder (np. oczekuje na potwierdzenie lub in progress)
+  if (activeTradeOrder && activeTradeOrder.id) {
+    seenOrderIds.add(String(activeTradeOrder.id));
+    candidateStrategies.push({
+      ...activeTradeOrder,
+      isCurrentlyActive: true,
+      status: activeTradeOrder.status || 'waiting_for_start',
+      statusLabel: 'W trakcie realizacji (Oczekuje na potwierdzenie)'
+    });
+  }
+
+  // 2. Strategie z session transactions i zleceń sesji
+  const allRawOrders = [...(orders || [])];
+  for (const o of allRawOrders) {
+    if (!o || !o.id) continue;
+    const idStr = String(o.id);
+    if (seenOrderIds.has(idStr)) continue;
+    const isAiSource =
+      idStr.startsWith('OKX-EEA-') ||
+      (o.source && (o.source.includes('AI') || o.source.includes('Strategia') || o.source.includes('Agent'))) ||
+      (o.strategyName && (o.strategyName.includes('AI') || o.strategyName.includes('Strategia')));
+
+    if (isAiSource) {
+      seenOrderIds.add(idStr);
+      candidateStrategies.push(o);
+    }
+  }
+
+  // 3. Dodaj również transakcje z executedSessionTransactions (jeśli brakuje ich w orders)
+  for (const fb of executedSessionTransactions || []) {
+    if (!fb) continue;
+    const ordId = String(fb.orderId || fb.id || '');
+    if (ordId && !seenOrderIds.has(ordId)) {
+      seenOrderIds.add(ordId);
+      candidateStrategies.push({
+        id: ordId,
+        instId: fb.instId,
+        asset: fb.asset,
+        side: fb.side,
+        orderType: fb.orderType || 'MARKET',
+        amount: fb.amount,
+        price: fb.price,
+        usdcValue: fb.usdcValue,
+        feeRate: fb.feeRate || '0.10%',
+        feeUsdc: fb.feeUsdc,
+        feeAsset: fb.feeAsset,
+        totalUsdcWithFee: fb.totalUsdcWithFee,
+        status: 'CLOSED',
+        statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+        source: 'Agent AI MCP (okx/agent-trade-kit)',
+        strategyName: fb.strategyName || `Strategia AI (${fb.instId})`,
+        date: fb.date,
+        time: fb.time,
+        createdAtDate: fb.createdAtDate || fb.date,
+        createdAtTime: fb.createdAtTime || fb.time,
+        timestamp: fb.timestamp || Date.now(),
+        exchangeFeedback: fb
+      });
+    }
+  }
+
+  // Sortujemy strategie od najnowszych
+  candidateStrategies.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
   // Belka kontrolek w nagłówku okna pomiędzy "W siatce" a "Siatka"
   const extraTitlebarControls = (
@@ -148,6 +221,8 @@ export function AiStrategiesWindow({
         onClick={(e) => {
           e.stopPropagation();
           setShowInstruction((prev) => !prev);
+          setShowHistory(false);
+          setShowExamples(false);
         }}
       >
         <span>ℹ️</span> <span className="win-btn-label">Instrukcja</span>
@@ -161,13 +236,15 @@ export function AiStrategiesWindow({
             ? { background: '#a855f7', color: '#ffffff', borderColor: '#a855f7', fontWeight: 700 }
             : { color: '#c084fc', borderColor: 'rgba(168, 85, 247, 0.45)' }
         }
-        title="Historyczne zapytania o strategie oraz zrealizowane zakupy Agenta AI"
+        title="Wyświetl strategie wykonane i zrealizowane lub w trakcie realizacji z dokładnym czasem otwarcia i realizacji"
         onClick={(e) => {
           e.stopPropagation();
           setShowHistory((prev) => !prev);
+          setShowInstruction(false);
+          setShowExamples(false);
         }}
       >
-        <span>📜</span> <span className="win-btn-label">Historia</span>
+        <span>📜</span> <span className="win-btn-label">Historia ({candidateStrategies.length})</span>
       </button>
 
       <button
@@ -182,12 +259,16 @@ export function AiStrategiesWindow({
         onClick={(e) => {
           e.stopPropagation();
           setShowExamples((prev) => !prev);
+          setShowInstruction(false);
+          setShowHistory(false);
         }}
       >
         <span>💡</span> <span className="win-btn-label">Przykłady strategii</span>
       </button>
     </div>
   );
+
+  const a = activeSessionAnalysis;
 
   return (
     <WindowContainer
@@ -238,13 +319,13 @@ export function AiStrategiesWindow({
         </div>
       )}
 
-      {/* 2. PANEL HISTORII ZAPYTAŃ I ZAKUPÓW (wywoływany przyciskiem Historia w belce) */}
+      {/* 2. PANEL HISTORII: POKAZUJE STRATEGIE WYKONANE I ZREALIZOWANE ORAZ W TRAKCIE REALIZACJI Z DOKŁADNYM CZASEM OTWARCIA I REALIZACJI */}
       {showHistory && (
         <div className="ai-strat-history-container">
           <div className="history-container-header">
             <div className="history-title-group">
               <span className="hist-icon">📜</span>
-              <h4>Historia Zapytań o Strategie i Zakupów Agenta AI</h4>
+              <h4>Strategie Agenta AI — Wykonane, Zrealizowane i w Trakcie Realizacji</h4>
             </div>
             <button
               type="button"
@@ -256,67 +337,66 @@ export function AiStrategiesWindow({
             </button>
           </div>
 
-          <div className="history-sections-grid">
-            {/* Lewa kolumna: Zapisane zapytania użytkownika */}
-            <div className="history-section-card">
-              <h5>🔍 Poprzednie zapytania o strategie (kliknij, aby powtórzyć):</h5>
-              <div className="history-queries-list">
-                {queryHistory.length === 0 ? (
-                  <p className="small-muted">Brak zapisanych zapytań w sesji.</p>
-                ) : (
-                  queryHistory.map((item, idx) => (
-                    <div key={idx} className="hist-query-item">
-                      <div className="hist-query-text-col">
-                        <strong className="hist-query-text">„{item.query}”</strong>
-                        <span className="hist-query-time">
-                          ⏰ {item.date} {item.time}
+          <p className="panel-subtitle" style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>
+            Poniżej znajduje się pełna historia strategii z dokładną datą i czasem otworzenia strategii oraz momentem jej zrealizowania na giełdzie OKX.
+          </p>
+
+          <div className="history-strategies-full-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {candidateStrategies.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)' }}>
+                Brak zarejestrowanych strategii w tej sesji. Wpisz zapytanie w polu powyżej, aby wygenerować nową strategię.
+              </div>
+            ) : (
+              candidateStrategies.map((ord) => {
+                const timing = getStrategyTiming(ord);
+                const isBuy = ord.side === 'BUY';
+                const isPending = !timing.isFilled;
+                const isExpanded = expandedHistoryTxIds.has(ord.id);
+                const fb = ord.exchangeFeedback;
+
+                return (
+                  <div
+                    key={ord.id}
+                    className="history-strategy-card"
+                    style={{
+                      background: isPending ? 'rgba(245, 158, 11, 0.08)' : 'rgba(17, 24, 39, 0.75)',
+                      border: isPending ? '1.5px solid rgba(245, 158, 11, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '12px 14px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span
+                          className={`side-badge ${isBuy ? 'side-buy' : 'side-sell'}`}
+                          style={{
+                            padding: '3px 9px',
+                            borderRadius: '4px',
+                            fontWeight: 800,
+                            background: isBuy ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                            color: isBuy ? '#34d399' : '#f87171'
+                          }}
+                        >
+                          {isBuy ? 'KUPNO (BUY)' : 'SPRZEDAŻ (SELL)'}
+                        </span>
+                        <strong>{ord.amount} {ord.asset}</strong>
+                        <span>@ {formatUnitPrice(ord.price)} USDC</span>
+                        <strong style={{ color: 'var(--accent-okx)' }}>({formatUsdc(ord.usdcValue)})</strong>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            background: isPending ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                            color: isPending ? '#fbbf24' : '#34d399',
+                            fontWeight: 700
+                          }}
+                        >
+                          {isPending ? '⏳ W TRAKCIE REALIZACJI' : '✅ ZREALIZOWANA NA OKX'}
                         </span>
                       </div>
-                      <button
-                        type="button"
-                        className="btn btn-outline-sm btn-repeat-query"
-                        title="Uruchom to zapytanie ponownie"
-                        onClick={() => {
-                          handleRunQuery(item.query);
-                          setShowHistory(false);
-                        }}
-                      >
-                        Powtórz ➤
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
 
-            {/* Prawa kolumna: Zrealizowane zakupy i strategie AI */}
-            <div className="history-section-card">
-              <h5>💼 Wygenerowane zlecenia i zakupy ze strategii AI:</h5>
-              <div className="history-orders-list">
-                {aiOrdersList.length === 0 ? (
-                  <p className="small-muted">Brak zrealizowanych zakupów strategii w tej sesji.</p>
-                ) : (
-                  aiOrdersList.map((ord, idx) => (
-                    <div key={ord.id || idx} className="hist-order-item">
-                      <div className="hist-order-info">
-                        <div className="hist-order-main">
-                          <span className={`side-badge ${ord.side === 'BUY' ? 'side-buy' : 'side-sell'}`}>
-                            {ord.side === 'BUY' ? 'KUPNO' : 'SPRZEDAŻ'}
-                          </span>
-                          <strong>
-                            {ord.amount} {ord.asset}
-                          </strong>
-                          <span>@ {formatUnitPrice(ord.price)} USDC</span>
-                        </div>
-                        <div className="hist-order-sub">
-                          <span>{ord.strategyName || ord.instId}</span> •{' '}
-                          <span>
-                            {ord.date} {ord.time}
-                          </span>{' '}
-                          • <span>{formatUsdc(ord.usdcValue)}</span>
-                        </div>
-                      </div>
-                      <div className="hist-order-actions">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {onOpenAssetChart && (
                           <button
                             type="button"
@@ -329,26 +409,77 @@ export function AiStrategiesWindow({
                         )}
                         <button
                           type="button"
-                          className="btn btn-outline-sm btn-repeat-query"
-                          title="Stwórz nową strategię dla tego waloru"
-                          onClick={() => {
-                            handleRunQuery(`Strategia kupna dla ${ord.asset}`);
-                            setShowHistory(false);
-                          }}
+                          className="btn btn-outline-sm"
+                          onClick={() => toggleHistoryItemDetails(ord.id)}
                         >
-                          Analiza ➤
+                          {isExpanded ? '▲ Zwiń szczegóły' : '▼ Szczegóły giełdowe'}
                         </button>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
+
+                    {/* DOKŁADNY CZAS OTWARCIA I REALIZACJI STRATEGII */}
+                    <div
+                      className="history-strategy-timing-bar"
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                        gap: '8px',
+                        background: 'rgba(0, 0, 0, 0.35)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        borderRadius: '6px',
+                        padding: '8px 12px',
+                        fontSize: '11.5px',
+                        marginBottom: '6px'
+                      }}
+                    >
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>🕒 Data i czas otwarcia strategii: </span>
+                        <strong style={{ color: '#60a5fa' }}>
+                          {timing.openDate} {timing.openTime}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>
+                          {isPending ? '⏳ Stan realizacji: ' : '🏁 Data i czas zrealizowania: '}
+                        </span>
+                        <strong style={{ color: isPending ? '#fbbf24' : '#34d399' }}>
+                          {isPending ? 'Oczekuje na realizację' : `${timing.execDate} ${timing.execTime}`}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>📋 Strategia / ID: </span>
+                        <strong>
+                          {ord.strategyName || ord.instId} <code>(#{ord.id})</code>
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* ROZWINIĘTE SZCZEGÓŁY GIEŁDOWE LUB FORMULARZ POTWIERDZENIA GDY W TRAKCIE */}
+                    {isPending && ord.isCurrentlyActive && (
+                      <InlineOrderConfirmCard
+                        active={ord}
+                        modeLabel="DEMO"
+                        onConfirm={onConfirmOrder}
+                        onReject={onRejectOrder}
+                        isConfirming={isConfirmingOrder}
+                        style={{ marginTop: '8px' }}
+                      />
+                    )}
+
+                    {isExpanded && fb && (
+                      <div style={{ marginTop: '10px' }}>
+                        <ExchangeFeedbackDetails fb={fb} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}
 
-      {/* 3. KOMPAKTOWE POLE INPUT DO GENEROWANIA STRATEGII KUPNA */}
+      {/* 3. CZYSTE POLE INPUT DO GENEROWANIA NOWEJ STRATEGII KUPNA */}
       <div className="ai-strat-generator-box">
         <form id="aiStrategyForm" className="ai-strat-input-row" onSubmit={handleFormSubmit}>
           <input
@@ -384,18 +515,32 @@ export function AiStrategiesWindow({
         </div>
       </div>
 
-      {/* 4. OKNO REKOMENDACJI — DOMYŚLNIE PO OTWORZENIU ZAMKNIĘTE (z paskiem rozwijania/zwijania) */}
+      {/* 4. AKTYWNE ZLECENIE OCZEKUJĄCE NA REALIZACJĘ W BIEŻĄCEJ SESJI (Z PRZYCISKIEM POTWIERDŹ ORAZ ODRZUĆ TRANSAKCJĘ) */}
+      {activeTradeOrder && (
+        <div style={{ marginBottom: '14px' }}>
+          <InlineOrderConfirmCard
+            active={activeTradeOrder}
+            modeLabel="DEMO"
+            badgeTitle={`📋 ZLECENIE KUPNA STRATEGII AI GOTOWE DO REALIZACJI • OKX EUROPE`}
+            onConfirm={onConfirmOrder}
+            onReject={onRejectOrder}
+            isConfirming={isConfirmingOrder}
+          />
+        </div>
+      )}
+
+      {/* 5. WYNIK ŚWIEŻO WYGENEROWANEJ STRATEGII W BIEŻĄCEJ SESJI */}
       {a && (
         <div className="ai-strat-recommendation-wrapper">
           <div
             className={`ai-strat-recommendation-bar ${isRecommendationOpen ? 'is-expanded' : 'is-collapsed'}`}
             onClick={() => setIsRecommendationOpen((prev) => !prev)}
-            title="Kliknij, aby rozwinąć lub zwinąć rekomendację strategii Agenta AI"
+            title="Kliknij, aby rozwinąć lub zwinąć rekomendację bieżącej strategii"
           >
             <div className="rec-bar-left">
               <span className="okx-ai-signal-pill">{a.technicals?.signalBadge || 'SYGNAŁ AI'}</span>
               <span className="rec-bar-title">
-                📊 Rekomendacja Strategii AI: <strong>{a.asset} ({a.instId})</strong> — {a.recommendedStrategy?.strategyName}
+                📊 Świeża Rekomendacja Strategii: <strong>{a.asset} ({a.instId})</strong> — {a.recommendedStrategy?.strategyName}
               </span>
               <span className="rec-bar-meta">
                 Kurs: <strong>{formatUnitPrice(a.market?.price)} USDC</strong> • {a.date} {a.time}
@@ -409,7 +554,7 @@ export function AiStrategiesWindow({
                 setIsRecommendationOpen((prev) => !prev);
               }}
             >
-              {isRecommendationOpen ? '▲ Zwiń rekomendację' : '▼ Otwórz rekomendację'}
+              {isRecommendationOpen ? '▲ Zwiń' : '▼ Otwórz'}
             </button>
           </div>
 
@@ -418,13 +563,13 @@ export function AiStrategiesWindow({
               <div className="okx-ai-analysis-report">
                 <div className="okx-ai-report-header">
                   <div className="okx-ai-report-title-group">
-                    <span className="okx-ai-signal-pill">{a.technicals.signalBadge}</span>
+                    <span className="okx-ai-signal-pill">{a.technicals?.signalBadge}</span>
                     <h4>
                       📊 Analiza Agenta AI z OKX dla waloru{' '}
                       <strong>
                         {a.asset} ({a.instId})
                       </strong>{' '}
-                      — {a.recommendedStrategy.strategyName}
+                      — {a.recommendedStrategy?.strategyName}
                     </h4>
                   </div>
                   <div className="okx-ai-report-meta">
@@ -438,7 +583,7 @@ export function AiStrategiesWindow({
                       type="button"
                       className="btn btn-outline-sm open-asset-chart-btn"
                       data-instid={a.instId}
-                      onClick={() => onOpenAssetChart(a.instId)}
+                      onClick={() => onOpenAssetChart && onOpenAssetChart(a.instId)}
                     >
                       📈 Wykres {a.asset}
                     </button>
@@ -449,65 +594,65 @@ export function AiStrategiesWindow({
                   <strong>
                     🧠 Wnioski z analizy Agenta AI OKX (Zapytanie: „{a.query}”):
                   </strong>
-                  <p>{a.recommendedStrategy.rationale}</p>
+                  <p>{a.recommendedStrategy?.rationale}</p>
                 </div>
 
                 <div className="okx-ai-metrics-grid">
                   <div className="okx-ai-metric-card">
                     <span>Kurs Spot OKX ({a.instId}):</span>
                     <strong>
-                      {formatUnitPrice(a.market.price)}{' '}
-                      <em className={a.market.change24hPct >= 0 ? 'pos' : 'neg'}>
-                        ({a.market.change24hPct >= 0 ? '+' : ''}
-                        {a.market.change24hPct}%)
+                      {formatUnitPrice(a.market?.price)}{' '}
+                      <em className={a.market?.change24hPct >= 0 ? 'pos' : 'neg'}>
+                        ({a.market?.change24hPct >= 0 ? '+' : ''}
+                        {a.market?.change24hPct}%)
                       </em>
                     </strong>
                   </div>
                   <div className="okx-ai-metric-card">
                     <span>Zakres 24h (Min – Max):</span>
                     <strong>
-                      {formatUnitPrice(a.market.low24h)} – {formatUnitPrice(a.market.high24h)}
+                      {formatUnitPrice(a.market?.low24h)} – {formatUnitPrice(a.market?.high24h)}
                     </strong>
                   </div>
                   <div className="okx-ai-metric-card">
                     <span>Trend &amp; Zmienność 24h:</span>
                     <strong>
-                      {a.technicals.trendLabel} ({a.market.volatility24hPct}%)
+                      {a.technicals?.trendLabel} ({a.market?.volatility24hPct}%)
                     </strong>
                   </div>
                   <div className="okx-ai-metric-card">
                     <span>RSI (14) &amp; Momentum:</span>
                     <strong>
-                      RSI: {a.technicals.rsi14} — {a.technicals.rsiStatus}
+                      RSI: {a.technicals?.rsi14} — {a.technicals?.rsiStatus}
                     </strong>
                   </div>
                   <div className="okx-ai-metric-card">
                     <span>Średnie OKX (EMA 20 / EMA 50 / VWAP):</span>
                     <strong>
-                      EMA20: {formatUnitPrice(a.technicals.ema20)} • VWAP:{' '}
-                      {formatUnitPrice(a.technicals.vwap)}
+                      EMA20: {formatUnitPrice(a.technicals?.ema20)} • VWAP:{' '}
+                      {formatUnitPrice(a.technicals?.vwap)}
                     </strong>
                   </div>
                   <div className="okx-ai-metric-card">
                     <span>Poziomy Wsparcia (Strefy Dokupienia):</span>
                     <strong style={{ color: 'var(--accent-blue)' }}>
-                      S1: {formatUnitPrice(a.technicals.support1)} • S2:{' '}
-                      {formatUnitPrice(a.technicals.support2)}
+                      S1: {formatUnitPrice(a.technicals?.support1)} • S2:{' '}
+                      {formatUnitPrice(a.technicals?.support2)}
                     </strong>
                   </div>
                   <div className="okx-ai-metric-card">
                     <span>Cele Zysku (Take-Profit 1 / 2 / 3):</span>
                     <strong style={{ color: 'var(--buy-green)' }}>
-                      TP1: {formatUnitPrice(a.technicals.takeProfit1)} • TP2:{' '}
-                      {formatUnitPrice(a.technicals.takeProfit2)} • TP3:{' '}
-                      {formatUnitPrice(a.technicals.takeProfit3)}
+                      TP1: {formatUnitPrice(a.technicals?.takeProfit1)} • TP2:{' '}
+                      {formatUnitPrice(a.technicals?.takeProfit2)} • TP3:{' '}
+                      {formatUnitPrice(a.technicals?.takeProfit3)}
                     </strong>
                   </div>
                   <div className="okx-ai-metric-card">
                     <span>Obrona (Stop-Loss &amp; Risk/Reward):</span>
                     <strong style={{ color: 'var(--sell-red)' }}>
-                      SL: {formatUnitPrice(a.technicals.stopLoss)} (-3.2%) • R:R{' '}
-                      {a.technicals.riskReward}
+                      SL: {formatUnitPrice(a.technicals?.stopLoss)} (-3.2%) • R:R{' '}
+                      {a.technicals?.riskReward}
                     </strong>
                   </div>
                 </div>
@@ -528,7 +673,7 @@ export function AiStrategiesWindow({
                         </tr>
                       </thead>
                       <tbody>
-                        {a.recommendedStrategy.dcaTranches.map((tr, idx) => (
+                        {(a.recommendedStrategy?.dcaTranches || []).map((tr, idx) => (
                           <tr key={idx}>
                             <td>
                               <strong>{tr.step}</strong>
@@ -549,12 +694,12 @@ export function AiStrategiesWindow({
                       <span>
                         Łącznie po wykonaniu 3 transz DCA:{' '}
                         <strong>
-                          {formatQty(a.recommendedStrategy.totalDcaAmt)} {a.asset}
+                          {formatQty(a.recommendedStrategy?.totalDcaAmt)} {a.asset}
                         </strong>
                       </span>
                       <span>
                         Uśredniona cena zakupu DCA:{' '}
-                        <strong>{formatUnitPrice(a.recommendedStrategy.avgDcaPrice)}</strong>
+                        <strong>{formatUnitPrice(a.recommendedStrategy?.avgDcaPrice)}</strong>
                       </span>
                     </div>
                   </div>
@@ -567,74 +712,53 @@ export function AiStrategiesWindow({
                       <div className="kv-row">
                         <span>Dolne pasmo siatki (Lower Grid):</span>
                         <strong>
-                          {formatUnitPrice(a.recommendedStrategy.gridPlan.lowerPrice)}
+                          {formatUnitPrice(a.recommendedStrategy?.gridPlan?.lowerPrice)}
                         </strong>
                       </div>
                       <div className="kv-row">
                         <span>Górne pasmo siatki (Upper Grid):</span>
                         <strong>
-                          {formatUnitPrice(a.recommendedStrategy.gridPlan.upperPrice)}
+                          {formatUnitPrice(a.recommendedStrategy?.gridPlan?.upperPrice)}
                         </strong>
                       </div>
                       <div className="kv-row">
                         <span>Liczba poziomów siatki (Grids):</span>
                         <strong>
-                          {a.recommendedStrategy.gridPlan.gridLevels} poziomów zleceń
+                          {a.recommendedStrategy?.gridPlan?.gridLevels} poziomów zleceń
                         </strong>
                       </div>
                       <div className="kv-row">
                         <span>Zysk na pojedynczej siatce:</span>
                         <strong style={{ color: 'var(--buy-green)' }}>
-                          {a.recommendedStrategy.gridPlan.profitPerGrid}
+                          {a.recommendedStrategy?.gridPlan?.profitPerGrid}
                         </strong>
                       </div>
                       <div className="kv-row">
                         <span>Dostępne USDC w Twoim portfelu OKX:</span>
-                        <strong>{formatUsdc(a.portfolioContext.availUsdc)}</strong>
+                        <strong>{formatUsdc(a.portfolioContext?.availUsdc)}</strong>
                       </div>
                       <div className="kv-row">
                         <span>Obecnie posiadane {a.asset} w portfelu:</span>
                         <strong>
-                          {formatQty(a.portfolioContext.currentAssetAmount)} {a.asset}
+                          {formatQty(a.portfolioContext?.currentAssetAmount)} {a.asset}
                         </strong>
                       </div>
                       <div className="kv-row">
                         <span>Stan {a.asset} po realizacji zakupu:</span>
                         <strong style={{ color: 'var(--accent-okx)' }}>
-                          {formatQty(a.portfolioContext.newTotalAssetAmount)} {a.asset}
+                          {formatQty(a.portfolioContext?.newTotalAssetAmount)} {a.asset}
                         </strong>
                       </div>
                     </div>
                   </div>
                 </div>
-
-                {activeTradeOrder ? (
-                  <InlineOrderConfirmCard
-                    active={activeTradeOrder}
-                    modeLabel={a.mode}
-                    badgeTitle={`📋 ZLECENIE KUPNA STRATEGII AI GOTOWE DO REALIZACJI • OKX EUROPE (${a.mode})`}
-                    onConfirm={onConfirmOrder}
-                    isConfirming={isConfirmingOrder}
-                    style={{ marginTop: '12px' }}
-                  />
-                ) : lastExchangeFeedback ? (
-                  <div style={{ marginTop: '12px' }}>
-                    <CollapsibleExecutedTx
-                      fb={lastExchangeFeedback}
-                      isCollapsed={collapsedAiTxIds.has(
-                        String(lastExchangeFeedback.orderId || 'LATEST')
-                      )}
-                      onToggle={onToggleAiExecutedTx}
-                    />
-                  </div>
-                ) : null}
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* 5. OKNO NA DOLE: PRZYKŁADY STRATEGII I MOŻLIWOŚCI (wywoływane przyciskiem Przykłady strategii) */}
+      {/* 6. OKNO NA DOLE: PRZYKŁADY STRATEGII I MOŻLIWOŚCI (wywoływane przyciskiem Przykłady strategii w belce) */}
       {showExamples && (
         <div className="ai-strat-capabilities-grid">
           <div className="ai-strat-info-card">

@@ -841,6 +841,26 @@ export function App() {
     }
   };
 
+  const handleRejectOrder = async () => {
+    if (!appState?.activeTradeOrder) return;
+    const ordId = appState.activeTradeOrder.id;
+    const res = await apiRequest('/api/trade/stop', 'POST');
+    if (res && res.state) {
+      setAppState(res.state);
+    } else {
+      setAppState((prev) => ({
+        ...prev,
+        activeTradeOrder: null,
+        config: {
+          ...prev.config,
+          tradingStatus: 'idle',
+          tradingStatusLabel: 'Gotowy — odrzucono transakcję'
+        }
+      }));
+    }
+    showToast(`🚫 Odrzucono transakcję #${ordId}. Zlecenie zostało wycofane.`);
+  };
+
   const handleSubmitAiChat = async (e) => {
     e.preventDefault();
     const promptText = aiChatInput.trim();
@@ -1349,6 +1369,7 @@ export function App() {
               onSetAiChatInput={setAiChatInput}
               onSubmitAiChat={handleSubmitAiChat}
               onConfirmOrder={handleConfirmOrder}
+              onRejectOrder={handleRejectOrder}
               onOpenAiStrategies={handleOpenAiStrategies}
               onToggleAiExecutedTx={handleToggleAiExecutedTx}
               onToggleAllAiExecutedTx={handleToggleAllAiExecutedTx}
@@ -1374,6 +1395,7 @@ export function App() {
               onSubmitAiStrategy={handleSubmitAiStrategy}
               onRunAiStrategyQuery={runAiStrategyQuery}
               onConfirmOrder={handleConfirmOrder}
+              onRejectOrder={handleRejectOrder}
               onToggleAiExecutedTx={handleToggleAiExecutedTx}
               onOpenAssetChart={(instId) =>
                 openAssetChart(instId, chartState.isOpen ? chartState.size : 'medium')

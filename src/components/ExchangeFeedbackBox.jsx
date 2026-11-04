@@ -136,6 +136,7 @@ export function InlineOrderConfirmCard({
   modeLabel = 'DEMO',
   badgeTitle,
   onConfirm,
+  onReject,
   isConfirming = false,
   style = null
 }) {
@@ -208,7 +209,7 @@ export function InlineOrderConfirmCard({
           <strong>{formatUsdc(totalUsdcWithFee)}</strong>
         </div>
       </div>
-      <div className="ai-order-confirm-actions">
+      <div className="ai-order-confirm-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
         <button
           type="button"
           id="btnSimpleConfirmOrder"
@@ -218,6 +219,31 @@ export function InlineOrderConfirmCard({
         >
           {isConfirming ? '⏳ Realizacja transakcji na giełdzie...' : 'Potwierdź'}
         </button>
+
+        {onReject && (
+          <button
+            type="button"
+            id="btnRejectTradeOrder"
+            className="btn btn-outline-danger btn-reject-order-action"
+            style={{
+              padding: '10px 18px',
+              fontSize: '13px',
+              fontWeight: 700,
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1.5px solid #ef4444',
+              color: '#f87171',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            disabled={isConfirming}
+            onClick={onReject}
+          >
+            ✕ Odrzuć transakcję
+          </button>
+        )}
       </div>
     </div>
   );

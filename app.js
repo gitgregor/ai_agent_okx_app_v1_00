@@ -18412,6 +18412,7 @@
     modeLabel = "DEMO",
     badgeTitle,
     onConfirm,
+    onReject,
     isConfirming = false,
     style = null
   }) {
@@ -18492,17 +18493,43 @@
           /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("strong", { children: formatUsdc(totalUsdcWithFee) })
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "ai-order-confirm-actions", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-        "button",
-        {
-          type: "button",
-          id: "btnSimpleConfirmOrder",
-          className: "btn-simple-confirm btn-confirm-order-action",
-          disabled: isConfirming,
-          onClick: onConfirm,
-          children: isConfirming ? "\u23F3 Realizacja transakcji na gie\u0142dzie..." : "Potwierd\u017A"
-        }
-      ) })
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "ai-order-confirm-actions", style: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+          "button",
+          {
+            type: "button",
+            id: "btnSimpleConfirmOrder",
+            className: "btn-simple-confirm btn-confirm-order-action",
+            disabled: isConfirming,
+            onClick: onConfirm,
+            children: isConfirming ? "\u23F3 Realizacja transakcji na gie\u0142dzie..." : "Potwierd\u017A"
+          }
+        ),
+        onReject && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+          "button",
+          {
+            type: "button",
+            id: "btnRejectTradeOrder",
+            className: "btn btn-outline-danger btn-reject-order-action",
+            style: {
+              padding: "10px 18px",
+              fontSize: "13px",
+              fontWeight: 700,
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+              background: "rgba(239, 68, 68, 0.12)",
+              border: "1.5px solid #ef4444",
+              color: "#f87171",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px"
+            },
+            disabled: isConfirming,
+            onClick: onReject,
+            children: "\u2715 Odrzu\u0107 transakcj\u0119"
+          }
+        )
+      ] })
     ] });
   }
 
@@ -18529,6 +18556,7 @@
     onSetAiChatInput,
     onSubmitAiChat,
     onConfirmOrder,
+    onRejectOrder,
     onOpenAiStrategies,
     onToggleAiExecutedTx,
     onToggleAllAiExecutedTx,
@@ -18623,6 +18651,7 @@
                     active: activeTradeOrder,
                     modeLabel,
                     onConfirm: onConfirmOrder,
+                    onReject: onRejectOrder,
                     isConfirming: isConfirmingOrder
                   }
                 ),
@@ -18748,14 +18777,21 @@
     "LINK",
     "SUI"
   ];
-  var LS_STRAT_HISTORY_KEY = "okx_ai_strat_queries_history_v1";
-  var INITIAL_SAMPLE_QUERIES = [
-    { query: "Analiza agenta AI z OKX i strategia kupna dla PENDLE", date: "2026-11-04", time: "05:57:09", asset: "PENDLE" },
-    { query: "Stw\xF3rz strategi\u0119 kupna dla BTC za 2500 USDC", date: "2026-11-04", time: "08:35:10", asset: "BTC" },
-    { query: "Strategia kupna SOL DCA za 1200 USDC z TP/SL", date: "2026-11-04", time: "08:37:00", asset: "SOL" },
-    { query: "Przeanalizuj XRP na gie\u0142dzie OKX i przygotuj strategi\u0119 akumulacji", date: "2026-11-03", time: "10:50:20", asset: "XRP" },
-    { query: "Zr\xF3b analiz\u0119 i strategi\u0119 kupna DCA dla ETH za 1800 USDC", date: "2026-11-03", time: "10:45:29", asset: "ETH" }
-  ];
+  function getStrategyTiming(ord) {
+    if (!ord) return { openDate: "", openTime: "", execDate: "", execTime: "", isFilled: false };
+    const openDate = ord.createdAtDate || ord.date || "";
+    const openTime = ord.createdAtTime || ord.time || "";
+    const isFilled = ord.status === "CLOSED" || ord.status === "FILLED" || ord.rawState === "filled" || Boolean(ord.exchangeFeedback && ord.exchangeFeedback.status && ord.exchangeFeedback.status.includes("FILLED"));
+    const execDate = ord.date || openDate;
+    const execTime = ord.time || openTime;
+    return {
+      openDate,
+      openTime,
+      execDate,
+      execTime,
+      isFilled
+    };
+  }
   function AiStrategiesWindow({
     winMeta,
     isSoloGridWindow,
@@ -18771,71 +18807,111 @@
     onSubmitAiStrategy,
     onRunAiStrategyQuery,
     onConfirmOrder,
+    onRejectOrder,
     onToggleAiExecutedTx,
     onOpenAssetChart,
     onSetWindowMode,
     onCloseWindow,
     onBringToFront
   }) {
-    const a = currentAiStrategyAnalysis;
     const [showInstruction, setShowInstruction] = (0, import_react7.useState)(false);
     const [showHistory, setShowHistory] = (0, import_react7.useState)(false);
     const [showExamples, setShowExamples] = (0, import_react7.useState)(false);
+    const [activeSessionAnalysis, setActiveSessionAnalysis] = (0, import_react7.useState)(null);
     const [isRecommendationOpen, setIsRecommendationOpen] = (0, import_react7.useState)(false);
-    const [queryHistory, setQueryHistory] = (0, import_react7.useState)(() => {
-      if (typeof window === "undefined") return INITIAL_SAMPLE_QUERIES;
-      try {
-        const saved = localStorage.getItem(LS_STRAT_HISTORY_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch (e) {
-      }
-      return INITIAL_SAMPLE_QUERIES;
-    });
-    const prevTimestampRef = (0, import_react7.useRef)(a?.timestamp || 0);
+    const [expandedHistoryTxIds, setExpandedHistoryTxIds] = (0, import_react7.useState)(/* @__PURE__ */ new Set());
+    const prevModeRef = (0, import_react7.useRef)(winMeta?.mode);
     (0, import_react7.useEffect)(() => {
-      if (a?.timestamp && a.timestamp !== prevTimestampRef.current) {
-        prevTimestampRef.current = a.timestamp;
+      const prev = prevModeRef.current;
+      const curr = winMeta?.mode;
+      prevModeRef.current = curr;
+      const wasClosed = prev === "docked-top" || prev === "docked-sidebar" || !prev;
+      const isNowOpen = curr === "grid" || curr === "floating-small" || curr === "floating-medium" || curr === "fullscreen";
+      if (wasClosed && isNowOpen) {
+        setActiveSessionAnalysis(null);
+        setIsRecommendationOpen(false);
+        setShowInstruction(false);
+        setShowHistory(false);
+        setShowExamples(false);
+      }
+    }, [winMeta?.mode]);
+    const prevAnalysisTsRef = (0, import_react7.useRef)(currentAiStrategyAnalysis?.timestamp || 0);
+    (0, import_react7.useEffect)(() => {
+      if (currentAiStrategyAnalysis?.timestamp && currentAiStrategyAnalysis.timestamp !== prevAnalysisTsRef.current) {
+        prevAnalysisTsRef.current = currentAiStrategyAnalysis.timestamp;
+        setActiveSessionAnalysis(currentAiStrategyAnalysis);
         setIsRecommendationOpen(true);
       }
-    }, [a?.timestamp]);
-    const saveQueryToHistory = (queryText) => {
-      if (!queryText || !queryText.trim()) return;
-      const clean = queryText.trim();
-      const now = /* @__PURE__ */ new Date();
-      const dateStr = now.toISOString().slice(0, 10);
-      const timeStr = now.toTimeString().slice(0, 8);
-      const newItem = { query: clean, date: dateStr, time: timeStr };
-      setQueryHistory((prev) => {
-        const filtered = prev.filter((item) => item.query.toLowerCase() !== clean.toLowerCase());
-        const updated = [newItem, ...filtered].slice(0, 25);
-        try {
-          localStorage.setItem(LS_STRAT_HISTORY_KEY, JSON.stringify(updated));
-        } catch (e) {
-        }
-        return updated;
-      });
-    };
+    }, [currentAiStrategyAnalysis]);
     const handleFormSubmit = (e) => {
       if (e) e.preventDefault();
-      if (aiStrategyInput && aiStrategyInput.trim()) {
-        saveQueryToHistory(aiStrategyInput.trim());
-        setIsRecommendationOpen(true);
-      }
       if (onSubmitAiStrategy) onSubmitAiStrategy(e);
     };
     const handleRunQuery = (queryText) => {
-      if (queryText && queryText.trim()) {
-        saveQueryToHistory(queryText.trim());
-        setIsRecommendationOpen(true);
-      }
       if (onRunAiStrategyQuery) onRunAiStrategyQuery(queryText);
     };
-    const aiOrdersList = (orders || []).filter(
-      (o) => o && (String(o.id).startsWith("OKX-EEA-") || o.source && (o.source.includes("AI") || o.source.includes("Strategia") || o.source.includes("Agent")) || o.strategyName && (o.strategyName.includes("AI") || o.strategyName.includes("Strategia")))
-    );
+    const toggleHistoryItemDetails = (id) => {
+      setExpandedHistoryTxIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    };
+    const candidateStrategies = [];
+    const seenOrderIds = /* @__PURE__ */ new Set();
+    if (activeTradeOrder && activeTradeOrder.id) {
+      seenOrderIds.add(String(activeTradeOrder.id));
+      candidateStrategies.push({
+        ...activeTradeOrder,
+        isCurrentlyActive: true,
+        status: activeTradeOrder.status || "waiting_for_start",
+        statusLabel: "W trakcie realizacji (Oczekuje na potwierdzenie)"
+      });
+    }
+    const allRawOrders = [...orders || []];
+    for (const o of allRawOrders) {
+      if (!o || !o.id) continue;
+      const idStr = String(o.id);
+      if (seenOrderIds.has(idStr)) continue;
+      const isAiSource = idStr.startsWith("OKX-EEA-") || o.source && (o.source.includes("AI") || o.source.includes("Strategia") || o.source.includes("Agent")) || o.strategyName && (o.strategyName.includes("AI") || o.strategyName.includes("Strategia"));
+      if (isAiSource) {
+        seenOrderIds.add(idStr);
+        candidateStrategies.push(o);
+      }
+    }
+    for (const fb of executedSessionTransactions || []) {
+      if (!fb) continue;
+      const ordId = String(fb.orderId || fb.id || "");
+      if (ordId && !seenOrderIds.has(ordId)) {
+        seenOrderIds.add(ordId);
+        candidateStrategies.push({
+          id: ordId,
+          instId: fb.instId,
+          asset: fb.asset,
+          side: fb.side,
+          orderType: fb.orderType || "MARKET",
+          amount: fb.amount,
+          price: fb.price,
+          usdcValue: fb.usdcValue,
+          feeRate: fb.feeRate || "0.10%",
+          feeUsdc: fb.feeUsdc,
+          feeAsset: fb.feeAsset,
+          totalUsdcWithFee: fb.totalUsdcWithFee,
+          status: "CLOSED",
+          statusLabel: "Zamkni\u0119te (Zrealizowane na OKX)",
+          source: "Agent AI MCP (okx/agent-trade-kit)",
+          strategyName: fb.strategyName || `Strategia AI (${fb.instId})`,
+          date: fb.date,
+          time: fb.time,
+          createdAtDate: fb.createdAtDate || fb.date,
+          createdAtTime: fb.createdAtTime || fb.time,
+          timestamp: fb.timestamp || Date.now(),
+          exchangeFeedback: fb
+        });
+      }
+    }
+    candidateStrategies.sort((a2, b) => (b.timestamp || 0) - (a2.timestamp || 0));
     const extraTitlebarControls = /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
       "div",
       {
@@ -18857,6 +18933,8 @@
               onClick: (e) => {
                 e.stopPropagation();
                 setShowInstruction((prev) => !prev);
+                setShowHistory(false);
+                setShowExamples(false);
               },
               children: [
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u2139\uFE0F" }),
@@ -18871,15 +18949,21 @@
               type: "button",
               className: `win-ctrl-btn ai-titlebar-pill ${showHistory ? "active" : ""}`,
               style: showHistory ? { background: "#a855f7", color: "#ffffff", borderColor: "#a855f7", fontWeight: 700 } : { color: "#c084fc", borderColor: "rgba(168, 85, 247, 0.45)" },
-              title: "Historyczne zapytania o strategie oraz zrealizowane zakupy Agenta AI",
+              title: "Wy\u015Bwietl strategie wykonane i zrealizowane lub w trakcie realizacji z dok\u0142adnym czasem otwarcia i realizacji",
               onClick: (e) => {
                 e.stopPropagation();
                 setShowHistory((prev) => !prev);
+                setShowInstruction(false);
+                setShowExamples(false);
               },
               children: [
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u{1F4DC}" }),
                 " ",
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "win-btn-label", children: "Historia" })
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { className: "win-btn-label", children: [
+                  "Historia (",
+                  candidateStrategies.length,
+                  ")"
+                ] })
               ]
             }
           ),
@@ -18893,6 +18977,8 @@
               onClick: (e) => {
                 e.stopPropagation();
                 setShowExamples((prev) => !prev);
+                setShowInstruction(false);
+                setShowHistory(false);
               },
               children: [
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u{1F4A1}" }),
@@ -18904,6 +18990,7 @@
         ]
       }
     );
+    const a = activeSessionAnalysis;
     return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
       WindowContainer,
       {
@@ -18955,7 +19042,7 @@
             /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "history-container-header", children: [
               /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "history-title-group", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "hist-icon", children: "\u{1F4DC}" }),
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h4", { children: "Historia Zapyta\u0144 o Strategie i Zakup\xF3w Agenta AI" })
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h4", { children: "Strategie Agenta AI \u2014 Wykonane, Zrealizowane i w Trakcie Realizacji" })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                 "button",
@@ -18968,97 +19055,152 @@
                 }
               )
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "history-sections-grid", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "history-section-card", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h5", { children: "\u{1F50D} Poprzednie zapytania o strategie (kliknij, aby powt\xF3rzy\u0107):" }),
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "history-queries-list", children: queryHistory.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "small-muted", children: "Brak zapisanych zapyta\u0144 w sesji." }) : queryHistory.map((item, idx) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "hist-query-item", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "hist-query-text-col", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { className: "hist-query-text", children: [
-                      "\u201E",
-                      item.query,
-                      "\u201D"
-                    ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { className: "hist-query-time", children: [
-                      "\u23F0 ",
-                      item.date,
-                      " ",
-                      item.time
-                    ] })
-                  ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-                    "button",
-                    {
-                      type: "button",
-                      className: "btn btn-outline-sm btn-repeat-query",
-                      title: "Uruchom to zapytanie ponownie",
-                      onClick: () => {
-                        handleRunQuery(item.query);
-                        setShowHistory(false);
-                      },
-                      children: "Powt\xF3rz \u27A4"
-                    }
-                  )
-                ] }, idx)) })
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "history-section-card", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h5", { children: "\u{1F4BC} Wygenerowane zlecenia i zakupy ze strategii AI:" }),
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "history-orders-list", children: aiOrdersList.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "small-muted", children: "Brak zrealizowanych zakup\xF3w strategii w tej sesji." }) : aiOrdersList.map((ord, idx) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "hist-order-item", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "hist-order-info", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "hist-order-main", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: `side-badge ${ord.side === "BUY" ? "side-buy" : "side-sell"}`, children: ord.side === "BUY" ? "KUPNO" : "SPRZEDA\u017B" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
-                        ord.amount,
-                        " ",
-                        ord.asset
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "panel-subtitle", style: { marginBottom: "12px", color: "var(--text-secondary)" }, children: "Poni\u017Cej znajduje si\u0119 pe\u0142na historia strategii z dok\u0142adn\u0105 dat\u0105 i czasem otworzenia strategii oraz momentem jej zrealizowania na gie\u0142dzie OKX." }),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "history-strategies-full-list", style: { display: "flex", flexDirection: "column", gap: "10px" }, children: candidateStrategies.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { textAlign: "center", padding: "24px", color: "var(--text-secondary)" }, children: "Brak zarejestrowanych strategii w tej sesji. Wpisz zapytanie w polu powy\u017Cej, aby wygenerowa\u0107 now\u0105 strategi\u0119." }) : candidateStrategies.map((ord) => {
+              const timing = getStrategyTiming(ord);
+              const isBuy = ord.side === "BUY";
+              const isPending = !timing.isFilled;
+              const isExpanded = expandedHistoryTxIds.has(ord.id);
+              const fb = ord.exchangeFeedback;
+              return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+                "div",
+                {
+                  className: "history-strategy-card",
+                  style: {
+                    background: isPending ? "rgba(245, 158, 11, 0.08)" : "rgba(17, 24, 39, 0.75)",
+                    border: isPending ? "1.5px solid rgba(245, 158, 11, 0.5)" : "1px solid rgba(255, 255, 255, 0.1)",
+                    borderRadius: "var(--radius-md)",
+                    padding: "12px 14px"
+                  },
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }, children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                          "span",
+                          {
+                            className: `side-badge ${isBuy ? "side-buy" : "side-sell"}`,
+                            style: {
+                              padding: "3px 9px",
+                              borderRadius: "4px",
+                              fontWeight: 800,
+                              background: isBuy ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)",
+                              color: isBuy ? "#34d399" : "#f87171"
+                            },
+                            children: isBuy ? "KUPNO (BUY)" : "SPRZEDA\u017B (SELL)"
+                          }
+                        ),
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
+                          ord.amount,
+                          " ",
+                          ord.asset
+                        ] }),
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { children: [
+                          "@ ",
+                          formatUnitPrice(ord.price),
+                          " USDC"
+                        ] }),
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { style: { color: "var(--accent-okx)" }, children: [
+                          "(",
+                          formatUsdc(ord.usdcValue),
+                          ")"
+                        ] }),
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                          "span",
+                          {
+                            style: {
+                              fontSize: "11px",
+                              padding: "2px 8px",
+                              borderRadius: "999px",
+                              background: isPending ? "rgba(245, 158, 11, 0.2)" : "rgba(16, 185, 129, 0.2)",
+                              color: isPending ? "#fbbf24" : "#34d399",
+                              fontWeight: 700
+                            },
+                            children: isPending ? "\u23F3 W TRAKCIE REALIZACJI" : "\u2705 ZREALIZOWANA NA OKX"
+                          }
+                        )
                       ] }),
-                      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { children: [
-                        "@ ",
-                        formatUnitPrice(ord.price),
-                        " USDC"
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "6px" }, children: [
+                        onOpenAssetChart && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                          "button",
+                          {
+                            type: "button",
+                            className: "btn btn-outline-sm",
+                            title: "Otw\xF3rz wykres tego waloru",
+                            onClick: () => onOpenAssetChart(ord.instId || `${ord.asset}-USDC`),
+                            children: "\u{1F4C8} Wykres"
+                          }
+                        ),
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                          "button",
+                          {
+                            type: "button",
+                            className: "btn btn-outline-sm",
+                            onClick: () => toggleHistoryItemDetails(ord.id),
+                            children: isExpanded ? "\u25B2 Zwi\u0144 szczeg\xF3\u0142y" : "\u25BC Szczeg\xF3\u0142y gie\u0142dowe"
+                          }
+                        )
                       ] })
                     ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "hist-order-sub", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: ord.strategyName || ord.instId }),
-                      " \u2022",
-                      " ",
-                      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { children: [
-                        ord.date,
-                        " ",
-                        ord.time
-                      ] }),
-                      " ",
-                      "\u2022 ",
-                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: formatUsdc(ord.usdcValue) })
-                    ] })
-                  ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "hist-order-actions", children: [
-                    onOpenAssetChart && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-                      "button",
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+                      "div",
                       {
-                        type: "button",
-                        className: "btn btn-outline-sm",
-                        title: "Otw\xF3rz wykres tego waloru",
-                        onClick: () => onOpenAssetChart(ord.instId || `${ord.asset}-USDC`),
-                        children: "\u{1F4C8} Wykres"
+                        className: "history-strategy-timing-bar",
+                        style: {
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                          gap: "8px",
+                          background: "rgba(0, 0, 0, 0.35)",
+                          border: "1px solid rgba(255, 255, 255, 0.06)",
+                          borderRadius: "6px",
+                          padding: "8px 12px",
+                          fontSize: "11.5px",
+                          marginBottom: "6px"
+                        },
+                        children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { style: { color: "var(--text-secondary)" }, children: "\u{1F552} Data i czas otwarcia strategii: " }),
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { style: { color: "#60a5fa" }, children: [
+                              timing.openDate,
+                              " ",
+                              timing.openTime
+                            ] })
+                          ] }),
+                          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { style: { color: "var(--text-secondary)" }, children: isPending ? "\u23F3 Stan realizacji: " : "\u{1F3C1} Data i czas zrealizowania: " }),
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { style: { color: isPending ? "#fbbf24" : "#34d399" }, children: isPending ? "Oczekuje na realizacj\u0119" : `${timing.execDate} ${timing.execTime}` })
+                          ] }),
+                          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { style: { color: "var(--text-secondary)" }, children: "\u{1F4CB} Strategia / ID: " }),
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
+                              ord.strategyName || ord.instId,
+                              " ",
+                              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("code", { children: [
+                                "(#",
+                                ord.id,
+                                ")"
+                              ] })
+                            ] })
+                          ] })
+                        ]
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-                      "button",
+                    isPending && ord.isCurrentlyActive && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                      InlineOrderConfirmCard,
                       {
-                        type: "button",
-                        className: "btn btn-outline-sm btn-repeat-query",
-                        title: "Stw\xF3rz now\u0105 strategi\u0119 dla tego waloru",
-                        onClick: () => {
-                          handleRunQuery(`Strategia kupna dla ${ord.asset}`);
-                          setShowHistory(false);
-                        },
-                        children: "Analiza \u27A4"
+                        active: ord,
+                        modeLabel: "DEMO",
+                        onConfirm: onConfirmOrder,
+                        onReject: onRejectOrder,
+                        isConfirming: isConfirmingOrder,
+                        style: { marginTop: "8px" }
                       }
-                    )
-                  ] })
-                ] }, ord.id || idx)) })
-              ] })
-            ] })
+                    ),
+                    isExpanded && fb && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { marginTop: "10px" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(ExchangeFeedbackDetails, { fb }) })
+                  ]
+                },
+                ord.id
+              );
+            }) })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "ai-strat-generator-box", children: [
             /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("form", { id: "aiStrategyForm", className: "ai-strat-input-row", onSubmit: handleFormSubmit, children: [
@@ -19098,18 +19240,29 @@
               ))
             ] })
           ] }),
+          activeTradeOrder && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { marginBottom: "14px" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+            InlineOrderConfirmCard,
+            {
+              active: activeTradeOrder,
+              modeLabel: "DEMO",
+              badgeTitle: `\u{1F4CB} ZLECENIE KUPNA STRATEGII AI GOTOWE DO REALIZACJI \u2022 OKX EUROPE`,
+              onConfirm: onConfirmOrder,
+              onReject: onRejectOrder,
+              isConfirming: isConfirmingOrder
+            }
+          ) }),
           a && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "ai-strat-recommendation-wrapper", children: [
             /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
               "div",
               {
                 className: `ai-strat-recommendation-bar ${isRecommendationOpen ? "is-expanded" : "is-collapsed"}`,
                 onClick: () => setIsRecommendationOpen((prev) => !prev),
-                title: "Kliknij, aby rozwin\u0105\u0107 lub zwin\u0105\u0107 rekomendacj\u0119 strategii Agenta AI",
+                title: "Kliknij, aby rozwin\u0105\u0107 lub zwin\u0105\u0107 rekomendacj\u0119 bie\u017C\u0105cej strategii",
                 children: [
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "rec-bar-left", children: [
                     /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "okx-ai-signal-pill", children: a.technicals?.signalBadge || "SYGNA\u0141 AI" }),
                     /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { className: "rec-bar-title", children: [
-                      "\u{1F4CA} Rekomendacja Strategii AI: ",
+                      "\u{1F4CA} \u015Awie\u017Ca Rekomendacja Strategii: ",
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
                         a.asset,
                         " (",
@@ -19140,7 +19293,7 @@
                         e.stopPropagation();
                         setIsRecommendationOpen((prev) => !prev);
                       },
-                      children: isRecommendationOpen ? "\u25B2 Zwi\u0144 rekomendacj\u0119" : "\u25BC Otw\xF3rz rekomendacj\u0119"
+                      children: isRecommendationOpen ? "\u25B2 Zwi\u0144" : "\u25BC Otw\xF3rz"
                     }
                   )
                 ]
@@ -19149,7 +19302,7 @@
             isRecommendationOpen && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { id: "aiStrategyResultContainer", className: "ai-strategy-result-container", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "okx-ai-analysis-report", children: [
               /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "okx-ai-report-header", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "okx-ai-report-title-group", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "okx-ai-signal-pill", children: a.technicals.signalBadge }),
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "okx-ai-signal-pill", children: a.technicals?.signalBadge }),
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("h4", { children: [
                     "\u{1F4CA} Analiza Agenta AI z OKX dla waloru",
                     " ",
@@ -19161,7 +19314,7 @@
                     ] }),
                     " ",
                     "\u2014 ",
-                    a.recommendedStrategy.strategyName
+                    a.recommendedStrategy?.strategyName
                   ] })
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "okx-ai-report-meta", children: [
@@ -19181,7 +19334,7 @@
                       type: "button",
                       className: "btn btn-outline-sm open-asset-chart-btn",
                       "data-instid": a.instId,
-                      onClick: () => onOpenAssetChart(a.instId),
+                      onClick: () => onOpenAssetChart && onOpenAssetChart(a.instId),
                       children: [
                         "\u{1F4C8} Wykres ",
                         a.asset
@@ -19196,7 +19349,7 @@
                   a.query,
                   "\u201D):"
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { children: a.recommendedStrategy.rationale })
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { children: a.recommendedStrategy?.rationale })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "okx-ai-metrics-grid", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "okx-ai-metric-card", children: [
@@ -19206,12 +19359,12 @@
                     "):"
                   ] }),
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
-                    formatUnitPrice(a.market.price),
+                    formatUnitPrice(a.market?.price),
                     " ",
-                    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("em", { className: a.market.change24hPct >= 0 ? "pos" : "neg", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("em", { className: a.market?.change24hPct >= 0 ? "pos" : "neg", children: [
                       "(",
-                      a.market.change24hPct >= 0 ? "+" : "",
-                      a.market.change24hPct,
+                      a.market?.change24hPct >= 0 ? "+" : "",
+                      a.market?.change24hPct,
                       "%)"
                     ] })
                   ] })
@@ -19219,17 +19372,17 @@
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "okx-ai-metric-card", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "Zakres 24h (Min \u2013 Max):" }),
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
-                    formatUnitPrice(a.market.low24h),
+                    formatUnitPrice(a.market?.low24h),
                     " \u2013 ",
-                    formatUnitPrice(a.market.high24h)
+                    formatUnitPrice(a.market?.high24h)
                   ] })
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "okx-ai-metric-card", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "Trend & Zmienno\u015B\u0107 24h:" }),
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
-                    a.technicals.trendLabel,
+                    a.technicals?.trendLabel,
                     " (",
-                    a.market.volatility24hPct,
+                    a.market?.volatility24hPct,
                     "%)"
                   ] })
                 ] }),
@@ -19237,52 +19390,52 @@
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "RSI (14) & Momentum:" }),
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
                     "RSI: ",
-                    a.technicals.rsi14,
+                    a.technicals?.rsi14,
                     " \u2014 ",
-                    a.technicals.rsiStatus
+                    a.technicals?.rsiStatus
                   ] })
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "okx-ai-metric-card", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u015Arednie OKX (EMA 20 / EMA 50 / VWAP):" }),
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
                     "EMA20: ",
-                    formatUnitPrice(a.technicals.ema20),
+                    formatUnitPrice(a.technicals?.ema20),
                     " \u2022 VWAP:",
                     " ",
-                    formatUnitPrice(a.technicals.vwap)
+                    formatUnitPrice(a.technicals?.vwap)
                   ] })
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "okx-ai-metric-card", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "Poziomy Wsparcia (Strefy Dokupienia):" }),
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { style: { color: "var(--accent-blue)" }, children: [
                     "S1: ",
-                    formatUnitPrice(a.technicals.support1),
+                    formatUnitPrice(a.technicals?.support1),
                     " \u2022 S2:",
                     " ",
-                    formatUnitPrice(a.technicals.support2)
+                    formatUnitPrice(a.technicals?.support2)
                   ] })
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "okx-ai-metric-card", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "Cele Zysku (Take-Profit 1 / 2 / 3):" }),
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { style: { color: "var(--buy-green)" }, children: [
                     "TP1: ",
-                    formatUnitPrice(a.technicals.takeProfit1),
+                    formatUnitPrice(a.technicals?.takeProfit1),
                     " \u2022 TP2:",
                     " ",
-                    formatUnitPrice(a.technicals.takeProfit2),
+                    formatUnitPrice(a.technicals?.takeProfit2),
                     " \u2022 TP3:",
                     " ",
-                    formatUnitPrice(a.technicals.takeProfit3)
+                    formatUnitPrice(a.technicals?.takeProfit3)
                   ] })
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "okx-ai-metric-card", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "Obrona (Stop-Loss & Risk/Reward):" }),
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { style: { color: "var(--sell-red)" }, children: [
                     "SL: ",
-                    formatUnitPrice(a.technicals.stopLoss),
+                    formatUnitPrice(a.technicals?.stopLoss),
                     " (-3.2%) \u2022 R:R",
                     " ",
-                    a.technicals.riskReward
+                    a.technicals?.riskReward
                   ] })
                 ] })
               ] }),
@@ -19304,7 +19457,7 @@
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Kwota (USDC)" }),
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Warunek aktywacji na OKX" })
                     ] }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("tbody", { children: a.recommendedStrategy.dcaTranches.map((tr, idx) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("tr", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("tbody", { children: (a.recommendedStrategy?.dcaTranches || []).map((tr, idx) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("tr", { children: [
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: tr.step }) }),
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { children: formatUnitPrice(tr.price) }),
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
@@ -19321,7 +19474,7 @@
                       "\u0141\u0105cznie po wykonaniu 3 transz DCA:",
                       " ",
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
-                        formatQty(a.recommendedStrategy.totalDcaAmt),
+                        formatQty(a.recommendedStrategy?.totalDcaAmt),
                         " ",
                         a.asset
                       ] })
@@ -19329,7 +19482,7 @@
                     /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { children: [
                       "U\u015Bredniona cena zakupu DCA:",
                       " ",
-                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: formatUnitPrice(a.recommendedStrategy.avgDcaPrice) })
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: formatUnitPrice(a.recommendedStrategy?.avgDcaPrice) })
                     ] })
                   ] })
                 ] }),
@@ -19338,26 +19491,26 @@
                   /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "okx-ai-side-kv-list", children: [
                     /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "kv-row", children: [
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "Dolne pasmo siatki (Lower Grid):" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: formatUnitPrice(a.recommendedStrategy.gridPlan.lowerPrice) })
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: formatUnitPrice(a.recommendedStrategy?.gridPlan?.lowerPrice) })
                     ] }),
                     /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "kv-row", children: [
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "G\xF3rne pasmo siatki (Upper Grid):" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: formatUnitPrice(a.recommendedStrategy.gridPlan.upperPrice) })
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: formatUnitPrice(a.recommendedStrategy?.gridPlan?.upperPrice) })
                     ] }),
                     /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "kv-row", children: [
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "Liczba poziom\xF3w siatki (Grids):" }),
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
-                        a.recommendedStrategy.gridPlan.gridLevels,
+                        a.recommendedStrategy?.gridPlan?.gridLevels,
                         " poziom\xF3w zlece\u0144"
                       ] })
                     ] }),
                     /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "kv-row", children: [
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "Zysk na pojedynczej siatce:" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { style: { color: "var(--buy-green)" }, children: a.recommendedStrategy.gridPlan.profitPerGrid })
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { style: { color: "var(--buy-green)" }, children: a.recommendedStrategy?.gridPlan?.profitPerGrid })
                     ] }),
                     /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "kv-row", children: [
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "Dost\u0119pne USDC w Twoim portfelu OKX:" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: formatUsdc(a.portfolioContext.availUsdc) })
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: formatUsdc(a.portfolioContext?.availUsdc) })
                     ] }),
                     /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "kv-row", children: [
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { children: [
@@ -19366,7 +19519,7 @@
                         " w portfelu:"
                       ] }),
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
-                        formatQty(a.portfolioContext.currentAssetAmount),
+                        formatQty(a.portfolioContext?.currentAssetAmount),
                         " ",
                         a.asset
                       ] })
@@ -19378,34 +19531,14 @@
                         " po realizacji zakupu:"
                       ] }),
                       /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { style: { color: "var(--accent-okx)" }, children: [
-                        formatQty(a.portfolioContext.newTotalAssetAmount),
+                        formatQty(a.portfolioContext?.newTotalAssetAmount),
                         " ",
                         a.asset
                       ] })
                     ] })
                   ] })
                 ] })
-              ] }),
-              activeTradeOrder ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-                InlineOrderConfirmCard,
-                {
-                  active: activeTradeOrder,
-                  modeLabel: a.mode,
-                  badgeTitle: `\u{1F4CB} ZLECENIE KUPNA STRATEGII AI GOTOWE DO REALIZACJI \u2022 OKX EUROPE (${a.mode})`,
-                  onConfirm: onConfirmOrder,
-                  isConfirming: isConfirmingOrder,
-                  style: { marginTop: "12px" }
-                }
-              ) : lastExchangeFeedback ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { marginTop: "12px" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
-                CollapsibleExecutedTx,
-                {
-                  fb: lastExchangeFeedback,
-                  isCollapsed: collapsedAiTxIds.has(
-                    String(lastExchangeFeedback.orderId || "LATEST")
-                  ),
-                  onToggle: onToggleAiExecutedTx
-                }
-              ) }) : null
+              ] })
             ] }) })
           ] }),
           showExamples && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "ai-strat-capabilities-grid", children: [
@@ -22811,6 +22944,25 @@
         setIsConfirmingOrder(false);
       }
     };
+    const handleRejectOrder = async () => {
+      if (!appState?.activeTradeOrder) return;
+      const ordId = appState.activeTradeOrder.id;
+      const res = await apiRequest("/api/trade/stop", "POST");
+      if (res && res.state) {
+        setAppState(res.state);
+      } else {
+        setAppState((prev) => ({
+          ...prev,
+          activeTradeOrder: null,
+          config: {
+            ...prev.config,
+            tradingStatus: "idle",
+            tradingStatusLabel: "Gotowy \u2014 odrzucono transakcj\u0119"
+          }
+        }));
+      }
+      showToast(`\u{1F6AB} Odrzucono transakcj\u0119 #${ordId}. Zlecenie zosta\u0142o wycofane.`);
+    };
     const handleSubmitAiChat = async (e) => {
       e.preventDefault();
       const promptText = aiChatInput.trim();
@@ -23246,6 +23398,7 @@
                 onSetAiChatInput: setAiChatInput,
                 onSubmitAiChat: handleSubmitAiChat,
                 onConfirmOrder: handleConfirmOrder,
+                onRejectOrder: handleRejectOrder,
                 onOpenAiStrategies: handleOpenAiStrategies,
                 onToggleAiExecutedTx: handleToggleAiExecutedTx,
                 onToggleAllAiExecutedTx: handleToggleAllAiExecutedTx,
@@ -23273,6 +23426,7 @@
                 onSubmitAiStrategy: handleSubmitAiStrategy,
                 onRunAiStrategyQuery: runAiStrategyQuery,
                 onConfirmOrder: handleConfirmOrder,
+                onRejectOrder: handleRejectOrder,
                 onToggleAiExecutedTx: handleToggleAiExecutedTx,
                 onOpenAssetChart: (instId) => openAssetChart(instId, chartState.isOpen ? chartState.size : "medium"),
                 onSetWindowMode: setWindowMode,

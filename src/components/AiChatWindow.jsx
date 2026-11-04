@@ -32,6 +32,7 @@ export function AiChatWindow({
   onSetAiChatInput,
   onSubmitAiChat,
   onConfirmOrder,
+  onRejectOrder,
   onOpenAiStrategies,
   onToggleAiExecutedTx,
   onToggleAllAiExecutedTx,
@@ -142,6 +143,7 @@ export function AiChatWindow({
             active={activeTradeOrder}
             modeLabel={modeLabel}
             onConfirm={onConfirmOrder}
+            onReject={onRejectOrder}
             isConfirming={isConfirmingOrder}
           />
         )}
