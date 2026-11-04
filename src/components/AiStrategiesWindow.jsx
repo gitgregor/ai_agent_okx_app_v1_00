@@ -93,14 +93,15 @@ export function AiStrategiesWindow({
       curr === 'fullscreen';
 
     if (wasClosed && isNowOpen) {
-      // Okno zostało ponownie otwarte — czyścimy widok ostatniej strategii z głównego ekranu
+      // Okno zostało ponownie otwarte — czyścimy widok ostatniej strategii z głównego ekranu oraz pole promptu
       setActiveSessionAnalysis(null);
       setIsRecommendationOpen(false);
       setShowInstruction(false);
       setShowHistory(false);
       setShowExamples(false);
+      if (onSetAiStrategyInput) onSetAiStrategyInput('');
     }
-  }, [winMeta?.mode]);
+  }, [winMeta?.mode, onSetAiStrategyInput]);
 
   // TYLKO gdy użytkownik W TEJ CHWILI zada nowe zapytanie i powstanie NOWY timestamp — wtedy pokazujemy rekomendację
   useEffect(() => {
@@ -117,10 +118,22 @@ export function AiStrategiesWindow({
   const handleFormSubmit = (e) => {
     if (e) e.preventDefault();
     if (onSubmitAiStrategy) onSubmitAiStrategy(e);
+    if (onSetAiStrategyInput) onSetAiStrategyInput('');
   };
 
   const handleRunQuery = (queryText) => {
     if (onRunAiStrategyQuery) onRunAiStrategyQuery(queryText);
+    if (onSetAiStrategyInput) onSetAiStrategyInput('');
+  };
+
+  const handleConfirmOrderWrapped = () => {
+    if (onSetAiStrategyInput) onSetAiStrategyInput('');
+    if (onConfirmOrder) onConfirmOrder();
+  };
+
+  const handleRejectOrderWrapped = () => {
+    if (onSetAiStrategyInput) onSetAiStrategyInput('');
+    if (onRejectOrder) onRejectOrder();
   };
 
   const toggleHistoryItemDetails = (id) => {
@@ -599,8 +612,8 @@ export function AiStrategiesWindow({
             active={activeTradeOrder}
             modeLabel="DEMO"
             badgeTitle={`📋 ZLECENIE KUPNA STRATEGII AI GOTOWE DO REALIZACJI • OKX EUROPE`}
-            onConfirm={onConfirmOrder}
-            onReject={onRejectOrder}
+            onConfirm={handleConfirmOrderWrapped}
+            onReject={handleRejectOrderWrapped}
             isConfirming={isConfirmingOrder}
           />
         </div>

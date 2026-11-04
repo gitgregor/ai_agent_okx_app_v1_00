@@ -295,6 +295,13 @@ export function App() {
         })
       );
 
+      if (winId === 'win-ai-strategies') {
+        setAiStrategyInput('');
+        if (requestedMode === 'docked-top' || requestedMode === 'docked-sidebar') {
+          setCurrentAiStrategyAnalysis(null);
+        }
+      }
+
       if (requestedMode === 'grid') {
         setTimeout(() => {
           const domEl = document.getElementById(winId);
@@ -316,6 +323,7 @@ export function App() {
       const winMeta = windowsRegistryRef.current.find((w) => w.id === winId);
       if (winId === 'win-ai-strategies') {
         setCurrentAiStrategyAnalysis(null);
+        setAiStrategyInput('');
       }
       setWindowMode(winId, 'docked-top');
       if (winMeta) {
@@ -797,6 +805,7 @@ export function App() {
   const handleConfirmOrder = async () => {
     if (!appState || !appState.activeTradeOrder || isConfirmingOrder) return;
     setIsConfirmingOrder(true);
+    setAiStrategyInput('');
     try {
       const pendingOrder = appState.activeTradeOrder;
       const res = await apiRequest('/api/trade/authorize', 'POST', {
@@ -847,6 +856,8 @@ export function App() {
   const handleRejectOrder = async () => {
     if (!appState?.activeTradeOrder) return;
     const ordId = appState.activeTradeOrder.id;
+    setAiStrategyInput('');
+    setCurrentAiStrategyAnalysis(null);
     const res = await apiRequest('/api/trade/stop', 'POST');
     if (res && res.state) {
       setAppState(res.state);
@@ -888,7 +899,7 @@ export function App() {
     async (queryText) => {
       const q = (queryText || '').trim() || 'Strategia kupna dla BTC';
       setLastExchangeFeedback(null);
-      setAiStrategyInput(q);
+      setAiStrategyInput('');
 
       const res = await apiRequest('/api/agent/strategy', 'POST', { query: q });
       if (res.analysis) {
@@ -919,10 +930,14 @@ export function App() {
 
   const handleSubmitAiStrategy = (e) => {
     e.preventDefault();
-    runAiStrategyQuery(aiStrategyInput || 'BTC');
+    const query = (aiStrategyInput || '').trim() || 'BTC';
+    setAiStrategyInput('');
+    runAiStrategyQuery(query);
   };
 
   const handleOpenAiStrategies = () => {
+    setAiStrategyInput('');
+    setCurrentAiStrategyAnalysis(null);
     const stratWinMeta = windowsRegistryRef.current.find(
       (w) => w.id === 'win-ai-strategies'
     );
@@ -939,11 +954,11 @@ export function App() {
     }
     setTimeout(() => {
       const inp = document.getElementById('aiStrategyInput');
-      if (inp) inp.focus();
+      if (inp) {
+        inp.value = '';
+        inp.focus();
+      }
     }, 60);
-    if (!currentAiStrategyAnalysis) {
-      runAiStrategyQuery('Strategia kupna dla BTC za 1500 USDC');
-    }
   };
 
   const handleToggleAiExecutedTx = (txKey) => {
@@ -1150,6 +1165,7 @@ export function App() {
       collapseAllAiTransactions();
     } else if (winId === 'win-ai-strategies') {
       setCurrentAiStrategyAnalysis(null);
+      setAiStrategyInput('');
     }
 
     showToast(`🗔 Otwarto okno „${winMeta.title}” (pozostałe okna zwinięte do Menu).`);

@@ -18834,8 +18834,9 @@
         setShowInstruction(false);
         setShowHistory(false);
         setShowExamples(false);
+        if (onSetAiStrategyInput) onSetAiStrategyInput("");
       }
-    }, [winMeta?.mode]);
+    }, [winMeta?.mode, onSetAiStrategyInput]);
     (0, import_react7.useEffect)(() => {
       if (currentAiStrategyAnalysis?.timestamp && currentAiStrategyAnalysis.timestamp !== prevAnalysisTsRef.current) {
         prevAnalysisTsRef.current = currentAiStrategyAnalysis.timestamp;
@@ -18846,9 +18847,19 @@
     const handleFormSubmit = (e) => {
       if (e) e.preventDefault();
       if (onSubmitAiStrategy) onSubmitAiStrategy(e);
+      if (onSetAiStrategyInput) onSetAiStrategyInput("");
     };
     const handleRunQuery = (queryText) => {
       if (onRunAiStrategyQuery) onRunAiStrategyQuery(queryText);
+      if (onSetAiStrategyInput) onSetAiStrategyInput("");
+    };
+    const handleConfirmOrderWrapped = () => {
+      if (onSetAiStrategyInput) onSetAiStrategyInput("");
+      if (onConfirmOrder) onConfirmOrder();
+    };
+    const handleRejectOrderWrapped = () => {
+      if (onSetAiStrategyInput) onSetAiStrategyInput("");
+      if (onRejectOrder) onRejectOrder();
     };
     const toggleHistoryItemDetails = (id) => {
       setExpandedHistoryTxIds((prev) => {
@@ -19334,8 +19345,8 @@
               active: activeTradeOrder,
               modeLabel: "DEMO",
               badgeTitle: `\u{1F4CB} ZLECENIE KUPNA STRATEGII AI GOTOWE DO REALIZACJI \u2022 OKX EUROPE`,
-              onConfirm: onConfirmOrder,
-              onReject: onRejectOrder,
+              onConfirm: handleConfirmOrderWrapped,
+              onReject: handleRejectOrderWrapped,
               isConfirming: isConfirmingOrder
             }
           ) }),
@@ -22585,6 +22596,12 @@
             return updated;
           })
         );
+        if (winId === "win-ai-strategies") {
+          setAiStrategyInput("");
+          if (requestedMode === "docked-top" || requestedMode === "docked-sidebar") {
+            setCurrentAiStrategyAnalysis(null);
+          }
+        }
         if (requestedMode === "grid") {
           setTimeout(() => {
             const domEl = document.getElementById(winId);
@@ -22605,6 +22622,7 @@
         const winMeta = windowsRegistryRef.current.find((w) => w.id === winId);
         if (winId === "win-ai-strategies") {
           setCurrentAiStrategyAnalysis(null);
+          setAiStrategyInput("");
         }
         setWindowMode(winId, "docked-top");
         if (winMeta) {
@@ -22995,6 +23013,7 @@
     const handleConfirmOrder = async () => {
       if (!appState || !appState.activeTradeOrder || isConfirmingOrder) return;
       setIsConfirmingOrder(true);
+      setAiStrategyInput("");
       try {
         const pendingOrder = appState.activeTradeOrder;
         const res = await apiRequest("/api/trade/authorize", "POST", {
@@ -23038,6 +23057,8 @@
     const handleRejectOrder = async () => {
       if (!appState?.activeTradeOrder) return;
       const ordId = appState.activeTradeOrder.id;
+      setAiStrategyInput("");
+      setCurrentAiStrategyAnalysis(null);
       const res = await apiRequest("/api/trade/stop", "POST");
       if (res && res.state) {
         setAppState(res.state);
@@ -23076,7 +23097,7 @@
       async (queryText) => {
         const q = (queryText || "").trim() || "Strategia kupna dla BTC";
         setLastExchangeFeedback(null);
-        setAiStrategyInput(q);
+        setAiStrategyInput("");
         const res = await apiRequest("/api/agent/strategy", "POST", { query: q });
         if (res.analysis) {
           setCurrentAiStrategyAnalysis(res.analysis);
@@ -23103,9 +23124,13 @@
     );
     const handleSubmitAiStrategy = (e) => {
       e.preventDefault();
-      runAiStrategyQuery(aiStrategyInput || "BTC");
+      const query = (aiStrategyInput || "").trim() || "BTC";
+      setAiStrategyInput("");
+      runAiStrategyQuery(query);
     };
     const handleOpenAiStrategies = () => {
+      setAiStrategyInput("");
+      setCurrentAiStrategyAnalysis(null);
       const stratWinMeta = windowsRegistryRef.current.find(
         (w) => w.id === "win-ai-strategies"
       );
@@ -23118,11 +23143,11 @@
       }
       setTimeout(() => {
         const inp = document.getElementById("aiStrategyInput");
-        if (inp) inp.focus();
+        if (inp) {
+          inp.value = "";
+          inp.focus();
+        }
       }, 60);
-      if (!currentAiStrategyAnalysis) {
-        runAiStrategyQuery("Strategia kupna dla BTC za 1500 USDC");
-      }
     };
     const handleToggleAiExecutedTx = (txKey) => {
       setCollapsedAiTxIds((prev) => {
@@ -23292,6 +23317,7 @@
         collapseAllAiTransactions();
       } else if (winId === "win-ai-strategies") {
         setCurrentAiStrategyAnalysis(null);
+        setAiStrategyInput("");
       }
       showToast(`\u{1F5D4} Otwarto okno \u201E${winMeta.title}\u201D (pozosta\u0142e okna zwini\u0119te do Menu).`);
       setTimeout(() => {
