@@ -18,6 +18,7 @@ import { LeftSidebar } from './components/LeftSidebar';
 import { ControlWindows } from './components/ControlWindows';
 import { AiChatWindow } from './components/AiChatWindow';
 import { AiStrategiesWindow } from './components/AiStrategiesWindow';
+import { AiFuturesStrategiesWindow } from './components/AiFuturesStrategiesWindow';
 import { QuickTradeWindow } from './components/QuickTradeWindow';
 import { PortfoliosRow } from './components/PortfoliosRow';
 import { PortfolioHistoryWindow } from './components/PortfolioHistoryWindow';
@@ -29,7 +30,8 @@ const INITIAL_WINDOWS_REGISTRY = [
   { id: 'win-ctrl-trade', title: '2. Sterowanie Handlem', icon: '▶️', mode: 'docked-top', prevActiveMode: 'grid', posX: 80, posY: 110, isTopCtrl: true },
   { id: 'win-ctrl-ai', title: '3. Status Agenta AI', icon: '🤖', mode: 'docked-top', prevActiveMode: 'grid', posX: 120, posY: 130, isTopCtrl: true },
   { id: 'win-ai-chat', title: 'Agent AI Handlu', icon: '💬', mode: 'docked-top', prevActiveMode: 'grid', posX: 70, posY: 100 },
-  { id: 'win-ai-strategies', title: 'AI Strategies (OKX AI)', icon: '🧠', mode: 'docked-top', prevActiveMode: 'floating-medium', posX: 95, posY: 70 },
+  { id: 'win-ai-strategies', title: 'Strategia OKX ai: SPOT', icon: '🧠', mode: 'docked-top', prevActiveMode: 'floating-medium', posX: 95, posY: 70 },
+  { id: 'win-ai-strategies-futures', title: 'Strategia OKX ai: FUTURES', icon: '⚡📈', mode: 'docked-top', prevActiveMode: 'floating-medium', posX: 110, posY: 75 },
   { id: 'win-quick-trade', title: 'Kreator Zlecenia', icon: '⚡', mode: 'docked-top', prevActiveMode: 'grid', posX: 130, posY: 120 },
   { id: 'win-portfolio', title: 'Portfel Handlowy', icon: '💼', mode: 'docked-top', prevActiveMode: 'grid', posX: 160, posY: 140 },
   { id: 'win-bought-sold', title: 'Kupiono / Sprzedano', icon: '📊', mode: 'docked-top', prevActiveMode: 'grid', posX: 190, posY: 160 },
@@ -60,6 +62,8 @@ export function App() {
   const [chatMessages, setChatMessages] = useState([]);
   const [aiStrategyInput, setAiStrategyInput] = useState('');
   const [currentAiStrategyAnalysis, setCurrentAiStrategyAnalysis] = useState(null);
+  const [aiFuturesInput, setAiFuturesInput] = useState('');
+  const [currentAiFuturesAnalysis, setCurrentAiFuturesAnalysis] = useState(null);
   const [lastExchangeFeedback, setLastExchangeFeedback] = useState(null);
   const [executedSessionTransactions, setExecutedSessionTransactions] = useState([]);
   const [collapsedAiTxIds, setCollapsedAiTxIds] = useState(() => new Set());
@@ -145,6 +149,9 @@ export function App() {
     }
     if (sync.currentAiStrategyAnalysis) {
       setCurrentAiStrategyAnalysis(sync.currentAiStrategyAnalysis);
+    }
+    if (sync.currentAiFuturesStrategyAnalysis) {
+      setCurrentAiFuturesAnalysis(sync.currentAiFuturesStrategyAnalysis);
     }
     if (Array.isArray(sync.executedSessionTransactions) && sync.executedSessionTransactions.length > 0) {
       setExecutedSessionTransactions(sync.executedSessionTransactions);
@@ -302,6 +309,13 @@ export function App() {
         }
       }
 
+      if (winId === 'win-ai-strategies-futures') {
+        setAiFuturesInput('');
+        if (requestedMode === 'docked-top' || requestedMode === 'docked-sidebar') {
+          setCurrentAiFuturesAnalysis(null);
+        }
+      }
+
       if (requestedMode === 'grid') {
         setTimeout(() => {
           const domEl = document.getElementById(winId);
@@ -324,6 +338,10 @@ export function App() {
       if (winId === 'win-ai-strategies') {
         setCurrentAiStrategyAnalysis(null);
         setAiStrategyInput('');
+      }
+      if (winId === 'win-ai-strategies-futures') {
+        setCurrentAiFuturesAnalysis(null);
+        setAiFuturesInput('');
       }
       setWindowMode(winId, 'docked-top');
       if (winMeta) {
@@ -869,6 +887,8 @@ export function App() {
     const ordId = appState.activeTradeOrder.id;
     setAiStrategyInput('');
     setCurrentAiStrategyAnalysis(null);
+    setAiFuturesInput('');
+    setCurrentAiFuturesAnalysis(null);
     const res = await apiRequest('/api/trade/stop', 'POST', {
       reason: 'user_rejected',
       orderId: ordId
@@ -989,6 +1009,8 @@ export function App() {
   const handleOpenAiStrategies = () => {
     setAiStrategyInput('');
     setCurrentAiStrategyAnalysis(null);
+    setAiFuturesInput('');
+    setCurrentAiFuturesAnalysis(null);
     const stratWinMeta = windowsRegistryRef.current.find(
       (w) => w.id === 'win-ai-strategies'
     );
@@ -1005,6 +1027,72 @@ export function App() {
     }
     setTimeout(() => {
       const inp = document.getElementById('aiStrategyInput');
+      if (inp) {
+        inp.value = '';
+        inp.focus();
+      }
+    }, 60);
+  };
+
+  const runAiFuturesStrategyQuery = useCallback(
+    async (queryText, options = {}) => {
+      const q = (queryText || '').trim() || 'BTC-SWAP LONG 10x';
+      setLastExchangeFeedback(null);
+      setAiFuturesInput('');
+
+      const res = await apiRequest('/api/agent/strategy/futures', 'POST', { query: q, options });
+      if (res.analysis) {
+        setCurrentAiFuturesAnalysis(res.analysis);
+      }
+      if (res.reply) {
+        appendChatMessage('user', `[Strategia OKX ai: FUTURES] ${q}`);
+        appendChatMessage('assistant', res.reply, {
+          orderId: res.activeTradeOrder?.id,
+          isPendingTx: true
+        });
+      }
+      if (res.state) {
+        setAppState(res.state);
+      }
+      setTimeout(() => {
+        const box = document.getElementById('aiFuturesResultContainer');
+        if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+      showToast(
+        `⚡ Wygenerowano analizę i strategię futures OKX AI dla: ${
+          res.analysis?.instId || q
+        }`
+      );
+    },
+    [appendChatMessage, showToast]
+  );
+
+  const handleSubmitAiFuturesStrategy = (e) => {
+    e.preventDefault();
+    const query = (aiFuturesInput || '').trim() || 'BTC-SWAP 10x';
+    setAiFuturesInput('');
+    runAiFuturesStrategyQuery(query);
+  };
+
+  const handleOpenAiFuturesStrategies = () => {
+    setAiFuturesInput('');
+    setCurrentAiFuturesAnalysis(null);
+    const stratWinMeta = windowsRegistryRef.current.find(
+      (w) => w.id === 'win-ai-strategies-futures'
+    );
+    if (stratWinMeta) {
+      if (
+        stratWinMeta.mode === 'docked-top' ||
+        stratWinMeta.mode === 'docked-sidebar' ||
+        stratWinMeta.mode === 'minimized-inline'
+      ) {
+        setWindowMode('win-ai-strategies-futures', 'floating-medium');
+      } else {
+        handleBringToFront('win-ai-strategies-futures');
+      }
+    }
+    setTimeout(() => {
+      const inp = document.getElementById('aiFuturesStrategyInput');
       if (inp) {
         inp.value = '';
         inp.focus();
@@ -1217,6 +1305,9 @@ export function App() {
     } else if (winId === 'win-ai-strategies') {
       setCurrentAiStrategyAnalysis(null);
       setAiStrategyInput('');
+    } else if (winId === 'win-ai-strategies-futures') {
+      setCurrentAiFuturesAnalysis(null);
+      setAiFuturesInput('');
     }
 
     showToast(`🗔 Otwarto okno „${winMeta.title}” (pozostałe okna zwinięte do Menu).`);
@@ -1327,6 +1418,7 @@ export function App() {
     (w) =>
       (w.id === 'win-ai-chat' ||
         w.id === 'win-ai-strategies' ||
+        w.id === 'win-ai-strategies-futures' ||
         w.id === 'win-quick-trade') &&
       (w.mode === 'grid' || w.mode === 'minimized-inline')
   );
@@ -1478,6 +1570,32 @@ export function App() {
               onBringToFront={handleBringToFront}
             />
 
+            <AiFuturesStrategiesWindow
+              winMeta={windowsRegistry.find((w) => w.id === 'win-ai-strategies-futures')}
+              isSoloGridWindow={soloWindowId === 'win-ai-strategies-futures'}
+              aiFuturesInput={aiFuturesInput}
+              currentAiFuturesAnalysis={currentAiFuturesAnalysis}
+              activeTradeOrder={appState?.activeTradeOrder}
+              lastExchangeFeedback={lastExchangeFeedback}
+              collapsedAiTxIds={collapsedAiTxIds}
+              isConfirmingOrder={isConfirmingOrder}
+              orders={appState?.portfolio?.orders}
+              executedSessionTransactions={executedSessionTransactions}
+              onSetAiFuturesInput={setAiFuturesInput}
+              onSubmitAiFuturesStrategy={handleSubmitAiFuturesStrategy}
+              onRunAiFuturesStrategyQuery={runAiFuturesStrategyQuery}
+              onConfirmOrder={handleConfirmOrder}
+              onRejectOrder={handleRejectOrder}
+              onCompleteStrategy={handleCompleteStrategy}
+              onToggleAiExecutedTx={handleToggleAiExecutedTx}
+              onOpenAssetChart={(instId) =>
+                openAssetChart(instId, chartState.isOpen ? chartState.size : 'medium')
+              }
+              onSetWindowMode={setWindowMode}
+              onCloseWindow={handleCloseWindow}
+              onBringToFront={handleBringToFront}
+            />
+
             <QuickTradeWindow
               winMeta={windowsRegistry.find((w) => w.id === 'win-quick-trade')}
               isSoloGridWindow={soloWindowId === 'win-quick-trade'}
@@ -1604,7 +1722,15 @@ export function App() {
           onClick={handleOpenAiStrategies}
         >
           <span className="mobile-nav-icon">🧠</span>
-          <span className="mobile-nav-label">Strategie</span>
+          <span className="mobile-nav-label">AI Spot</span>
+        </button>
+        <button
+          type="button"
+          className="mobile-nav-btn"
+          onClick={handleOpenAiFuturesStrategies}
+        >
+          <span className="mobile-nav-icon">⚡</span>
+          <span className="mobile-nav-label">AI Futures</span>
         </button>
         <button
           type="button"

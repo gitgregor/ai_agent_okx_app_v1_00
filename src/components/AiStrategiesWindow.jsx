@@ -535,7 +535,7 @@ export function AiStrategiesWindow({
       winMeta={winMeta}
       isSoloGridWindow={isSoloGridWindow}
       baseClassName="panel-card panel-ai-strategies"
-      titlebarTitle="🧠 AI Strategies — Analiza Strategii Kupna OKX"
+      titlebarTitle="🧠 Strategia OKX ai: SPOT — Analiza Strategii Kupna OKX"
       extraTitlebarControls={extraTitlebarControls}
       onSetWindowMode={onSetWindowMode}
       onCloseWindow={onCloseWindow}

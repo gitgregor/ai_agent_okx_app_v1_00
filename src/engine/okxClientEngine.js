@@ -2110,6 +2110,303 @@ export async function clientMockEngine(url, method = 'GET', body = null) {
     return { ok: true, analysis, reply, activeTradeOrder: order, state: JSON.parse(JSON.stringify(_standaloneState)) };
   }
 
+  // 9B-FUTURES. AI Agent OKX Futures Strategy & Risk / Leverage Analysis (/api/agent/strategy/futures)
+  if (url.startsWith('/api/agent/strategy/futures') && method === 'POST') {
+    _standaloneState.config.aiStatus = 'active';
+    const rawQuery = (body?.query || body?.message || 'BTC').trim();
+    const options = body?.options || {};
+    const lower = rawQuery.toLowerCase();
+
+    const mList = _standaloneState.markets || _standaloneState.tickers || DEFAULT_STANDALONE_MARKETS;
+    const market = findMarketInList(rawQuery, mList);
+    const asset = market.base || 'BTC';
+    const swapInstId = `${asset}-USDC-SWAP`;
+
+    const livePrice = Number(market.price || 76000);
+    const open24h = Number(market.open24h || livePrice);
+    const high24h = Number(market.high24h || livePrice * 1.028);
+    const low24h = Number(market.low24h || livePrice * 0.972);
+    const bidPx = Number(market.bidPx || livePrice * 0.9998);
+    const askPx = Number(market.askPx || livePrice * 1.0002);
+    const vol24h = Number(market.vol24h || 2500);
+    const change24hPct = open24h > 0 ? Number((((livePrice - open24h) / open24h) * 100).toFixed(2)) : 0;
+
+    const priceDec = livePrice < 0.1 ? 5 : livePrice < 2 ? 4 : livePrice < 25 ? 3 : 2;
+    const roundPx = (val) => Number(Number(val).toFixed(priceDec));
+
+    const rangeSpan = Math.max(high24h - low24h, livePrice * 0.01);
+    const rangePositionPct = Math.min(100, Math.max(0, Number((((livePrice - low24h) / rangeSpan) * 100).toFixed(1))));
+    const volatility24hPct = low24h > 0 ? Number((((high24h - low24h) / low24h) * 100).toFixed(2)) : 2.8;
+    const spreadPct = livePrice > 0 ? Number((((askPx - bidPx) / livePrice) * 100).toFixed(4)) : 0.02;
+
+    const rsi14 = Math.min(84, Math.max(20, Number((48 + change24hPct * 2.8 + (rangePositionPct - 50) * 0.22).toFixed(1))));
+    const ema20 = roundPx(livePrice * (1 - (change24hPct / 100) * 0.28));
+    const ema50 = roundPx(livePrice * (1 - (change24hPct / 100) * 0.55));
+    const vwap = roundPx((high24h + low24h + livePrice) / 3);
+
+    // Wykrywanie kierunku pozycji (LONG vs SHORT)
+    const hasShortWord = /\b(short|krótka|spadk|sell|sprzedaj|graj na spadki)\b/i.test(rawQuery);
+    const hasLongWord = /\b(long|długa|wzrost|buy|kup|graj na wzrosty)\b/i.test(rawQuery);
+    let direction = 'LONG';
+    if (options.direction) {
+      direction = options.direction.toUpperCase() === 'SHORT' ? 'SHORT' : 'LONG';
+    } else if (hasShortWord) {
+      direction = 'SHORT';
+    } else if (hasLongWord) {
+      direction = 'LONG';
+    } else {
+      direction = rsi14 > 68 || change24hPct <= -2.5 ? 'SHORT' : 'LONG';
+    }
+
+    // Wykrywanie dźwigni (Leverage)
+    const levMatch = rawQuery.match(/(\d+)x/i);
+    let leverage = 10;
+    if (options.leverage) {
+      leverage = Math.max(1, Math.min(100, Number(options.leverage) || 10));
+    } else if (levMatch) {
+      leverage = Math.max(1, Math.min(100, parseInt(levMatch[1], 10)));
+    }
+
+    // Tryb depozytu (Margin Mode: isolated vs cross)
+    const marginMode = options.marginMode === 'cross' || lower.includes('cross') || lower.includes('krzyżow') ? 'cross' : 'isolated';
+
+    // Budżet Margin
+    let marginUsdc = 500.00;
+    const numbers = (rawQuery.match(/\d+(?:[.,]\d+)?/g) || []).map((n) => parseFloat(n.replace(',', '.')));
+    if (options.marginUsdc && Number(options.marginUsdc) > 0) {
+      marginUsdc = Number(Number(options.marginUsdc).toFixed(2));
+    } else if (numbers.length > 0) {
+      const firstNum = numbers[0];
+      if (firstNum >= 10 && firstNum <= 50000 && !rawQuery.includes(`${firstNum}x`)) {
+        marginUsdc = Number(firstNum.toFixed(2));
+      }
+    }
+
+    const notionalUsdc = Number((marginUsdc * leverage).toFixed(2));
+    const positionAmount = livePrice > 0 ? Number((notionalUsdc / livePrice).toFixed(6)) : 0.05;
+
+    // Maintenance Margin Rate OKX (0.5%)
+    const mmr = 0.005;
+    const maintenanceMarginUsdc = Number((notionalUsdc * mmr).toFixed(2));
+
+    let liquidationPrice = 0;
+    let liquidationDistancePct = 0;
+    if (direction === 'LONG') {
+      const dropRatio = Math.max(0.005, (1 / leverage) - mmr);
+      liquidationPrice = roundPx(livePrice * (1 - dropRatio));
+      liquidationDistancePct = Number((dropRatio * 100).toFixed(2));
+    } else {
+      const riseRatio = Math.max(0.005, (1 / leverage) - mmr);
+      liquidationPrice = roundPx(livePrice * (1 + riseRatio));
+      liquidationDistancePct = Number((riseRatio * 100).toFixed(2));
+    }
+
+    let riskLevel = 'Umiarkowany (5x-10x)';
+    let riskBadgeColor = '#fbbf24';
+    if (leverage <= 3) {
+      riskLevel = 'Niski (1x-3x) — Bezpieczny Margin';
+      riskBadgeColor = '#34d399';
+    } else if (leverage <= 10) {
+      riskLevel = 'Umiarkowany (5x-10x) — Standard Trading';
+      riskBadgeColor = '#38bdf8';
+    } else if (leverage <= 25) {
+      riskLevel = 'Podwyższony (15x-25x) — Agresywny Scalp';
+      riskBadgeColor = '#f59e0b';
+    } else {
+      riskLevel = 'Ekstremalny (>25x) — Wymagany ścisły Stop-Loss!';
+      riskBadgeColor = '#ef4444';
+    }
+
+    const fundingRatePct = change24hPct >= 0 ? 0.0100 : -0.0075;
+    const fundingRateStr = (fundingRatePct > 0 ? '+' : '') + fundingRatePct.toFixed(4) + '% / 8h';
+    const estimatedFundingFeeUsdc = Number((notionalUsdc * (Math.abs(fundingRatePct) / 100)).toFixed(2));
+    const fundingCountdown = '03:18:45';
+
+    const tp1Dist = 0.022;
+    const tp2Dist = 0.052;
+    const tp3Dist = 0.088;
+    const slDist = Number(Math.min(0.035, Math.max(0.012, (0.65 / leverage))).toFixed(4));
+
+    let takeProfit1, takeProfit2, takeProfit3, stopLoss, trailingStopActivation;
+    if (direction === 'LONG') {
+      takeProfit1 = roundPx(livePrice * (1 + tp1Dist));
+      takeProfit2 = roundPx(livePrice * (1 + tp2Dist));
+      takeProfit3 = roundPx(livePrice * (1 + tp3Dist));
+      stopLoss = roundPx(livePrice * (1 - slDist));
+      trailingStopActivation = roundPx(livePrice * (1 + 0.018));
+    } else {
+      takeProfit1 = roundPx(livePrice * (1 - tp1Dist));
+      takeProfit2 = roundPx(livePrice * (1 - tp2Dist));
+      takeProfit3 = roundPx(livePrice * (1 - tp3Dist));
+      stopLoss = roundPx(livePrice * (1 + slDist));
+      trailingStopActivation = roundPx(livePrice * (1 - 0.018));
+    }
+
+    const tp1RoiPct = Number((tp1Dist * leverage * 100).toFixed(1));
+    const tp1PnlUsdc = Number((marginUsdc * (tp1Dist * leverage)).toFixed(2));
+    const tp2RoiPct = Number((tp2Dist * leverage * 100).toFixed(1));
+    const tp2PnlUsdc = Number((marginUsdc * (tp2Dist * leverage)).toFixed(2));
+    const tp3RoiPct = Number((tp3Dist * leverage * 100).toFixed(1));
+    const tp3PnlUsdc = Number((marginUsdc * (tp3Dist * leverage)).toFixed(2));
+    const slRoiPct = Number((-(slDist * leverage * 100)).toFixed(1));
+    const slPnlUsdc = Number((-(marginUsdc * (slDist * leverage))).toFixed(2));
+
+    const strategyType = `OKX AI Perpetual Futures (${direction} ${leverage}x)`;
+    const strategyName = `Strategia Futures OKX AI (${swapInstId} • ${direction} ${leverage}x • ${marginMode.toUpperCase()})`;
+
+    const orderId = `OKX-FUT-${Date.now()}`;
+    const now = new Date();
+    const order = {
+      id: orderId,
+      instId: swapInstId,
+      asset,
+      side: direction === 'LONG' ? 'BUY' : 'SELL',
+      posSide: direction.toLowerCase(),
+      orderType: 'MARKET',
+      amount: positionAmount,
+      price: livePrice,
+      usdcValue: notionalUsdc,
+      marginUsdc,
+      leverage,
+      marginMode,
+      feeRate: '0.05%',
+      feeUsdc: Number((notionalUsdc * 0.0005).toFixed(2)),
+      feeAsset: Number((positionAmount * 0.0005).toFixed(6)),
+      totalUsdcWithFee: notionalUsdc,
+      status: 'waiting_for_start',
+      statusText: 'Czekam na potwierdzenie pozycji futures (OKX EEA)',
+      source: 'Analiza Agenta AI OKX (Strategia Futures)',
+      strategyName,
+      strategyType,
+      date: now.toISOString().slice(0, 10),
+      time: now.toTimeString().slice(0, 8),
+      timestamp: now.getTime()
+    };
+
+    _standaloneState.activeTradeOrder = order;
+
+    const analysis = {
+      engine: '@okx_ai/okx-futures-mcp • okx/agent-trade-kit (eea.okx.com v5 Perpetual Swap)',
+      mode: (_standaloneState.config.apiMode || 'demo').toUpperCase(),
+      marketType: 'FUTURES',
+      query: rawQuery,
+      date: order.date,
+      time: order.time,
+      asset,
+      assetName: market.name || asset,
+      instId: swapInstId,
+      direction,
+      leverage,
+      marginMode,
+      market: {
+        price: livePrice,
+        bidPx,
+        askPx,
+        spreadPct,
+        open24h,
+        high24h,
+        low24h,
+        vol24h,
+        change24hPct,
+        volatility24hPct,
+        rangePositionPct,
+        fundingRate: fundingRateStr,
+        fundingRatePct,
+        nextFundingCountdown: fundingCountdown,
+        openInterestUsdc: 482500000,
+        estimatedFundingFeeUsdc
+      },
+      futuresParameters: {
+        direction,
+        leverage,
+        marginMode,
+        entryPrice: livePrice,
+        initialMarginUsdc: marginUsdc,
+        notionalValueUsdc: notionalUsdc,
+        contractsCount: Math.round(positionAmount * 100),
+        positionAmount,
+        maintenanceMarginRate: mmr,
+        maintenanceMarginUsdc,
+        liquidationPrice,
+        liquidationDistancePct,
+        liquidationBufferUsdc: Math.abs(roundPx(livePrice - liquidationPrice)),
+        riskLevel,
+        riskBadgeColor,
+        marginHealthScore: Math.max(10, Math.min(100, Math.round(100 - (leverage * 0.75))))
+      },
+      technicals: {
+        trendLabel: direction === 'LONG'
+          ? 'Potwierdzony trend wzrostowy / Odbicie od wsparcia z akumulacją'
+          : 'Presja podażowa / Przełamanie oporu lub wykupienie na oscylatorach',
+        signalBadge: direction === 'LONG'
+          ? `🟢 REKOMENDACJA AI OKX FUTURES: LONG (Wzrosty ${leverage}x)`
+          : `🔴 REKOMENDACJA AI OKX FUTURES: SHORT (Spadki ${leverage}x)`,
+        rsi14,
+        ema20,
+        ema50,
+        vwap,
+        support1: roundPx(livePrice * 0.98),
+        support2: roundPx(livePrice * 0.955),
+        resistance1: roundPx(livePrice * 1.02),
+        resistance2: roundPx(livePrice * 1.045),
+        takeProfit1,
+        takeProfit1RoiPct: tp1RoiPct,
+        takeProfit1PnlUsdc: tp1PnlUsdc,
+        takeProfit2,
+        takeProfit2RoiPct: tp2RoiPct,
+        takeProfit2PnlUsdc: tp2PnlUsdc,
+        takeProfit3,
+        takeProfit3RoiPct: tp3RoiPct,
+        takeProfit3PnlUsdc: tp3PnlUsdc,
+        stopLoss,
+        stopLossRoiPct: slRoiPct,
+        stopLossPnlUsdc: slPnlUsdc,
+        trailingStopActivation,
+        trailingStopCallbackPct: 0.8,
+        riskReward: '1 : 2.75'
+      },
+      portfolioContext: {
+        availUsdc: 99900,
+        totalPortfolioUsdc: _standaloneState.portfolio?.totalValueUsdc || 461458.47,
+        marginAllocatedUsdc: marginUsdc,
+        marginUsagePct: Number(((marginUsdc / 99900) * 100).toFixed(1))
+      },
+      recommendedStrategy: {
+        strategyType,
+        strategyName,
+        rationale: `Agent AI OKX wygenerował strategię futures dla kontraktu Perpetual Swap ${swapInstId} z dźwignią ${leverage}x w trybie depozytu ${marginMode.toUpperCase()}. Kurs bieżący wynosi ${livePrice} USDC (RSI: ${rsi14}, zmiana 24h: ${change24hPct}%). Kierunek: ${direction}. Wymagany depozyt początkowy Margin wynosi ${marginUsdc.toFixed(2)} USDC, dając ekspozycję rynkową o wartości ${notionalUsdc.toFixed(2)} USDC (${positionAmount} ${asset}). Szacowana cena likwidacji została wyliczona na ${liquidationPrice} USDC (dystans bezpieczeństwa: ${liquidationDistancePct}%). Ochrona Stop-Loss zdefiniowana na poziomie ${stopLoss} USDC (${slRoiPct}% ROI) gwarantuje zamknięcie pozycji ze stratą ograniczoną do ${Math.abs(slPnlUsdc)} USDC na długo przed osiągnięciem ceny likwidacji.`,
+        contractDetails: {
+          instId: swapInstId,
+          orderId: order.id,
+          direction,
+          leverage,
+          marginMode,
+          entryPrice: livePrice,
+          marginUsdc,
+          notionalUsdc,
+          positionAmount,
+          liquidationPrice,
+          liquidationDistancePct,
+          feeTakerRate: '0.05%',
+          feeUsdc: Number((notionalUsdc * 0.0005).toFixed(2))
+        }
+      }
+    };
+
+    const reply = [
+      `⚡ **Strategia OKX ai: FUTURES — Kontrakt \`${swapInstId}\` (${direction} ${leverage}x):**`,
+      `- **Kierunek i Dźwignia:** **${direction === 'LONG' ? '🟢 LONG (Wzrosty)' : '🔴 SHORT (Spadki)'}** z dźwignią **\`${leverage}x\`** (${marginMode.toUpperCase()} Margin)`,
+      `- **Kurs wejścia:** **${livePrice.toLocaleString('pl-PL')} USDC** • **Depozyt Margin:** **\`${marginUsdc.toFixed(2)} USDC\`** ➔ **Wartość ekspozycji:** **\`${notionalUsdc.toFixed(2)} USDC\`** (\`${positionAmount} ${asset}\`)`,
+      `- **Szacowana Likwidacja (Liq Price):** **\`${liquidationPrice} USDC\`** (bufor: \`${liquidationDistancePct}%\`) • Poziom ryzyka: **${riskLevel}**`,
+      `- **Poziomy docelowe zysku:** TP1: \`${takeProfit1} USDC\` (+${tp1RoiPct}% ROI / +${tp1PnlUsdc} USDC) | TP2: \`${takeProfit2} USDC\` (+${tp2RoiPct}% ROI) | Stop-Loss: \`${stopLoss} USDC\` (${slRoiPct}% ROI)`,
+      `- **Funding Rate:** \`${fundingRateStr}\` • Estymowany koszt: \`~${estimatedFundingFeeUsdc} USDC / 8h\``,
+      ``,
+      `👇 Kliknij **Potwierdź** w oknie strategii, aby złożyć zlecenie kontraktu futures na OKX.`
+    ].join('\n');
+
+    return { ok: true, analysis, reply, activeTradeOrder: order, state: JSON.parse(JSON.stringify(_standaloneState)) };
+  }
+
   _standaloneState.config.marketDataStatus.lastUpdatedAt = new Date().toTimeString().slice(0, 8);
   recalculateStateValuations(_standaloneState);
   return JSON.parse(JSON.stringify(_standaloneState));

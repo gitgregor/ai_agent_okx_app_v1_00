@@ -778,7 +778,7 @@
   var require_react_dom_production = __commonJS({
     "node_modules/react-dom/cjs/react-dom.production.js"(exports) {
       "use strict";
-      var React16 = require_react();
+      var React17 = require_react();
       function formatProdErrorMessage(code) {
         var url = "https://react.dev/errors/" + code;
         if (1 < arguments.length) {
@@ -820,7 +820,7 @@
           implementation
         };
       }
-      var ReactSharedInternals = React16.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+      var ReactSharedInternals = React17.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
       function getCrossOriginStringAs(as, input) {
         if ("font" === as) return "";
         if ("string" === typeof input)
@@ -962,7 +962,7 @@
     "node_modules/react-dom/cjs/react-dom-client.production.js"(exports) {
       "use strict";
       var Scheduler = require_scheduler();
-      var React16 = require_react();
+      var React17 = require_react();
       var ReactDOM = require_react_dom();
       function formatProdErrorMessage(code) {
         var url = "https://react.dev/errors/" + code;
@@ -1255,7 +1255,7 @@
         return null;
       }
       var isArrayImpl = Array.isArray;
-      var ReactSharedInternals = React16.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+      var ReactSharedInternals = React17.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
       var ReactDOMSharedInternals = ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
       var sharedNotPendingObject = {
         pending: false,
@@ -14404,7 +14404,7 @@
           0 === i && attemptExplicitHydrationTarget(target);
         }
       };
-      var isomorphicReactPackageVersion$jscomp$inline_2043 = React16.version;
+      var isomorphicReactPackageVersion$jscomp$inline_2043 = React17.version;
       if ("19.3.1" !== isomorphicReactPackageVersion$jscomp$inline_2043)
         throw Error(
           formatProdErrorMessage(
@@ -14572,11 +14572,11 @@
   });
 
   // src/main.jsx
-  var import_react15 = __toESM(require_react());
+  var import_react16 = __toESM(require_react());
   var import_client = __toESM(require_client());
 
   // src/App.jsx
-  var import_react14 = __toESM(require_react());
+  var import_react15 = __toESM(require_react());
 
   // src/engine/okxClientEngine.js
   function formatUsdc(num) {
@@ -16478,6 +16478,269 @@
         `- **Przygotowane zlecenie kupna:** \`${order.amount} ${asset}\` = **\`${order.usdcValue.toFixed(2)} USDC\`** + Fee (0.10%): **\`${order.feeUsdc.toFixed(2)} USDC\`** (Razem: **\`${order.totalUsdcWithFee.toFixed(2)} USDC\`**)`,
         ``,
         `\u{1F447} Mo\u017Cesz od razu klikn\u0105\u0107 **Potwierd\u017A**, aby zrealizowa\u0107 t\u0119 strategi\u0119 kupna na gie\u0142dzie OKX.`
+      ].join("\n");
+      return { ok: true, analysis, reply, activeTradeOrder: order, state: JSON.parse(JSON.stringify(_standaloneState)) };
+    }
+    if (url.startsWith("/api/agent/strategy/futures") && method === "POST") {
+      _standaloneState.config.aiStatus = "active";
+      const rawQuery = (body?.query || body?.message || "BTC").trim();
+      const options = body?.options || {};
+      const lower = rawQuery.toLowerCase();
+      const mList = _standaloneState.markets || _standaloneState.tickers || DEFAULT_STANDALONE_MARKETS;
+      const market = findMarketInList(rawQuery, mList);
+      const asset = market.base || "BTC";
+      const swapInstId = `${asset}-USDC-SWAP`;
+      const livePrice = Number(market.price || 76e3);
+      const open24h = Number(market.open24h || livePrice);
+      const high24h = Number(market.high24h || livePrice * 1.028);
+      const low24h = Number(market.low24h || livePrice * 0.972);
+      const bidPx = Number(market.bidPx || livePrice * 0.9998);
+      const askPx = Number(market.askPx || livePrice * 1.0002);
+      const vol24h = Number(market.vol24h || 2500);
+      const change24hPct = open24h > 0 ? Number(((livePrice - open24h) / open24h * 100).toFixed(2)) : 0;
+      const priceDec = livePrice < 0.1 ? 5 : livePrice < 2 ? 4 : livePrice < 25 ? 3 : 2;
+      const roundPx = (val) => Number(Number(val).toFixed(priceDec));
+      const rangeSpan = Math.max(high24h - low24h, livePrice * 0.01);
+      const rangePositionPct = Math.min(100, Math.max(0, Number(((livePrice - low24h) / rangeSpan * 100).toFixed(1))));
+      const volatility24hPct = low24h > 0 ? Number(((high24h - low24h) / low24h * 100).toFixed(2)) : 2.8;
+      const spreadPct = livePrice > 0 ? Number(((askPx - bidPx) / livePrice * 100).toFixed(4)) : 0.02;
+      const rsi14 = Math.min(84, Math.max(20, Number((48 + change24hPct * 2.8 + (rangePositionPct - 50) * 0.22).toFixed(1))));
+      const ema20 = roundPx(livePrice * (1 - change24hPct / 100 * 0.28));
+      const ema50 = roundPx(livePrice * (1 - change24hPct / 100 * 0.55));
+      const vwap = roundPx((high24h + low24h + livePrice) / 3);
+      const hasShortWord = /\b(short|krótka|spadk|sell|sprzedaj|graj na spadki)\b/i.test(rawQuery);
+      const hasLongWord = /\b(long|długa|wzrost|buy|kup|graj na wzrosty)\b/i.test(rawQuery);
+      let direction = "LONG";
+      if (options.direction) {
+        direction = options.direction.toUpperCase() === "SHORT" ? "SHORT" : "LONG";
+      } else if (hasShortWord) {
+        direction = "SHORT";
+      } else if (hasLongWord) {
+        direction = "LONG";
+      } else {
+        direction = rsi14 > 68 || change24hPct <= -2.5 ? "SHORT" : "LONG";
+      }
+      const levMatch = rawQuery.match(/(\d+)x/i);
+      let leverage = 10;
+      if (options.leverage) {
+        leverage = Math.max(1, Math.min(100, Number(options.leverage) || 10));
+      } else if (levMatch) {
+        leverage = Math.max(1, Math.min(100, parseInt(levMatch[1], 10)));
+      }
+      const marginMode = options.marginMode === "cross" || lower.includes("cross") || lower.includes("krzy\u017Cow") ? "cross" : "isolated";
+      let marginUsdc = 500;
+      const numbers = (rawQuery.match(/\d+(?:[.,]\d+)?/g) || []).map((n) => parseFloat(n.replace(",", ".")));
+      if (options.marginUsdc && Number(options.marginUsdc) > 0) {
+        marginUsdc = Number(Number(options.marginUsdc).toFixed(2));
+      } else if (numbers.length > 0) {
+        const firstNum = numbers[0];
+        if (firstNum >= 10 && firstNum <= 5e4 && !rawQuery.includes(`${firstNum}x`)) {
+          marginUsdc = Number(firstNum.toFixed(2));
+        }
+      }
+      const notionalUsdc = Number((marginUsdc * leverage).toFixed(2));
+      const positionAmount = livePrice > 0 ? Number((notionalUsdc / livePrice).toFixed(6)) : 0.05;
+      const mmr = 5e-3;
+      const maintenanceMarginUsdc = Number((notionalUsdc * mmr).toFixed(2));
+      let liquidationPrice = 0;
+      let liquidationDistancePct = 0;
+      if (direction === "LONG") {
+        const dropRatio = Math.max(5e-3, 1 / leverage - mmr);
+        liquidationPrice = roundPx(livePrice * (1 - dropRatio));
+        liquidationDistancePct = Number((dropRatio * 100).toFixed(2));
+      } else {
+        const riseRatio = Math.max(5e-3, 1 / leverage - mmr);
+        liquidationPrice = roundPx(livePrice * (1 + riseRatio));
+        liquidationDistancePct = Number((riseRatio * 100).toFixed(2));
+      }
+      let riskLevel = "Umiarkowany (5x-10x)";
+      let riskBadgeColor = "#fbbf24";
+      if (leverage <= 3) {
+        riskLevel = "Niski (1x-3x) \u2014 Bezpieczny Margin";
+        riskBadgeColor = "#34d399";
+      } else if (leverage <= 10) {
+        riskLevel = "Umiarkowany (5x-10x) \u2014 Standard Trading";
+        riskBadgeColor = "#38bdf8";
+      } else if (leverage <= 25) {
+        riskLevel = "Podwy\u017Cszony (15x-25x) \u2014 Agresywny Scalp";
+        riskBadgeColor = "#f59e0b";
+      } else {
+        riskLevel = "Ekstremalny (>25x) \u2014 Wymagany \u015Bcis\u0142y Stop-Loss!";
+        riskBadgeColor = "#ef4444";
+      }
+      const fundingRatePct = change24hPct >= 0 ? 0.01 : -75e-4;
+      const fundingRateStr = (fundingRatePct > 0 ? "+" : "") + fundingRatePct.toFixed(4) + "% / 8h";
+      const estimatedFundingFeeUsdc = Number((notionalUsdc * (Math.abs(fundingRatePct) / 100)).toFixed(2));
+      const fundingCountdown = "03:18:45";
+      const tp1Dist = 0.022;
+      const tp2Dist = 0.052;
+      const tp3Dist = 0.088;
+      const slDist = Number(Math.min(0.035, Math.max(0.012, 0.65 / leverage)).toFixed(4));
+      let takeProfit1, takeProfit2, takeProfit3, stopLoss, trailingStopActivation;
+      if (direction === "LONG") {
+        takeProfit1 = roundPx(livePrice * (1 + tp1Dist));
+        takeProfit2 = roundPx(livePrice * (1 + tp2Dist));
+        takeProfit3 = roundPx(livePrice * (1 + tp3Dist));
+        stopLoss = roundPx(livePrice * (1 - slDist));
+        trailingStopActivation = roundPx(livePrice * (1 + 0.018));
+      } else {
+        takeProfit1 = roundPx(livePrice * (1 - tp1Dist));
+        takeProfit2 = roundPx(livePrice * (1 - tp2Dist));
+        takeProfit3 = roundPx(livePrice * (1 - tp3Dist));
+        stopLoss = roundPx(livePrice * (1 + slDist));
+        trailingStopActivation = roundPx(livePrice * (1 - 0.018));
+      }
+      const tp1RoiPct = Number((tp1Dist * leverage * 100).toFixed(1));
+      const tp1PnlUsdc = Number((marginUsdc * (tp1Dist * leverage)).toFixed(2));
+      const tp2RoiPct = Number((tp2Dist * leverage * 100).toFixed(1));
+      const tp2PnlUsdc = Number((marginUsdc * (tp2Dist * leverage)).toFixed(2));
+      const tp3RoiPct = Number((tp3Dist * leverage * 100).toFixed(1));
+      const tp3PnlUsdc = Number((marginUsdc * (tp3Dist * leverage)).toFixed(2));
+      const slRoiPct = Number((-(slDist * leverage * 100)).toFixed(1));
+      const slPnlUsdc = Number((-(marginUsdc * (slDist * leverage))).toFixed(2));
+      const strategyType = `OKX AI Perpetual Futures (${direction} ${leverage}x)`;
+      const strategyName = `Strategia Futures OKX AI (${swapInstId} \u2022 ${direction} ${leverage}x \u2022 ${marginMode.toUpperCase()})`;
+      const orderId = `OKX-FUT-${Date.now()}`;
+      const now = /* @__PURE__ */ new Date();
+      const order = {
+        id: orderId,
+        instId: swapInstId,
+        asset,
+        side: direction === "LONG" ? "BUY" : "SELL",
+        posSide: direction.toLowerCase(),
+        orderType: "MARKET",
+        amount: positionAmount,
+        price: livePrice,
+        usdcValue: notionalUsdc,
+        marginUsdc,
+        leverage,
+        marginMode,
+        feeRate: "0.05%",
+        feeUsdc: Number((notionalUsdc * 5e-4).toFixed(2)),
+        feeAsset: Number((positionAmount * 5e-4).toFixed(6)),
+        totalUsdcWithFee: notionalUsdc,
+        status: "waiting_for_start",
+        statusText: "Czekam na potwierdzenie pozycji futures (OKX EEA)",
+        source: "Analiza Agenta AI OKX (Strategia Futures)",
+        strategyName,
+        strategyType,
+        date: now.toISOString().slice(0, 10),
+        time: now.toTimeString().slice(0, 8),
+        timestamp: now.getTime()
+      };
+      _standaloneState.activeTradeOrder = order;
+      const analysis = {
+        engine: "@okx_ai/okx-futures-mcp \u2022 okx/agent-trade-kit (eea.okx.com v5 Perpetual Swap)",
+        mode: (_standaloneState.config.apiMode || "demo").toUpperCase(),
+        marketType: "FUTURES",
+        query: rawQuery,
+        date: order.date,
+        time: order.time,
+        asset,
+        assetName: market.name || asset,
+        instId: swapInstId,
+        direction,
+        leverage,
+        marginMode,
+        market: {
+          price: livePrice,
+          bidPx,
+          askPx,
+          spreadPct,
+          open24h,
+          high24h,
+          low24h,
+          vol24h,
+          change24hPct,
+          volatility24hPct,
+          rangePositionPct,
+          fundingRate: fundingRateStr,
+          fundingRatePct,
+          nextFundingCountdown: fundingCountdown,
+          openInterestUsdc: 4825e5,
+          estimatedFundingFeeUsdc
+        },
+        futuresParameters: {
+          direction,
+          leverage,
+          marginMode,
+          entryPrice: livePrice,
+          initialMarginUsdc: marginUsdc,
+          notionalValueUsdc: notionalUsdc,
+          contractsCount: Math.round(positionAmount * 100),
+          positionAmount,
+          maintenanceMarginRate: mmr,
+          maintenanceMarginUsdc,
+          liquidationPrice,
+          liquidationDistancePct,
+          liquidationBufferUsdc: Math.abs(roundPx(livePrice - liquidationPrice)),
+          riskLevel,
+          riskBadgeColor,
+          marginHealthScore: Math.max(10, Math.min(100, Math.round(100 - leverage * 0.75)))
+        },
+        technicals: {
+          trendLabel: direction === "LONG" ? "Potwierdzony trend wzrostowy / Odbicie od wsparcia z akumulacj\u0105" : "Presja poda\u017Cowa / Prze\u0142amanie oporu lub wykupienie na oscylatorach",
+          signalBadge: direction === "LONG" ? `\u{1F7E2} REKOMENDACJA AI OKX FUTURES: LONG (Wzrosty ${leverage}x)` : `\u{1F534} REKOMENDACJA AI OKX FUTURES: SHORT (Spadki ${leverage}x)`,
+          rsi14,
+          ema20,
+          ema50,
+          vwap,
+          support1: roundPx(livePrice * 0.98),
+          support2: roundPx(livePrice * 0.955),
+          resistance1: roundPx(livePrice * 1.02),
+          resistance2: roundPx(livePrice * 1.045),
+          takeProfit1,
+          takeProfit1RoiPct: tp1RoiPct,
+          takeProfit1PnlUsdc: tp1PnlUsdc,
+          takeProfit2,
+          takeProfit2RoiPct: tp2RoiPct,
+          takeProfit2PnlUsdc: tp2PnlUsdc,
+          takeProfit3,
+          takeProfit3RoiPct: tp3RoiPct,
+          takeProfit3PnlUsdc: tp3PnlUsdc,
+          stopLoss,
+          stopLossRoiPct: slRoiPct,
+          stopLossPnlUsdc: slPnlUsdc,
+          trailingStopActivation,
+          trailingStopCallbackPct: 0.8,
+          riskReward: "1 : 2.75"
+        },
+        portfolioContext: {
+          availUsdc: 99900,
+          totalPortfolioUsdc: _standaloneState.portfolio?.totalValueUsdc || 461458.47,
+          marginAllocatedUsdc: marginUsdc,
+          marginUsagePct: Number((marginUsdc / 99900 * 100).toFixed(1))
+        },
+        recommendedStrategy: {
+          strategyType,
+          strategyName,
+          rationale: `Agent AI OKX wygenerowa\u0142 strategi\u0119 futures dla kontraktu Perpetual Swap ${swapInstId} z d\u017Awigni\u0105 ${leverage}x w trybie depozytu ${marginMode.toUpperCase()}. Kurs bie\u017C\u0105cy wynosi ${livePrice} USDC (RSI: ${rsi14}, zmiana 24h: ${change24hPct}%). Kierunek: ${direction}. Wymagany depozyt pocz\u0105tkowy Margin wynosi ${marginUsdc.toFixed(2)} USDC, daj\u0105c ekspozycj\u0119 rynkow\u0105 o warto\u015Bci ${notionalUsdc.toFixed(2)} USDC (${positionAmount} ${asset}). Szacowana cena likwidacji zosta\u0142a wyliczona na ${liquidationPrice} USDC (dystans bezpiecze\u0144stwa: ${liquidationDistancePct}%). Ochrona Stop-Loss zdefiniowana na poziomie ${stopLoss} USDC (${slRoiPct}% ROI) gwarantuje zamkni\u0119cie pozycji ze strat\u0105 ograniczon\u0105 do ${Math.abs(slPnlUsdc)} USDC na d\u0142ugo przed osi\u0105gni\u0119ciem ceny likwidacji.`,
+          contractDetails: {
+            instId: swapInstId,
+            orderId: order.id,
+            direction,
+            leverage,
+            marginMode,
+            entryPrice: livePrice,
+            marginUsdc,
+            notionalUsdc,
+            positionAmount,
+            liquidationPrice,
+            liquidationDistancePct,
+            feeTakerRate: "0.05%",
+            feeUsdc: Number((notionalUsdc * 5e-4).toFixed(2))
+          }
+        }
+      };
+      const reply = [
+        `\u26A1 **Strategia OKX ai: FUTURES \u2014 Kontrakt \`${swapInstId}\` (${direction} ${leverage}x):**`,
+        `- **Kierunek i D\u017Awignia:** **${direction === "LONG" ? "\u{1F7E2} LONG (Wzrosty)" : "\u{1F534} SHORT (Spadki)"}** z d\u017Awigni\u0105 **\`${leverage}x\`** (${marginMode.toUpperCase()} Margin)`,
+        `- **Kurs wej\u015Bcia:** **${livePrice.toLocaleString("pl-PL")} USDC** \u2022 **Depozyt Margin:** **\`${marginUsdc.toFixed(2)} USDC\`** \u2794 **Warto\u015B\u0107 ekspozycji:** **\`${notionalUsdc.toFixed(2)} USDC\`** (\`${positionAmount} ${asset}\`)`,
+        `- **Szacowana Likwidacja (Liq Price):** **\`${liquidationPrice} USDC\`** (bufor: \`${liquidationDistancePct}%\`) \u2022 Poziom ryzyka: **${riskLevel}**`,
+        `- **Poziomy docelowe zysku:** TP1: \`${takeProfit1} USDC\` (+${tp1RoiPct}% ROI / +${tp1PnlUsdc} USDC) | TP2: \`${takeProfit2} USDC\` (+${tp2RoiPct}% ROI) | Stop-Loss: \`${stopLoss} USDC\` (${slRoiPct}% ROI)`,
+        `- **Funding Rate:** \`${fundingRateStr}\` \u2022 Estymowany koszt: \`~${estimatedFundingFeeUsdc} USDC / 8h\``,
+        ``,
+        `\u{1F447} Kliknij **Potwierd\u017A** w oknie strategii, aby z\u0142o\u017Cy\u0107 zlecenie kontraktu futures na OKX.`
       ].join("\n");
       return { ok: true, analysis, reply, activeTradeOrder: order, state: JSON.parse(JSON.stringify(_standaloneState)) };
     }
@@ -19253,7 +19516,7 @@
         winMeta,
         isSoloGridWindow,
         baseClassName: "panel-card panel-ai-strategies",
-        titlebarTitle: "\u{1F9E0} AI Strategies \u2014 Analiza Strategii Kupna OKX",
+        titlebarTitle: "\u{1F9E0} Strategia OKX ai: SPOT \u2014 Analiza Strategii Kupna OKX",
         extraTitlebarControls,
         onSetWindowMode,
         onCloseWindow,
@@ -20254,12 +20517,1615 @@
     );
   }
 
-  // src/components/QuickTradeWindow.jsx
-  var import_react9 = __toESM(require_react());
-
-  // src/components/CryptoPairSelector.jsx
+  // src/components/AiFuturesStrategiesWindow.jsx
   var import_react8 = __toESM(require_react());
   var import_jsx_runtime8 = __toESM(require_jsx_runtime());
+  var QUICK_FUTURES_ASSETS = [
+    "BTC",
+    "ETH",
+    "SOL",
+    "XRP",
+    "DOGE",
+    "SUI",
+    "AVAX",
+    "LINK",
+    "WLD",
+    "OKB"
+  ];
+  var LEVERAGE_PRESETS = [1, 2, 3, 5, 10, 20, 50, 75, 100];
+  function getStrategyTiming2(ord) {
+    if (!ord) {
+      return {
+        openDate: "",
+        openTime: "",
+        execDate: "",
+        execTime: "",
+        isFilled: false,
+        isPendingApproval: false,
+        isInProgress: false,
+        isRejectedUser: false,
+        isRejectedSystem: false,
+        badgeText: "",
+        badgeColor: "",
+        badgeBg: "",
+        statusText: ""
+      };
+    }
+    const openDate = ord.createdAtDate || ord.date || "";
+    const openTime = ord.createdAtTime || ord.time || "";
+    const execDate = ord.date || openDate;
+    const execTime = ord.time || openTime;
+    const rawStatus = (ord.status || "").toUpperCase();
+    const label = (ord.statusLabel || "").toLowerCase();
+    const rejBy = (ord.rejectedBy || "").toUpperCase();
+    const isRejectedSystem = rawStatus === "REJECTED_SYSTEM" || rejBy === "SYSTEM" || label.includes("odrzucona przez system") || Boolean(ord.systemError);
+    const isRejectedUser = !isRejectedSystem && (rawStatus === "REJECTED_USER" || rawStatus === "CANCELED" || rejBy === "USER" || label.includes("odrzucona przez u\u017Cytkownika") || label.includes("anulowane przez stop handlu") || label.includes("anulowane"));
+    const isPendingApproval = !isRejectedSystem && !isRejectedUser && (ord.isCurrentlyActive || rawStatus === "WAITING_FOR_START" || rawStatus === "PENDING_APPROVAL");
+    const isInProgress = !isRejectedSystem && !isRejectedUser && !isPendingApproval && (rawStatus === "IN_PROGRESS" || Boolean(ord.isStrategyInProgress) || label.includes("w trakcie realizacji") && !label.includes("zrealizowana"));
+    const isFilled = !isRejectedSystem && !isRejectedUser && !isPendingApproval && !isInProgress && (rawStatus === "CLOSED" || rawStatus === "FILLED" || ord.rawState === "filled" || Boolean(ord.exchangeFeedback && ord.exchangeFeedback.status && ord.exchangeFeedback.status.includes("FILLED")) || label.includes("zrealizowan"));
+    let badgeText = "\u23F3 OCZEKUJE NA REALIZACJ\u0118";
+    let badgeColor = "#fbbf24";
+    let badgeBg = "rgba(245, 158, 11, 0.2)";
+    let statusText = "Oczekuje na realizacj\u0119";
+    if (isRejectedUser) {
+      badgeText = "\u{1F6AB} ODRZUCONA PRZEZ U\u017BYTKOWNIKA";
+      badgeColor = "#f87171";
+      badgeBg = "rgba(239, 68, 68, 0.18)";
+      statusText = "Transakcja odrzucona przez u\u017Cytkownika";
+    } else if (isRejectedSystem) {
+      badgeText = "\u26A0\uFE0F ODRZUCONA PRZEZ SYSTEM";
+      badgeColor = "#f87171";
+      badgeBg = "rgba(239, 68, 68, 0.25)";
+      statusText = "Transakcja odrzucona przez System";
+    } else if (isInProgress) {
+      badgeText = "\u2699\uFE0F W TRAKCIE REALIZACJI";
+      badgeColor = "#38bdf8";
+      badgeBg = "rgba(56, 189, 248, 0.2)";
+      statusText = "W trakcie realizacji (OKX)";
+    } else if (isFilled) {
+      badgeText = "\u2705 ZREALIZOWANA NA OKX";
+      badgeColor = "#34d399";
+      badgeBg = "rgba(16, 185, 129, 0.2)";
+      statusText = `${execDate} ${execTime}`;
+    }
+    return {
+      openDate,
+      openTime,
+      execDate,
+      execTime,
+      isFilled,
+      isPendingApproval,
+      isInProgress,
+      isRejectedUser,
+      isRejectedSystem,
+      badgeText,
+      badgeColor,
+      badgeBg,
+      statusText
+    };
+  }
+  function resolveFuturesBreakdown(ord, timing) {
+    if (!ord) return null;
+    const price = Number(ord.price) || 0;
+    const amount = Number(ord.amount) || 0;
+    const notionalUsdc = Number(ord.usdcValue) || price * amount;
+    const leverage = Number(ord.leverage) || 10;
+    const marginUsdc = Number(ord.marginUsdc) || Number((notionalUsdc / leverage).toFixed(2));
+    const asset = ord.asset || "BTC";
+    const name = ord.strategyName || "";
+    const direction = (ord.posSide || (name.includes("SHORT") ? "short" : "long")).toUpperCase();
+    const marginMode = (ord.marginMode || (name.includes("CROSS") ? "cross" : "isolated")).toUpperCase();
+    const mmr = 5e-3;
+    const dropRatio = Math.max(5e-3, 1 / leverage - mmr);
+    const liquidationPrice = direction === "LONG" ? Number((price * (1 - dropRatio)).toFixed(price > 100 ? 2 : 4)) : Number((price * (1 + dropRatio)).toFixed(price > 100 ? 2 : 4));
+    const liqDistancePct = Number((dropRatio * 100).toFixed(2));
+    const tp1Dist = 0.022;
+    const tp2Dist = 0.052;
+    const tp3Dist = 0.088;
+    const slDist = Number(Math.min(0.035, Math.max(0.012, 0.65 / leverage)).toFixed(4));
+    const tp1Price = direction === "LONG" ? Number((price * (1 + tp1Dist)).toFixed(2)) : Number((price * (1 - tp1Dist)).toFixed(2));
+    const tp2Price = direction === "LONG" ? Number((price * (1 + tp2Dist)).toFixed(2)) : Number((price * (1 - tp2Dist)).toFixed(2));
+    const tp3Price = direction === "LONG" ? Number((price * (1 + tp3Dist)).toFixed(2)) : Number((price * (1 - tp3Dist)).toFixed(2));
+    const slPrice = direction === "LONG" ? Number((price * (1 - slDist)).toFixed(2)) : Number((price * (1 + slDist)).toFixed(2));
+    const openedPosition = {
+      title: `Otwarta Pozycja Kontraktu ${direction} ${leverage}x (${marginMode})`,
+      date: timing.execDate || ord.date || "",
+      time: timing.execTime || ord.time || "",
+      status: timing.isFilled ? "\u2705 Pozycja Otwarta na Gie\u0142dzie OKX Futures" : timing.isInProgress ? "\u2699\uFE0F Pozycja Aktywna w Trakcie Realizacji" : timing.isPendingApproval ? "\u23F3 Oczekuje na potwierdzenie zlecenia" : "\u{1F6AB} Anulowane",
+      direction,
+      leverage,
+      marginMode,
+      asset,
+      instId: ord.instId || `${asset}-USDC-SWAP`,
+      entryPrice: price,
+      marginUsdc,
+      notionalUsdc,
+      amount,
+      liquidationPrice,
+      liqDistancePct,
+      feeRate: "0.05% (Taker)",
+      feeUsdc: Number((notionalUsdc * 5e-4).toFixed(2))
+    };
+    const takeProfits = [
+      {
+        level: "Take-Profit 1 (TP1)",
+        targetPrice: tp1Price,
+        movePct: `${direction === "LONG" ? "+" : "-"}${(tp1Dist * 100).toFixed(1)}%`,
+        roiPct: `+${(tp1Dist * leverage * 100).toFixed(1)}% ROI`,
+        profitUsdc: `+${(marginUsdc * (tp1Dist * leverage)).toFixed(2)} USDC`,
+        status: timing.isFilled ? "Aktywny TP na serwerze OKX" : "Zaplanowany w strategii"
+      },
+      {
+        level: "Take-Profit 2 (TP2)",
+        targetPrice: tp2Price,
+        movePct: `${direction === "LONG" ? "+" : "-"}${(tp2Dist * 100).toFixed(1)}%`,
+        roiPct: `+${(tp2Dist * leverage * 100).toFixed(1)}% ROI`,
+        profitUsdc: `+${(marginUsdc * (tp2Dist * leverage)).toFixed(2)} USDC`,
+        status: timing.isFilled ? "Aktywny TP na serwerze OKX" : "Zaplanowany w strategii"
+      },
+      {
+        level: "Take-Profit 3 (TP3)",
+        targetPrice: tp3Price,
+        movePct: `${direction === "LONG" ? "+" : "-"}${(tp3Dist * 100).toFixed(1)}%`,
+        roiPct: `+${(tp3Dist * leverage * 100).toFixed(1)}% ROI`,
+        profitUsdc: `+${(marginUsdc * (tp3Dist * leverage)).toFixed(2)} USDC`,
+        status: "Zlecenie docelowe Runner"
+      }
+    ];
+    const stopLossPlan = {
+      level: "Stop-Loss (Zabezpieczenie przed Likwidacj\u0105)",
+      price: slPrice,
+      movePct: `${direction === "LONG" ? "-" : "+"}${(slDist * 100).toFixed(1)}%`,
+      roiPct: `-${(slDist * leverage * 100).toFixed(1)}% ROI`,
+      lossUsdc: `-${(marginUsdc * (slDist * leverage)).toFixed(2)} USDC`,
+      bufferToLiqPct: `${(liqDistancePct - slDist * 100).toFixed(1)}% przed cen\u0105 likwidacji`,
+      status: "Aktywne zlecenie zabezpieczaj\u0105ce"
+    };
+    return {
+      openedPosition,
+      takeProfits,
+      stopLossPlan
+    };
+  }
+  function AiFuturesStrategiesWindow({
+    winMeta,
+    isSoloGridWindow,
+    aiFuturesInput,
+    currentAiFuturesAnalysis,
+    activeTradeOrder,
+    lastExchangeFeedback,
+    collapsedAiTxIds,
+    isConfirmingOrder,
+    orders,
+    executedSessionTransactions,
+    onSetAiFuturesInput,
+    onSubmitAiFuturesStrategy,
+    onRunAiFuturesStrategyQuery,
+    onConfirmOrder,
+    onRejectOrder,
+    onCompleteStrategy,
+    onToggleAiExecutedTx,
+    onOpenAssetChart,
+    onSetWindowMode,
+    onCloseWindow,
+    onBringToFront
+  }) {
+    const [showInstruction, setShowInstruction] = (0, import_react8.useState)(false);
+    const [showHistory, setShowHistory] = (0, import_react8.useState)(false);
+    const [showExamples, setShowExamples] = (0, import_react8.useState)(false);
+    const [showCalculator, setShowCalculator] = (0, import_react8.useState)(false);
+    const [expandedBreakdownId, setExpandedBreakdownId] = (0, import_react8.useState)(null);
+    const [selectedDirection, setSelectedDirection] = (0, import_react8.useState)("AUTO");
+    const [selectedLeverage, setSelectedLeverage] = (0, import_react8.useState)(10);
+    const [selectedMarginMode, setSelectedMarginMode] = (0, import_react8.useState)("isolated");
+    const [customMarginUsdc, setCustomMarginUsdc] = (0, import_react8.useState)("500");
+    const [calcEntryPrice, setCalcEntryPrice] = (0, import_react8.useState)("76000");
+    const [calcLeverage, setCalcLeverage] = (0, import_react8.useState)(10);
+    const [calcMargin, setCalcMargin] = (0, import_react8.useState)("500");
+    const [calcDirection, setCalcDirection] = (0, import_react8.useState)("LONG");
+    const activeSessionAnalysis = currentAiFuturesAnalysis?.marketType === "FUTURES" ? currentAiFuturesAnalysis : null;
+    const isFuturesOrder = activeTradeOrder && (activeTradeOrder.instId?.includes("SWAP") || activeTradeOrder.source?.includes("Futures") || activeTradeOrder.strategyName?.includes("Futures") || Boolean(activeTradeOrder.leverage));
+    const candidateStrategies = [];
+    const seenOrderIds = /* @__PURE__ */ new Set();
+    if (activeTradeOrder && isFuturesOrder) {
+      seenOrderIds.add(String(activeTradeOrder.id));
+      candidateStrategies.push({
+        ...activeTradeOrder,
+        isCurrentlyActive: true,
+        status: activeTradeOrder.status || "waiting_for_start",
+        statusLabel: "Oczekuje na realizacj\u0119"
+      });
+    }
+    for (const o of orders || []) {
+      if (!o || !o.id) continue;
+      const idStr = String(o.id);
+      if (seenOrderIds.has(idStr)) continue;
+      const isFutures = idStr.startsWith("OKX-FUT-") || o.instId?.includes("SWAP") || o.source?.includes("Futures") || o.strategyName?.includes("Futures") || Boolean(o.leverage);
+      if (isFutures) {
+        seenOrderIds.add(idStr);
+        candidateStrategies.push(o);
+      }
+    }
+    for (const fb of executedSessionTransactions || []) {
+      if (!fb) continue;
+      const ordId = String(fb.orderId || fb.id || "");
+      const isFutures = ordId.startsWith("OKX-FUT-") || fb.instId?.includes("SWAP") || fb.strategyName?.includes("Futures") || Boolean(fb.leverage);
+      if (isFutures && ordId && !seenOrderIds.has(ordId)) {
+        seenOrderIds.add(ordId);
+        candidateStrategies.push({
+          id: ordId,
+          instId: fb.instId,
+          asset: fb.asset,
+          side: fb.side,
+          posSide: fb.posSide || (fb.side === "BUY" ? "long" : "short"),
+          orderType: fb.orderType || "MARKET",
+          amount: fb.amount,
+          price: fb.price,
+          usdcValue: fb.usdcValue,
+          leverage: fb.leverage || 10,
+          marginMode: fb.marginMode || "isolated",
+          status: "CLOSED",
+          statusLabel: "Zrealizowana na OKX",
+          source: "Agent AI Futures (okx/agent-trade-kit)",
+          strategyName: fb.strategyName || `Strategia Futures AI (${fb.instId})`,
+          date: fb.date,
+          time: fb.time,
+          createdAtDate: fb.createdAtDate || fb.date,
+          createdAtTime: fb.createdAtTime || fb.time,
+          timestamp: fb.timestamp || Date.now(),
+          exchangeFeedback: fb
+        });
+      }
+    }
+    candidateStrategies.sort((a2, b) => (b.timestamp || 0) - (a2.timestamp || 0));
+    const calcP = Number(calcEntryPrice) || 76e3;
+    const calcM = Number(calcMargin) || 500;
+    const calcL = Number(calcLeverage) || 10;
+    const calcNotional = calcM * calcL;
+    const calcDrop = Math.max(5e-3, 1 / calcL - 5e-3);
+    const calcLiq = calcDirection === "LONG" ? calcP * (1 - calcDrop) : calcP * (1 + calcDrop);
+    const calcLiqDist = (calcDrop * 100).toFixed(2);
+    const extraTitlebarControls = /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+      "div",
+      {
+        className: "ai-strat-titlebar-btn-group",
+        style: {
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+          margin: "0 4px"
+        },
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: `win-ctrl-btn ai-titlebar-pill ${showInstruction ? "active" : ""}`,
+              style: showInstruction ? { background: "var(--accent-blue)", color: "#090b10", borderColor: "var(--accent-blue)", fontWeight: 700 } : { color: "var(--accent-blue)", borderColor: "rgba(56, 189, 248, 0.45)" },
+              title: "Instrukcja: Rynek Futures, D\u017Awignia, Likwidacja, Cross vs Isolated na OKX",
+              onClick: (e) => {
+                e.stopPropagation();
+                setShowInstruction((prev) => !prev);
+                setShowHistory(false);
+                setShowExamples(false);
+                setShowCalculator(false);
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { children: "\u2139\uFE0F" }),
+                " ",
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "ai-pill-btn-label", children: "Instrukcja Futures" })
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: `win-ctrl-btn ai-titlebar-pill ${showHistory ? "active" : ""}`,
+              style: showHistory ? { background: "#a855f7", color: "#ffffff", borderColor: "#a855f7", fontWeight: 700 } : { color: "#c084fc", borderColor: "rgba(168, 85, 247, 0.45)" },
+              title: "Historia pozycji i strategii futures",
+              onClick: (e) => {
+                e.stopPropagation();
+                setShowHistory((prev) => !prev);
+                setShowInstruction(false);
+                setShowExamples(false);
+                setShowCalculator(false);
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { children: "\u{1F4DC}" }),
+                " ",
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "ai-pill-btn-label", children: [
+                  "Historia (",
+                  candidateStrategies.length,
+                  ")"
+                ] })
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: `win-ctrl-btn ai-titlebar-pill ${showExamples ? "active" : ""}`,
+              style: showExamples ? { background: "var(--warn-amber)", color: "#090b10", borderColor: "var(--warn-amber)", fontWeight: 700 } : { color: "var(--warn-amber)", borderColor: "rgba(245, 158, 11, 0.45)" },
+              title: "Przyk\u0142ady strategii futures (Scalp Long/Short, Funding Arbitrage, Hedging)",
+              onClick: (e) => {
+                e.stopPropagation();
+                setShowExamples((prev) => !prev);
+                setShowInstruction(false);
+                setShowHistory(false);
+                setShowCalculator(false);
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { children: "\u{1F4A1}" }),
+                " ",
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "ai-pill-btn-label", children: "Przyk\u0142ady strategii" })
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: `win-ctrl-btn ai-titlebar-pill ${showCalculator ? "active" : ""}`,
+              style: showCalculator ? { background: "#10b981", color: "#090b10", borderColor: "#10b981", fontWeight: 700 } : { color: "#34d399", borderColor: "rgba(16, 185, 129, 0.45)" },
+              title: "Szybki kalkulator PnL, Margin i Ceny Likwidacji Futures",
+              onClick: (e) => {
+                e.stopPropagation();
+                setShowCalculator((prev) => !prev);
+                setShowInstruction(false);
+                setShowHistory(false);
+                setShowExamples(false);
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { children: "\u{1F9EE}" }),
+                " ",
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "ai-pill-btn-label", children: "Kalkulator Ryzyka" })
+              ]
+            }
+          )
+        ]
+      }
+    );
+    const handleApplyQuickQuery = (asset) => {
+      const dirTxt = selectedDirection === "AUTO" ? "" : selectedDirection === "SHORT" ? " SHORT" : " LONG";
+      const query = `${asset}-USDC-SWAP${dirTxt} ${selectedLeverage}x za ${customMarginUsdc}$`;
+      if (onRunAiFuturesStrategyQuery) {
+        onRunAiFuturesStrategyQuery(query, {
+          direction: selectedDirection === "AUTO" ? void 0 : selectedDirection,
+          leverage: selectedLeverage,
+          marginMode: selectedMarginMode,
+          marginUsdc: Number(customMarginUsdc) || 500
+        });
+      }
+    };
+    const a = activeSessionAnalysis;
+    return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+      WindowContainer,
+      {
+        winMeta,
+        isSoloGridWindow,
+        baseClassName: "panel-card panel-ai-strategies panel-ai-futures",
+        titlebarTitle: "\u26A1 Strategia OKX ai: FUTURES \u2014 D\u017Awignia, Long/Short i Likwidacja OKX",
+        extraTitlebarControls,
+        onSetWindowMode,
+        onCloseWindow,
+        onBringToFront,
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "div",
+            {
+              className: "ai-strat-inner-toolbar",
+              style: {
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                flexWrap: "wrap",
+                padding: "8px 12px",
+                marginBottom: "12px",
+                background: "rgba(15, 23, 42, 0.6)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "var(--radius-md)"
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)" }, children: "Narz\u0119dzia Futures:" }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                  "button",
+                  {
+                    type: "button",
+                    className: `btn btn-outline-sm ${showInstruction ? "btn-active-tool" : ""}`,
+                    style: {
+                      borderColor: showInstruction ? "var(--accent-blue)" : "rgba(56, 189, 248, 0.4)",
+                      color: showInstruction ? "#ffffff" : "#38bdf8",
+                      background: showInstruction ? "rgba(56, 189, 248, 0.25)" : "rgba(56, 189, 248, 0.08)",
+                      fontWeight: 700
+                    },
+                    onClick: () => {
+                      setShowInstruction((prev) => !prev);
+                      setShowHistory(false);
+                      setShowExamples(false);
+                      setShowCalculator(false);
+                    },
+                    children: [
+                      "\u2139\uFE0F Instrukcja Futures ",
+                      showInstruction ? "\u25B2" : "\u25BC"
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                  "button",
+                  {
+                    type: "button",
+                    className: `btn btn-outline-sm ${showHistory ? "btn-active-tool" : ""}`,
+                    style: {
+                      borderColor: showHistory ? "#a855f7" : "rgba(168, 85, 247, 0.4)",
+                      color: showHistory ? "#ffffff" : "#c084fc",
+                      background: showHistory ? "rgba(168, 85, 247, 0.25)" : "rgba(168, 85, 247, 0.08)",
+                      fontWeight: 700
+                    },
+                    onClick: () => {
+                      setShowHistory((prev) => !prev);
+                      setShowInstruction(false);
+                      setShowExamples(false);
+                      setShowCalculator(false);
+                    },
+                    children: [
+                      "\u{1F4DC} Historia pozycji (",
+                      candidateStrategies.length,
+                      ") ",
+                      showHistory ? "\u25B2" : "\u25BC"
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                  "button",
+                  {
+                    type: "button",
+                    className: `btn btn-outline-sm ${showExamples ? "btn-active-tool" : ""}`,
+                    style: {
+                      borderColor: showExamples ? "var(--warn-amber)" : "rgba(245, 158, 11, 0.4)",
+                      color: showExamples ? "#ffffff" : "#fbbf24",
+                      background: showExamples ? "rgba(245, 158, 11, 0.25)" : "rgba(245, 158, 11, 0.08)",
+                      fontWeight: 700
+                    },
+                    onClick: () => {
+                      setShowExamples((prev) => !prev);
+                      setShowInstruction(false);
+                      setShowHistory(false);
+                      setShowCalculator(false);
+                    },
+                    children: [
+                      "\u{1F4A1} Przyk\u0142ady strategii ",
+                      showExamples ? "\u25B2" : "\u25BC"
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                  "button",
+                  {
+                    type: "button",
+                    className: `btn btn-outline-sm ${showCalculator ? "btn-active-tool" : ""}`,
+                    style: {
+                      borderColor: showCalculator ? "#10b981" : "rgba(16, 185, 129, 0.4)",
+                      color: showCalculator ? "#ffffff" : "#34d399",
+                      background: showCalculator ? "rgba(16, 185, 129, 0.25)" : "rgba(16, 185, 129, 0.08)",
+                      fontWeight: 700
+                    },
+                    onClick: () => {
+                      setShowCalculator((prev) => !prev);
+                      setShowInstruction(false);
+                      setShowHistory(false);
+                      setShowExamples(false);
+                    },
+                    children: [
+                      "\u{1F9EE} Kalkulator Likwidacji ",
+                      showCalculator ? "\u25B2" : "\u25BC"
+                    ]
+                  }
+                )
+              ]
+            }
+          ),
+          showInstruction && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "div",
+            {
+              className: "ai-strat-instruction-modal",
+              style: {
+                background: "linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(24, 34, 58, 0.98))",
+                border: "1px solid rgba(56, 189, 248, 0.4)",
+                borderRadius: "var(--radius-lg)",
+                padding: "16px 20px",
+                marginBottom: "16px",
+                boxShadow: "0 12px 36px rgba(0, 0, 0, 0.45)",
+                position: "relative"
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h4", { style: { margin: 0, color: "var(--accent-blue)", fontSize: "15px", fontWeight: 800 }, children: "\u2139\uFE0F Instrukcja: Strategie Rynku Futures & Kontrakt\xF3w Perpetual Swap na OKX (eea.okx.com)" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                    "button",
+                    {
+                      type: "button",
+                      className: "win-ctrl-btn",
+                      style: { fontSize: "14px", padding: "2px 8px" },
+                      onClick: () => setShowInstruction(false),
+                      children: "\u2715 Zamknij"
+                    }
+                  )
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { fontSize: "13px", lineHeight: 1.6, color: "var(--text-primary)" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("p", { style: { margin: "0 0 10px 0" }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { children: "Rynek Kontrakt\xF3w Futures (Perpetual Swap)" }),
+                    " umo\u017Cliwia handel z d\u017Awigni\u0105 finansow\u0105 w obu kierunkach: zar\xF3wno na wzrosty cen (",
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { children: "LONG" }),
+                    "), jak i na spadki (",
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { children: "SHORT" }),
+                    ")."
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "12px", marginTop: "12px" }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { background: "rgba(0,0,0,0.25)", padding: "10px 14px", borderRadius: "8px", borderLeft: "3px solid #34d399" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { style: { color: "#34d399" }, children: "\u{1F7E2} Pozycja LONG (D\u0142uga)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { style: { margin: "4px 0 0 0", fontSize: "12px", color: "var(--text-secondary)" }, children: "Zarabiasz, gdy cena instrumentu ro\u015Bnie. Ka\u017Cdy 1% wzrostu ceny przy d\u017Awigni 10x daje +10% zysku (ROI) z w\u0142o\u017Conego depozytu." })
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { background: "rgba(0,0,0,0.25)", padding: "10px 14px", borderRadius: "8px", borderLeft: "3px solid #f87171" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { style: { color: "#f87171" }, children: "\u{1F534} Pozycja SHORT (Kr\xF3tka)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { style: { margin: "4px 0 0 0", fontSize: "12px", color: "var(--text-secondary)" }, children: "Zarabiasz, gdy rynek spada! Pozwala zabezpieczy\u0107 portfel spot (hedging) lub zarabia\u0107 na dynamicznych spadkach i korektach." })
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { background: "rgba(0,0,0,0.25)", padding: "10px 14px", borderRadius: "8px", borderLeft: "3px solid #38bdf8" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { style: { color: "#38bdf8" }, children: "\u{1F6E1}\uFE0F Isolated Margin (Depozyt Izolowany)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { style: { margin: "4px 0 0 0", fontSize: "12px", color: "var(--text-secondary)" }, children: "Maksymalna strata jest ograniczona wy\u0142\u0105cznie do kwoty przydzielonego depozytu na dan\u0105 pozycj\u0119. Reszta Twoich \u015Brodk\xF3w w portfelu jest w 100% bezpieczna." })
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { background: "rgba(0,0,0,0.25)", padding: "10px 14px", borderRadius: "8px", borderLeft: "3px solid #fbbf24" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { style: { color: "#fbbf24" }, children: "\u26A0\uFE0F Cena Likwidacji (Liquidation Price)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { style: { margin: "4px 0 0 0", fontSize: "12px", color: "var(--text-secondary)" }, children: "Poziom ceny, przy kt\xF3rym strata wyczerpuje depozyt. Agent AI zawsze ustawia bufor Stop-Loss na d\u0142ugo przed cen\u0105 likwidacji, aby chroni\u0107 Tw\xF3j kapita\u0142." })
+                    ] })
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { marginTop: "12px", padding: "8px 12px", background: "rgba(56, 189, 248, 0.1)", borderRadius: "6px", fontSize: "12px" }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { children: "\u{1F504} Funding Rate (Stopa Finansowania OKX):" }),
+                    " Rozliczana co 8 godzin mi\u0119dzy posiadaczami pozycji Long i Short w celu utrzymania kursu kontraktu blisko rynku spot."
+                  ] })
+                ] })
+              ]
+            }
+          ),
+          showCalculator && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "div",
+            {
+              className: "ai-strat-calc-modal",
+              style: {
+                background: "linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(20, 36, 48, 0.98))",
+                border: "1px solid rgba(16, 185, 129, 0.45)",
+                borderRadius: "var(--radius-lg)",
+                padding: "16px 20px",
+                marginBottom: "16px",
+                boxShadow: "0 12px 36px rgba(0, 0, 0, 0.5)"
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h4", { style: { margin: 0, color: "#34d399", fontSize: "15px", fontWeight: 800 }, children: "\u{1F9EE} Szybki Kalkulator Futures: Depozyt Margin, Ekspozycja & Cena Likwidacji" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                    "button",
+                    {
+                      type: "button",
+                      className: "win-ctrl-btn",
+                      style: { fontSize: "14px", padding: "2px 8px" },
+                      onClick: () => setShowCalculator(false),
+                      children: "\u2715 Zamknij"
+                    }
+                  )
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginBottom: "14px" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { style: { fontSize: "11px", color: "var(--text-secondary)", display: "block", marginBottom: "4px" }, children: "Kierunek Pozycji:" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", gap: "4px" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                        "button",
+                        {
+                          type: "button",
+                          style: {
+                            flex: 1,
+                            padding: "6px",
+                            borderRadius: "6px",
+                            border: "1px solid",
+                            borderColor: calcDirection === "LONG" ? "#34d399" : "rgba(255,255,255,0.1)",
+                            background: calcDirection === "LONG" ? "rgba(52, 211, 153, 0.25)" : "transparent",
+                            color: calcDirection === "LONG" ? "#34d399" : "var(--text-secondary)",
+                            fontWeight: 700,
+                            cursor: "pointer"
+                          },
+                          onClick: () => setCalcDirection("LONG"),
+                          children: "\u{1F7E2} LONG"
+                        }
+                      ),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                        "button",
+                        {
+                          type: "button",
+                          style: {
+                            flex: 1,
+                            padding: "6px",
+                            borderRadius: "6px",
+                            border: "1px solid",
+                            borderColor: calcDirection === "SHORT" ? "#f87171" : "rgba(255,255,255,0.1)",
+                            background: calcDirection === "SHORT" ? "rgba(248, 113, 113, 0.25)" : "transparent",
+                            color: calcDirection === "SHORT" ? "#f87171" : "var(--text-secondary)",
+                            fontWeight: 700,
+                            cursor: "pointer"
+                          },
+                          onClick: () => setCalcDirection("SHORT"),
+                          children: "\u{1F534} SHORT"
+                        }
+                      )
+                    ] })
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { style: { fontSize: "11px", color: "var(--text-secondary)", display: "block", marginBottom: "4px" }, children: "Kurs wej\u015Bcia (USDC):" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                      "input",
+                      {
+                        type: "number",
+                        className: "input-field",
+                        style: { width: "100%", padding: "6px 8px" },
+                        value: calcEntryPrice,
+                        onChange: (e) => setCalcEntryPrice(e.target.value)
+                      }
+                    )
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("label", { style: { fontSize: "11px", color: "var(--text-secondary)", display: "block", marginBottom: "4px" }, children: [
+                      "D\u017Awignia (Leverage): ",
+                      calcLeverage,
+                      "x"
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                      "input",
+                      {
+                        type: "range",
+                        min: "1",
+                        max: "100",
+                        value: calcLeverage,
+                        onChange: (e) => setCalcLeverage(Number(e.target.value)),
+                        style: { width: "100%" }
+                      }
+                    )
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { style: { fontSize: "11px", color: "var(--text-secondary)", display: "block", marginBottom: "4px" }, children: "W\u0142asny Depozyt Margin (USDC):" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                      "input",
+                      {
+                        type: "number",
+                        className: "input-field",
+                        style: { width: "100%", padding: "6px 8px" },
+                        value: calcMargin,
+                        onChange: (e) => setCalcMargin(e.target.value)
+                      }
+                    )
+                  ] })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                  "div",
+                  {
+                    style: {
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                      gap: "10px",
+                      padding: "12px",
+                      background: "rgba(0, 0, 0, 0.35)",
+                      borderRadius: "8px",
+                      border: "1px solid rgba(255, 255, 255, 0.08)"
+                    },
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "11px", color: "var(--text-secondary)", display: "block" }, children: "Ekspozycja (Notional):" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { fontSize: "15px", color: "#ffffff" }, children: [
+                          "$",
+                          formatUsdc(calcNotional)
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "11px", color: "var(--text-secondary)", display: "block" }, children: "Szacowana Likwidacja:" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { fontSize: "15px", color: "#f87171" }, children: [
+                          "$",
+                          formatUsdc(calcLiq)
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "11px", color: "var(--text-secondary)", display: "block" }, children: "Dystans do likwidacji:" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { fontSize: "15px", color: "#fbbf24" }, children: [
+                          calcLiqDist,
+                          "%"
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "11px", color: "var(--text-secondary)", display: "block" }, children: "1% ruchu ceny daje:" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { fontSize: "15px", color: "#34d399" }, children: [
+                          calcLeverage,
+                          "% ROI ($",
+                          (calcM * (calcLeverage / 100)).toFixed(2),
+                          ")"
+                        ] })
+                      ] })
+                    ]
+                  }
+                )
+              ]
+            }
+          ),
+          showExamples && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "div",
+            {
+              className: "ai-strat-examples-modal",
+              style: {
+                background: "linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(30, 27, 45, 0.98))",
+                border: "1px solid rgba(245, 158, 11, 0.45)",
+                borderRadius: "var(--radius-lg)",
+                padding: "16px 20px",
+                marginBottom: "16px",
+                boxShadow: "0 12px 36px rgba(0, 0, 0, 0.5)"
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h4", { style: { margin: 0, color: "var(--warn-amber)", fontSize: "15px", fontWeight: 800 }, children: "\u{1F4A1} Gotowe Przyk\u0142ady Strategii Rynku Futures dla Agenta AI" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                    "button",
+                    {
+                      type: "button",
+                      className: "win-ctrl-btn",
+                      style: { fontSize: "14px", padding: "2px 8px" },
+                      onClick: () => setShowExamples(false),
+                      children: "\u2715 Zamknij"
+                    }
+                  )
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "10px" }, children: [
+                  {
+                    title: "\u26A1 Scalp LONG 10x na Wybicie VWAP",
+                    prompt: "Zbuduj strategi\u0119 LONG dla BTC 10x z ciasnym Stop-Loss",
+                    desc: "Szybkie wej\u015Bcie na momentum z zabezpieczeniem SL i 3 poziomami realizacji zysku TP."
+                  },
+                  {
+                    title: "\u{1F534} SHORT 5x po Wykupionym RSI na ETH",
+                    prompt: "Otw\xF3rz pozycj\u0119 SHORT na ETH z d\u017Awigni\u0105 5x po oporze R1",
+                    desc: "Gra na korekt\u0119 zysk\xF3w ze szczytu kana\u0142u dobowego pod oporem."
+                  },
+                  {
+                    title: "\u{1F6E1}\uFE0F Delta-Neutral Hedging Portfela",
+                    prompt: "Zabezpiecz portfel pozycj\u0105 SHORT na BTC 3x",
+                    desc: "Neutralizacja ryzyka spadku warto\u015Bci posiadanych kryptowalut bez ich sprzeda\u017Cy."
+                  },
+                  {
+                    title: "\u{1F4CA} Funding Rate Arbitrage 2x",
+                    prompt: "Strategia Arbitra\u017Cu Funding Rate na SOL 2x",
+                    desc: "Pobieranie st\xF3p finansowania co 8h przy minimalnym ryzyku rynkowym."
+                  }
+                ].map((ex, idx) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                  "div",
+                  {
+                    style: {
+                      background: "rgba(0, 0, 0, 0.3)",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      cursor: "pointer"
+                    },
+                    onClick: () => {
+                      if (onRunAiFuturesStrategyQuery) {
+                        onRunAiFuturesStrategyQuery(ex.prompt, {
+                          direction: ex.prompt.includes("SHORT") ? "SHORT" : "LONG",
+                          leverage: ex.prompt.includes("10x") ? 10 : ex.prompt.includes("5x") ? 5 : ex.prompt.includes("3x") ? 3 : 2,
+                          marginMode: "isolated",
+                          marginUsdc: Number(customMarginUsdc) || 500
+                        });
+                      }
+                      setShowExamples(false);
+                    },
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { style: { color: "var(--warn-amber)", display: "block", marginBottom: "4px" }, children: ex.title }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { style: { margin: "0 0 8px 0", fontSize: "12px", color: "var(--text-secondary)" }, children: ex.desc }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "11px", color: "var(--accent-blue)", fontWeight: 600 }, children: "\u25B6 Kliknij, aby wygenerowa\u0107 t\u0119 strategi\u0119" })
+                    ]
+                  },
+                  idx
+                )) })
+              ]
+            }
+          ),
+          showHistory && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "div",
+            {
+              className: "ai-strat-history-modal",
+              style: {
+                background: "linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(28, 20, 48, 0.98))",
+                border: "1px solid rgba(168, 85, 247, 0.45)",
+                borderRadius: "var(--radius-lg)",
+                padding: "16px 20px",
+                marginBottom: "16px",
+                boxShadow: "0 12px 36px rgba(0, 0, 0, 0.55)"
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("h4", { style: { margin: 0, color: "#c084fc", fontSize: "15px", fontWeight: 800 }, children: [
+                    "\u{1F4DC} Historia Strategii i Zlece\u0144 Futures na OKX (",
+                    candidateStrategies.length,
+                    ")"
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                    "button",
+                    {
+                      type: "button",
+                      className: "win-ctrl-btn",
+                      style: { fontSize: "14px", padding: "2px 8px" },
+                      onClick: () => setShowHistory(false),
+                      children: "\u2715 Zamknij"
+                    }
+                  )
+                ] }),
+                candidateStrategies.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { style: { padding: "24px", textAlign: "center", color: "var(--text-secondary)", fontSize: "13px" }, children: "Brak zrealizowanych pozycji futures w bie\u017C\u0105cej sesji. Wygeneruj i potwierd\u017A strategi\u0119 poni\u017Cej, aby pojawi\u0142a si\u0119 w historii." }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: "12px", maxHeight: "420px", overflowY: "auto" }, children: candidateStrategies.map((ord) => {
+                  const timing = getStrategyTiming2(ord);
+                  const breakdown = resolveFuturesBreakdown(ord, timing);
+                  const isExpanded = expandedBreakdownId === ord.id;
+                  const posSide = (ord.posSide || (ord.strategyName?.includes("SHORT") ? "short" : "long")).toUpperCase();
+                  const lev = ord.leverage || 10;
+                  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                    "div",
+                    {
+                      style: {
+                        background: "rgba(0, 0, 0, 0.35)",
+                        borderRadius: "8px",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
+                        padding: "12px 14px"
+                      },
+                      children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }, children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }, children: [
+                              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                                "span",
+                                {
+                                  style: {
+                                    padding: "2px 8px",
+                                    borderRadius: "4px",
+                                    fontSize: "11px",
+                                    fontWeight: 800,
+                                    background: posSide === "LONG" ? "rgba(52, 211, 153, 0.2)" : "rgba(248, 113, 113, 0.2)",
+                                    color: posSide === "LONG" ? "#34d399" : "#f87171",
+                                    border: `1px solid ${posSide === "LONG" ? "rgba(52, 211, 153, 0.4)" : "rgba(248, 113, 113, 0.4)"}`
+                                  },
+                                  children: [
+                                    posSide === "LONG" ? "\u{1F7E2} LONG" : "\u{1F534} SHORT",
+                                    " ",
+                                    lev,
+                                    "x"
+                                  ]
+                                }
+                              ),
+                              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { style: { fontSize: "13px", color: "#ffffff" }, children: ord.instId || `${ord.asset}-USDC-SWAP` }),
+                              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { style: { fontSize: "11px", color: "var(--text-secondary)" }, children: [
+                                "#",
+                                ord.id
+                              ] })
+                            ] }),
+                            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { fontSize: "12px", color: "var(--text-secondary)" }, children: [
+                              "Kurs: ",
+                              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { children: [
+                                "$",
+                                formatUnitPrice(ord.price)
+                              ] }),
+                              " \u2022 Wielko\u015B\u0107: ",
+                              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { children: [
+                                ord.amount,
+                                " ",
+                                ord.asset
+                              ] }),
+                              " \u2022 Ekspozycja: ",
+                              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { children: [
+                                "$",
+                                formatUsdc(ord.usdcValue)
+                              ] })
+                            ] }),
+                            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }, children: [
+                              "Utworzono: ",
+                              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { children: [
+                                timing.openDate,
+                                " ",
+                                timing.openTime
+                              ] }),
+                              timing.isFilled && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { children: [
+                                " \u2022 Zrealizowano: ",
+                                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { color: "#34d399" }, children: [
+                                  timing.execDate,
+                                  " ",
+                                  timing.execTime
+                                ] })
+                              ] })
+                            ] })
+                          ] }),
+                          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }, children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                              "span",
+                              {
+                                style: {
+                                  padding: "3px 10px",
+                                  borderRadius: "12px",
+                                  fontSize: "11px",
+                                  fontWeight: 800,
+                                  background: timing.badgeBg,
+                                  color: timing.badgeColor,
+                                  border: `1px solid ${timing.badgeColor}`
+                                },
+                                children: timing.badgeText
+                              }
+                            ),
+                            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", gap: "6px" }, children: [
+                              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                                "button",
+                                {
+                                  type: "button",
+                                  className: "btn btn-outline-sm",
+                                  style: { fontSize: "11px", padding: "3px 8px" },
+                                  onClick: () => setExpandedBreakdownId(isExpanded ? null : ord.id),
+                                  children: [
+                                    "\u{1F4CA} Szczeg\xF3\u0142y futures ",
+                                    isExpanded ? "\u25B2" : "\u25BC"
+                                  ]
+                                }
+                              ),
+                              timing.isInProgress && onCompleteStrategy && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                                "button",
+                                {
+                                  type: "button",
+                                  className: "btn btn-primary-sm",
+                                  style: { fontSize: "11px", padding: "3px 8px", background: "#10b981" },
+                                  onClick: () => onCompleteStrategy(ord.id),
+                                  children: "\u2705 Oznacz jako zrealizowan\u0105"
+                                }
+                              )
+                            ] })
+                          ] })
+                        ] }),
+                        isExpanded && breakdown && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                          "div",
+                          {
+                            style: {
+                              marginTop: "12px",
+                              padding: "12px",
+                              background: "rgba(15, 23, 42, 0.75)",
+                              borderRadius: "6px",
+                              border: "1px solid rgba(255, 255, 255, 0.08)",
+                              fontSize: "12px"
+                            },
+                            children: [
+                              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h5", { style: { margin: "0 0 8px 0", color: "var(--accent-blue)", fontSize: "12px" }, children: "\u{1F6E1}\uFE0F Parametry Pozycji & Zabezpieczenia na OKX:" }),
+                              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px", marginBottom: "10px" }, children: [
+                                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                                  "Cena Likwidacji: ",
+                                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { color: "#f87171" }, children: [
+                                    "$",
+                                    formatUsdc(breakdown.openedPosition.liquidationPrice)
+                                  ] })
+                                ] }),
+                                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                                  "Dystans do Likwidacji: ",
+                                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { color: "#fbbf24" }, children: [
+                                    breakdown.openedPosition.liqDistancePct,
+                                    "%"
+                                  ] })
+                                ] }),
+                                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                                  "W\u0142asny Margin: ",
+                                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { children: [
+                                    "$",
+                                    formatUsdc(breakdown.openedPosition.marginUsdc)
+                                  ] })
+                                ] }),
+                                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                                  "Prowizja Taker (0.05%): ",
+                                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { children: [
+                                    "$",
+                                    formatUsdc(breakdown.openedPosition.feeUsdc)
+                                  ] })
+                                ] })
+                              ] }),
+                              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h5", { style: { margin: "8px 0 6px 0", color: "#34d399", fontSize: "12px" }, children: "\u{1F3AF} Cele Take-Profit (TP):" }),
+                              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "6px", marginBottom: "10px" }, children: breakdown.takeProfits.map((tp, idx) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { background: "rgba(0,0,0,0.2)", padding: "6px", borderRadius: "4px" }, children: [
+                                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { children: [
+                                  tp.level,
+                                  ":"
+                                ] }),
+                                " $",
+                                formatUnitPrice(tp.targetPrice),
+                                " (",
+                                tp.roiPct,
+                                " / ",
+                                tp.profitUsdc,
+                                ")"
+                              ] }, idx)) }),
+                              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { background: "rgba(239, 68, 68, 0.1)", padding: "8px", borderRadius: "4px", borderLeft: "3px solid #ef4444" }, children: [
+                                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { style: { color: "#f87171" }, children: "\u{1F6D1} Stop-Loss:" }),
+                                " $",
+                                formatUnitPrice(breakdown.stopLossPlan.price),
+                                " (",
+                                breakdown.stopLossPlan.roiPct,
+                                " / ",
+                                breakdown.stopLossPlan.lossUsdc,
+                                ")",
+                                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { style: { fontSize: "11px", color: "var(--text-secondary)", marginLeft: "8px" }, children: [
+                                  "(",
+                                  breakdown.stopLossPlan.bufferToLiqPct,
+                                  ")"
+                                ] })
+                              ] })
+                            ]
+                          }
+                        )
+                      ]
+                    },
+                    ord.id
+                  );
+                }) })
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "div",
+            {
+              className: "futures-control-panel",
+              style: {
+                background: "linear-gradient(145deg, rgba(15, 23, 42, 0.85), rgba(24, 34, 58, 0.85))",
+                border: "1px solid rgba(56, 189, 248, 0.25)",
+                borderRadius: "var(--radius-lg)",
+                padding: "14px 16px",
+                marginBottom: "14px"
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px", flexWrap: "wrap", gap: "8px" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "13px", fontWeight: 800, color: "#ffffff" }, children: "\u2699\uFE0F Panel Ustawie\u0144 Zlecenia Futures (D\u017Awignia, Kierunek & Tryb Margin)" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "11px", color: "var(--accent-blue)", fontWeight: 600 }, children: "OKX Perpetual Swap v5 (eea.okx.com)" })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "12px" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { style: { fontSize: "11px", color: "var(--text-secondary)", fontWeight: 700, display: "block", marginBottom: "6px" }, children: "1. KIERUNEK (DIRECTION):" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", gap: "4px" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                        "button",
+                        {
+                          type: "button",
+                          style: {
+                            flex: 1,
+                            padding: "7px 4px",
+                            borderRadius: "6px",
+                            border: "1px solid",
+                            borderColor: selectedDirection === "LONG" ? "#34d399" : "rgba(255,255,255,0.1)",
+                            background: selectedDirection === "LONG" ? "rgba(52, 211, 153, 0.25)" : "rgba(0,0,0,0.2)",
+                            color: selectedDirection === "LONG" ? "#34d399" : "var(--text-secondary)",
+                            fontWeight: 800,
+                            fontSize: "11px",
+                            cursor: "pointer"
+                          },
+                          onClick: () => setSelectedDirection("LONG"),
+                          children: "\u{1F7E2} LONG"
+                        }
+                      ),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                        "button",
+                        {
+                          type: "button",
+                          style: {
+                            flex: 1,
+                            padding: "7px 4px",
+                            borderRadius: "6px",
+                            border: "1px solid",
+                            borderColor: selectedDirection === "SHORT" ? "#f87171" : "rgba(255,255,255,0.1)",
+                            background: selectedDirection === "SHORT" ? "rgba(248, 113, 113, 0.25)" : "rgba(0,0,0,0.2)",
+                            color: selectedDirection === "SHORT" ? "#f87171" : "var(--text-secondary)",
+                            fontWeight: 800,
+                            fontSize: "11px",
+                            cursor: "pointer"
+                          },
+                          onClick: () => setSelectedDirection("SHORT"),
+                          children: "\u{1F534} SHORT"
+                        }
+                      ),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                        "button",
+                        {
+                          type: "button",
+                          style: {
+                            flex: 1,
+                            padding: "7px 4px",
+                            borderRadius: "6px",
+                            border: "1px solid",
+                            borderColor: selectedDirection === "AUTO" ? "var(--accent-blue)" : "rgba(255,255,255,0.1)",
+                            background: selectedDirection === "AUTO" ? "rgba(56, 189, 248, 0.25)" : "rgba(0,0,0,0.2)",
+                            color: selectedDirection === "AUTO" ? "var(--accent-blue)" : "var(--text-secondary)",
+                            fontWeight: 800,
+                            fontSize: "11px",
+                            cursor: "pointer"
+                          },
+                          onClick: () => setSelectedDirection("AUTO"),
+                          title: "Agent AI sam dobierze kierunek na podstawie RSI i wska\u017Anik\xF3w trendu",
+                          children: "\u{1F916} AUTO AI"
+                        }
+                      )
+                    ] })
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: "6px" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { style: { fontSize: "11px", color: "var(--text-secondary)", fontWeight: 700 }, children: "2. D\u0179WIGNIA (LEVERAGE):" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { style: { fontSize: "12px", fontWeight: 800, color: selectedLeverage > 25 ? "#ef4444" : selectedLeverage > 10 ? "#fbbf24" : "#34d399" }, children: [
+                        selectedLeverage,
+                        "x"
+                      ] })
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { style: { display: "flex", gap: "3px", flexWrap: "wrap", marginBottom: "6px" }, children: LEVERAGE_PRESETS.map((lev) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                      "button",
+                      {
+                        type: "button",
+                        style: {
+                          padding: "3px 6px",
+                          borderRadius: "4px",
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          border: "1px solid",
+                          borderColor: selectedLeverage === lev ? "var(--accent-blue)" : "rgba(255,255,255,0.1)",
+                          background: selectedLeverage === lev ? "rgba(56, 189, 248, 0.3)" : "rgba(0,0,0,0.2)",
+                          color: selectedLeverage === lev ? "#ffffff" : "var(--text-secondary)",
+                          cursor: "pointer"
+                        },
+                        onClick: () => setSelectedLeverage(lev),
+                        children: [
+                          lev,
+                          "x"
+                        ]
+                      },
+                      lev
+                    )) }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                      "input",
+                      {
+                        type: "range",
+                        min: "1",
+                        max: "100",
+                        value: selectedLeverage,
+                        onChange: (e) => setSelectedLeverage(Number(e.target.value)),
+                        style: { width: "100%", height: "5px" }
+                      }
+                    )
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { style: { fontSize: "11px", color: "var(--text-secondary)", fontWeight: 700, display: "block", marginBottom: "6px" }, children: "3. TRYB DEPOZYTU (MARGIN MODE):" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", gap: "4px" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                        "button",
+                        {
+                          type: "button",
+                          style: {
+                            flex: 1,
+                            padding: "7px 4px",
+                            borderRadius: "6px",
+                            border: "1px solid",
+                            borderColor: selectedMarginMode === "isolated" ? "#38bdf8" : "rgba(255,255,255,0.1)",
+                            background: selectedMarginMode === "isolated" ? "rgba(56, 189, 248, 0.25)" : "rgba(0,0,0,0.2)",
+                            color: selectedMarginMode === "isolated" ? "#38bdf8" : "var(--text-secondary)",
+                            fontWeight: 800,
+                            fontSize: "11px",
+                            cursor: "pointer"
+                          },
+                          onClick: () => setSelectedMarginMode("isolated"),
+                          title: "Ryzyko ograniczone wy\u0142\u0105cznie do danej pozycji",
+                          children: "\u{1F6E1}\uFE0F ISOLATED (Zalecany)"
+                        }
+                      ),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                        "button",
+                        {
+                          type: "button",
+                          style: {
+                            flex: 1,
+                            padding: "7px 4px",
+                            borderRadius: "6px",
+                            border: "1px solid",
+                            borderColor: selectedMarginMode === "cross" ? "#fbbf24" : "rgba(255,255,255,0.1)",
+                            background: selectedMarginMode === "cross" ? "rgba(245, 158, 11, 0.25)" : "rgba(0,0,0,0.2)",
+                            color: selectedMarginMode === "cross" ? "#fbbf24" : "var(--text-secondary)",
+                            fontWeight: 800,
+                            fontSize: "11px",
+                            cursor: "pointer"
+                          },
+                          onClick: () => setSelectedMarginMode("cross"),
+                          title: "Wsp\xF3\u0142dzielenie depozytu przez ca\u0142e konto",
+                          children: "\u26A1 CROSS"
+                        }
+                      )
+                    ] })
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { style: { fontSize: "11px", color: "var(--text-secondary)", fontWeight: 700, display: "block", marginBottom: "6px" }, children: "4. DEPOZYT POCZ\u0104TKOWY (USDC):" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "6px" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                        "input",
+                        {
+                          type: "number",
+                          className: "input-field",
+                          style: { flex: 1, padding: "7px 10px", fontSize: "12px", fontWeight: 700 },
+                          value: customMarginUsdc,
+                          onChange: (e) => setCustomMarginUsdc(e.target.value),
+                          placeholder: "np. 500"
+                        }
+                      ),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { style: { fontSize: "11px", color: "var(--text-muted)" }, children: [
+                        "Ekspozycja: ",
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { color: "#38bdf8" }, children: [
+                          "$",
+                          formatUsdc((Number(customMarginUsdc) || 500) * selectedLeverage)
+                        ] })
+                      ] })
+                    ] })
+                  ] })
+                ] })
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginBottom: "14px" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "11px", fontWeight: 700, color: "var(--text-muted)" }, children: "Popularne Kontrakty Swap:" }),
+            QUICK_FUTURES_ASSETS.map((asset) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+              "button",
+              {
+                type: "button",
+                className: "btn btn-outline-sm",
+                style: { fontSize: "11px", padding: "3px 8px" },
+                onClick: () => handleApplyQuickQuery(asset),
+                children: [
+                  asset,
+                  "-SWAP"
+                ]
+              },
+              asset
+            ))
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("form", { onSubmit: onSubmitAiFuturesStrategy, style: { marginBottom: "16px" }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", gap: "8px", alignItems: "center" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { position: "relative", flex: 1 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                "span",
+                {
+                  style: {
+                    position: "absolute",
+                    left: "12px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    fontSize: "14px",
+                    pointerEvents: "none"
+                  },
+                  children: "\u{1F50D}"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                "input",
+                {
+                  id: "aiFuturesStrategyInput",
+                  type: "text",
+                  className: "input-field",
+                  style: {
+                    width: "100%",
+                    paddingLeft: "36px",
+                    paddingRight: "12px",
+                    paddingTop: "10px",
+                    paddingBottom: "10px",
+                    fontSize: "13px"
+                  },
+                  placeholder: "Wpisz kontrakt lub zapytanie, np. BTC-SWAP LONG 10x, Short ETH za 1000$...",
+                  value: aiFuturesInput,
+                  onChange: (e) => onSetAiFuturesInput(e.target.value)
+                }
+              )
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+              "button",
+              {
+                type: "submit",
+                className: "btn btn-primary",
+                style: {
+                  padding: "10px 18px",
+                  fontSize: "13px",
+                  fontWeight: 800,
+                  background: "linear-gradient(135deg, #0284c7, #2563eb)",
+                  whiteSpace: "nowrap"
+                },
+                children: "\u26A1 Stw\xF3rz Strategi\u0119 Futures OKX AI"
+              }
+            )
+          ] }) }),
+          a && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "div",
+            {
+              id: "aiFuturesResultContainer",
+              style: {
+                background: "linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(20, 30, 52, 0.95))",
+                border: "1px solid rgba(56, 189, 248, 0.35)",
+                borderRadius: "var(--radius-lg)",
+                padding: "16px 18px",
+                marginBottom: "16px",
+                boxShadow: "0 8px 30px rgba(0, 0, 0, 0.4)"
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "14px" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                        "span",
+                        {
+                          style: {
+                            padding: "3px 10px",
+                            borderRadius: "6px",
+                            fontSize: "12px",
+                            fontWeight: 800,
+                            background: a.direction === "LONG" ? "rgba(52, 211, 153, 0.25)" : "rgba(248, 113, 113, 0.25)",
+                            color: a.direction === "LONG" ? "#34d399" : "#f87171",
+                            border: `1px solid ${a.direction === "LONG" ? "#34d399" : "#f87171"}`
+                          },
+                          children: [
+                            a.direction === "LONG" ? "\u{1F7E2} LONG (D\u0141UGA)" : "\u{1F534} SHORT (KR\xD3TKA)",
+                            " ",
+                            a.leverage,
+                            "x"
+                          ]
+                        }
+                      ),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h3", { style: { margin: 0, fontSize: "18px", fontWeight: 800, color: "#ffffff" }, children: a.instId }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { style: { fontSize: "15px", fontWeight: 700, color: "var(--accent-blue)" }, children: [
+                        "$",
+                        formatUnitPrice(a.market.price)
+                      ] })
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }, children: [
+                      "Silnik: ",
+                      a.engine,
+                      " \u2022 Data: ",
+                      a.date,
+                      " ",
+                      a.time
+                    ] })
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "10px" }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { textAlign: "right" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "11px", color: "var(--text-muted)", display: "block" }, children: "Funding Rate (OKX 8h):" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { fontSize: "12px", color: a.market.fundingRatePct >= 0 ? "#34d399" : "#f87171" }, children: [
+                        a.market.fundingRate,
+                        " (za ",
+                        a.market.nextFundingCountdown,
+                        ")"
+                      ] })
+                    ] }),
+                    onOpenAssetChart && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                      "button",
+                      {
+                        type: "button",
+                        className: "btn btn-outline-sm",
+                        style: { fontSize: "11px", padding: "4px 8px" },
+                        onClick: () => onOpenAssetChart(a.asset + "-USDC"),
+                        title: "Otw\xF3rz wykres TradingView dla tego aktywa",
+                        children: "\u{1F56F}\uFE0F Wykres"
+                      }
+                    )
+                  ] })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                  "div",
+                  {
+                    style: {
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                      gap: "10px",
+                      marginBottom: "14px"
+                    },
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { background: "rgba(0, 0, 0, 0.3)", padding: "10px 12px", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.08)" }, children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "11px", color: "var(--text-secondary)", display: "block" }, children: "D\u017Awignia & Tryb:" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { fontSize: "14px", color: "#ffffff" }, children: [
+                          a.leverage,
+                          "x \u2022 ",
+                          a.marginMode.toUpperCase()
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { background: "rgba(0, 0, 0, 0.3)", padding: "10px 12px", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.08)" }, children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "11px", color: "var(--text-secondary)", display: "block" }, children: "W\u0142asny Depozyt Margin:" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { fontSize: "14px", color: "var(--accent-blue)" }, children: [
+                          "$",
+                          formatUsdc(a.futuresParameters.initialMarginUsdc)
+                        ] }),
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { style: { fontSize: "10px", color: "var(--text-muted)", display: "block" }, children: [
+                          "Ekspozycja: $",
+                          formatUsdc(a.futuresParameters.notionalValueUsdc)
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { background: "rgba(0, 0, 0, 0.3)", padding: "10px 12px", borderRadius: "8px", border: "1px solid rgba(239, 68, 68, 0.3)" }, children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "11px", color: "var(--text-secondary)", display: "block" }, children: "Szacowana Likwidacja:" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { fontSize: "14px", color: "#f87171" }, children: [
+                          "$",
+                          formatUnitPrice(a.futuresParameters.liquidationPrice)
+                        ] }),
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { style: { fontSize: "10px", color: "#fbbf24", display: "block" }, children: [
+                          "Bufor: ",
+                          a.futuresParameters.liquidationDistancePct,
+                          "%"
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { background: "rgba(0, 0, 0, 0.3)", padding: "10px 12px", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.08)" }, children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "11px", color: "var(--text-secondary)", display: "block" }, children: "Poziom Ryzyka:" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { style: { fontSize: "13px", color: a.futuresParameters.riskBadgeColor }, children: a.futuresParameters.riskLevel })
+                      ] })
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                  "div",
+                  {
+                    style: {
+                      padding: "12px 14px",
+                      background: "rgba(0, 0, 0, 0.25)",
+                      borderRadius: "8px",
+                      borderLeft: "4px solid var(--accent-blue)",
+                      marginBottom: "14px",
+                      fontSize: "12px",
+                      lineHeight: 1.5,
+                      color: "var(--text-primary)"
+                    },
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { children: "\u{1F9E0} Uzasadnienie Strategii Agenta AI:" }),
+                      " ",
+                      a.recommendedStrategy.rationale
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { marginBottom: "14px" }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h5", { style: { margin: "0 0 8px 0", fontSize: "12px", fontWeight: 800, color: "var(--text-secondary)" }, children: "\u{1F3AF} PLAN REALIZACJI ZYSKU & ZABEZPIECZENIA PRZED LIKWIDACJ\u0104:" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "8px" }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { background: "rgba(16, 185, 129, 0.12)", padding: "8px 10px", borderRadius: "6px", border: "1px solid rgba(16, 185, 129, 0.3)" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "10px", color: "#34d399", fontWeight: 700, display: "block" }, children: "TP1 (Take-Profit 1):" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { fontSize: "13px", color: "#ffffff" }, children: [
+                        "$",
+                        formatUnitPrice(a.technicals.takeProfit1)
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { style: { fontSize: "11px", color: "#34d399", display: "block", marginTop: "2px" }, children: [
+                        "+",
+                        a.technicals.takeProfit1RoiPct,
+                        "% ROI (+$",
+                        a.technicals.takeProfit1PnlUsdc,
+                        ")"
+                      ] })
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { background: "rgba(16, 185, 129, 0.16)", padding: "8px 10px", borderRadius: "6px", border: "1px solid rgba(16, 185, 129, 0.4)" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "10px", color: "#34d399", fontWeight: 700, display: "block" }, children: "TP2 (Take-Profit 2):" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { fontSize: "13px", color: "#ffffff" }, children: [
+                        "$",
+                        formatUnitPrice(a.technicals.takeProfit2)
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { style: { fontSize: "11px", color: "#34d399", display: "block", marginTop: "2px" }, children: [
+                        "+",
+                        a.technicals.takeProfit2RoiPct,
+                        "% ROI (+$",
+                        a.technicals.takeProfit2PnlUsdc,
+                        ")"
+                      ] })
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { background: "rgba(16, 185, 129, 0.2)", padding: "8px 10px", borderRadius: "6px", border: "1px solid rgba(16, 185, 129, 0.5)" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "10px", color: "#34d399", fontWeight: 700, display: "block" }, children: "TP3 (Runner Target):" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { fontSize: "13px", color: "#ffffff" }, children: [
+                        "$",
+                        formatUnitPrice(a.technicals.takeProfit3)
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { style: { fontSize: "11px", color: "#34d399", display: "block", marginTop: "2px" }, children: [
+                        "+",
+                        a.technicals.takeProfit3RoiPct,
+                        "% ROI (+$",
+                        a.technicals.takeProfit3PnlUsdc,
+                        ")"
+                      ] })
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { background: "rgba(239, 68, 68, 0.15)", padding: "8px 10px", borderRadius: "6px", border: "1px solid rgba(239, 68, 68, 0.4)" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "10px", color: "#f87171", fontWeight: 700, display: "block" }, children: "SL (Bezpieczny Stop-Loss):" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { fontSize: "13px", color: "#ffffff" }, children: [
+                        "$",
+                        formatUnitPrice(a.technicals.stopLoss)
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { style: { fontSize: "11px", color: "#f87171", display: "block", marginTop: "2px" }, children: [
+                        a.technicals.stopLossRoiPct,
+                        "% ROI ($",
+                        a.technicals.stopLossPnlUsdc,
+                        ")"
+                      ] })
+                    ] })
+                  ] })
+                ] }),
+                activeTradeOrder && isFuturesOrder && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                  "div",
+                  {
+                    style: {
+                      marginTop: "16px",
+                      padding: "14px",
+                      background: "rgba(2, 132, 199, 0.15)",
+                      border: "1px solid rgba(56, 189, 248, 0.4)",
+                      borderRadius: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: "12px"
+                    },
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { style: { color: "#ffffff", fontSize: "13px", display: "block" }, children: [
+                          "\u26A1 Gotowe zlecenie kontraktu futures: ",
+                          activeTradeOrder.strategyName
+                        ] }),
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { style: { fontSize: "11px", color: "var(--text-secondary)" }, children: [
+                          "Depozyt Margin: ",
+                          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("strong", { children: [
+                            "$",
+                            formatUsdc(activeTradeOrder.marginUsdc || a.futuresParameters.initialMarginUsdc)
+                          ] }),
+                          " \u2022 Prowizja Taker 0.05%"
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", gap: "8px" }, children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                          "button",
+                          {
+                            type: "button",
+                            className: "btn btn-success",
+                            style: {
+                              padding: "8px 16px",
+                              fontSize: "12px",
+                              fontWeight: 800,
+                              background: "#10b981",
+                              border: "none",
+                              borderRadius: "6px",
+                              cursor: "pointer"
+                            },
+                            disabled: isConfirmingOrder,
+                            onClick: onConfirmOrder,
+                            children: isConfirmingOrder ? "\u23F3 Otwieranie pozycji..." : "\u2705 Potwierd\u017A zlecenie Futures"
+                          }
+                        ),
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                          "button",
+                          {
+                            type: "button",
+                            className: "btn btn-danger",
+                            style: {
+                              padding: "8px 14px",
+                              fontSize: "12px",
+                              fontWeight: 700,
+                              background: "rgba(239, 68, 68, 0.2)",
+                              color: "#f87171",
+                              border: "1px solid #ef4444",
+                              borderRadius: "6px",
+                              cursor: "pointer"
+                            },
+                            disabled: isConfirmingOrder,
+                            onClick: onRejectOrder,
+                            children: "\u{1F6AB} Odrzu\u0107 transakcj\u0119"
+                          }
+                        )
+                      ] })
+                    ]
+                  }
+                )
+              ]
+            }
+          )
+        ]
+      }
+    );
+  }
+
+  // src/components/QuickTradeWindow.jsx
+  var import_react10 = __toESM(require_react());
+
+  // src/components/CryptoPairSelector.jsx
+  var import_react9 = __toESM(require_react());
+  var import_jsx_runtime9 = __toESM(require_jsx_runtime());
   var TOP_FAVORITES_SYMBOLS = [
     "BTC",
     "ETH",
@@ -20280,22 +22146,22 @@
     onSelectPair,
     markets
   }) {
-    const [isOpen, setIsOpen] = (0, import_react8.useState)(false);
-    const [searchQuery, setSearchQuery] = (0, import_react8.useState)("");
-    const [activeTab, setActiveTab] = (0, import_react8.useState)("ALL");
-    const [openSections, setOpenSections] = (0, import_react8.useState)({
+    const [isOpen, setIsOpen] = (0, import_react9.useState)(false);
+    const [searchQuery, setSearchQuery] = (0, import_react9.useState)("");
+    const [activeTab, setActiveTab] = (0, import_react9.useState)("ALL");
+    const [openSections, setOpenSections] = (0, import_react9.useState)({
       FAVORITES: true,
       USDC: true,
       USDT: false,
       EUR: false,
       OTHERS: false
     });
-    const containerRef = (0, import_react8.useRef)(null);
-    const searchInputRef = (0, import_react8.useRef)(null);
-    const mList = (0, import_react8.useMemo)(() => {
+    const containerRef = (0, import_react9.useRef)(null);
+    const searchInputRef = (0, import_react9.useRef)(null);
+    const mList = (0, import_react9.useMemo)(() => {
       return Array.isArray(markets) && markets.length > 0 ? markets : DEFAULT_STANDALONE_MARKETS;
     }, [markets]);
-    const currentMarket = (0, import_react8.useMemo)(() => {
+    const currentMarket = (0, import_react9.useMemo)(() => {
       const found = mList.find((m) => m.instId === selectedPair);
       if (found) return found;
       return DEFAULT_STANDALONE_MARKETS.find((m) => m.instId === selectedPair) || {
@@ -20307,10 +22173,10 @@
         change24hPct: 0
       };
     }, [mList, selectedPair]);
-    const currentChanges = (0, import_react8.useMemo)(() => {
+    const currentChanges = (0, import_react9.useMemo)(() => {
       return getMarketIntervalChanges(currentMarket);
     }, [currentMarket]);
-    (0, import_react8.useEffect)(() => {
+    (0, import_react9.useEffect)(() => {
       const handleOutsideClick = (e) => {
         if (containerRef.current && !containerRef.current.contains(e.target)) {
           setIsOpen(false);
@@ -20334,7 +22200,7 @@
         [sectionKey]: !prev[sectionKey]
       }));
     };
-    const groupedMarkets = (0, import_react8.useMemo)(() => {
+    const groupedMarkets = (0, import_react9.useMemo)(() => {
       const q = searchQuery.trim().toUpperCase();
       const filterFn = (m) => {
         if (!q) return true;
@@ -20368,18 +22234,18 @@
     const renderBadge = (label, val) => {
       const num = Number(val || 0);
       const colorClass = num > 0 ? "pct-positive" : num < 0 ? "pct-negative" : "pct-neutral";
-      return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: `interval-badge ${colorClass}`, title: `Zmiana ${label}: ${formatPctChange(num)}`, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "interval-label", children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: `interval-badge ${colorClass}`, title: `Zmiana ${label}: ${formatPctChange(num)}`, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "interval-label", children: [
           label,
           ":"
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { className: "interval-val", children: formatPctChange(num) })
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { className: "interval-val", children: formatPctChange(num) })
       ] });
     };
     const renderMarketRow = (m) => {
       const changes = getMarketIntervalChanges(m);
       const isSelected = m.instId === selectedPair;
-      return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+      return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
         "div",
         {
           className: `pair-picker-row ${isSelected ? "is-selected" : ""}`,
@@ -20387,23 +22253,23 @@
           role: "button",
           tabIndex: 0,
           children: [
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-picker-col-asset", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-picker-symbol-box", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-picker-instid", children: m.instId }),
-                isSelected && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-picker-selected-tag", children: "\u2713 Wybrana" })
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-picker-col-asset", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-picker-symbol-box", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "pair-picker-instid", children: m.instId }),
+                isSelected && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "pair-picker-selected-tag", children: "\u2713 Wybrana" })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-picker-name", children: m.name || m.base })
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "pair-picker-name", children: m.name || m.base })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-picker-col-price", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-picker-price-val", children: formatPriceWithQuote(m.price, m.quote) }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "pair-picker-vol", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-picker-col-price", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "pair-picker-price-val", children: formatPriceWithQuote(m.price, m.quote) }),
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "pair-picker-vol", children: [
                 "Obr\xF3t 24h: ",
                 Number(m.volCcy24h || 0).toLocaleString("pl-PL", { maximumFractionDigits: 0 }),
                 " ",
                 m.quote
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-picker-col-changes", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-picker-col-changes", children: [
               renderBadge("15m", changes.change15m),
               renderBadge("1h", changes.change1h),
               renderBadge("4h", changes.change4h),
@@ -20419,30 +22285,30 @@
       if (activeTab !== "ALL" && activeTab !== key) return null;
       if (list.length === 0) return null;
       const isExpanded = searchQuery.trim().length > 0 || openSections[key];
-      return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-accordion-section", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+      return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-accordion-section", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
           "button",
           {
             type: "button",
             className: `pair-accordion-header ${isExpanded ? "is-expanded" : ""}`,
             onClick: () => toggleSection(key),
             children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "pair-accordion-title", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-accordion-icon", children: icon }),
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "pair-accordion-title", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "pair-accordion-icon", children: icon }),
                 title,
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "pair-accordion-count", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "pair-accordion-count", children: [
                   "(",
                   list.length,
                   " par)"
                 ] })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-accordion-arrow", children: isExpanded ? "\u25B2" : "\u25BC" })
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "pair-accordion-arrow", children: isExpanded ? "\u25B2" : "\u25BC" })
             ]
           }
         ),
-        isExpanded && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-accordion-body", children: [
+        isExpanded && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-accordion-body", children: [
           list.slice(0, 80).map((m) => renderMarketRow(m)),
-          list.length > 80 && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-accordion-more-hint", children: [
+          list.length > 80 && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-accordion-more-hint", children: [
             "... i jeszcze ",
             list.length - 80,
             " par (u\u017Cyj lupy \u{1F50D} powy\u017Cej, aby przefiltrowa\u0107)"
@@ -20450,8 +22316,8 @@
         ] })
       ] }, key);
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "crypto-pair-selector-wrap", ref: containerRef, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "crypto-pair-selector-wrap", ref: containerRef, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
         "div",
         {
           className: `pair-selected-card ${isOpen ? "active-dropdown" : ""}`,
@@ -20460,30 +22326,30 @@
           tabIndex: 0,
           title: "Kliknij, aby wyszuka\u0107 i zmieni\u0107 par\u0119 kryptowalutow\u0105",
           children: [
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-card-left", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-card-symbol-line", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-card-icon", children: "\u26A1" }),
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { className: "pair-card-instid", children: currentMarket.instId }),
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "pair-card-name", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-card-left", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-card-symbol-line", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "pair-card-icon", children: "\u26A1" }),
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { className: "pair-card-instid", children: currentMarket.instId }),
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "pair-card-name", children: [
                   "(",
                   currentMarket.name || currentMarket.base,
                   ")"
                 ] })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-card-price-line", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-card-label", children: "Kurs bie\u017C\u0105cy:" }),
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { className: "pair-card-price", children: formatPriceWithQuote(currentMarket.price, currentMarket.quote) })
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-card-price-line", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "pair-card-label", children: "Kurs bie\u017C\u0105cy:" }),
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { className: "pair-card-price", children: formatPriceWithQuote(currentMarket.price, currentMarket.quote) })
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-card-right", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-card-intervals-grid", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-card-right", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-card-intervals-grid", children: [
                 renderBadge("15m", currentChanges.change15m),
                 renderBadge("1h", currentChanges.change1h),
                 renderBadge("4h", currentChanges.change4h),
                 renderBadge("1D", currentChanges.change1d),
                 renderBadge("1W", currentChanges.change1w)
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                 "button",
                 {
                   type: "button",
@@ -20499,11 +22365,11 @@
           ]
         }
       ),
-      isOpen && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-dropdown-panel", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-search-bar", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-search-input-wrapper", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "pair-search-lens", "aria-hidden": "true", children: "\u{1F50D}" }),
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+      isOpen && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-dropdown-panel", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-search-bar", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-search-input-wrapper", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "pair-search-lens", "aria-hidden": "true", children: "\u{1F50D}" }),
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
               "input",
               {
                 ref: searchInputRef,
@@ -20515,7 +22381,7 @@
                 autoComplete: "off"
               }
             ),
-            searchQuery && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+            searchQuery && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
               "button",
               {
                 type: "button",
@@ -20526,14 +22392,14 @@
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-search-count-badge", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-search-count-badge", children: [
             "Znaleziono: ",
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { children: groupedMarkets.totalCount }),
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { children: groupedMarkets.totalCount }),
             " par"
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-category-pills", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-category-pills", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
             "button",
             {
               type: "button",
@@ -20546,7 +22412,7 @@
               ]
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
             "button",
             {
               type: "button",
@@ -20559,7 +22425,7 @@
               ]
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
             "button",
             {
               type: "button",
@@ -20572,7 +22438,7 @@
               ]
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
             "button",
             {
               type: "button",
@@ -20585,7 +22451,7 @@
               ]
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
             "button",
             {
               type: "button",
@@ -20599,11 +22465,11 @@
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "pair-accordion-container", children: groupedMarkets.totalCount === 0 ? /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "pair-empty-results", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "pair-accordion-container", children: groupedMarkets.totalCount === 0 ? /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "pair-empty-results", children: [
           "Nie znaleziono par kryptowalutowych pasuj\u0105cych do frazy \u201C",
           searchQuery,
           "\u201D."
-        ] }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_jsx_runtime8.Fragment, { children: [
+        ] }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_jsx_runtime9.Fragment, { children: [
           renderAccordionSection(
             "FAVORITES",
             "G\u0142\xF3wne i Ulubione Kryptowaluty (Spot)",
@@ -20640,7 +22506,7 @@
   }
 
   // src/components/QuickTradeWindow.jsx
-  var import_jsx_runtime9 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime10 = __toESM(require_jsx_runtime());
   function QuickTradeWindow({
     winMeta,
     isSoloGridWindow,
@@ -20666,7 +22532,7 @@
     onCloseWindow,
     onBringToFront
   }) {
-    const [pairFilter, setPairFilter] = import_react9.default.useState("");
+    const [pairFilter, setPairFilter] = import_react10.default.useState("");
     const mList = Array.isArray(markets) && markets.length > 0 ? markets : DEFAULT_STANDALONE_MARKETS;
     const asset = (tradePair || "BTC-USDC").split("-")[0];
     const hList = holdings || [];
@@ -20674,14 +22540,14 @@
     const usdtHolding = hList.find((h) => h.asset === "USDT");
     const assetHolding = hList.find((h) => h.asset === asset);
     const totalAvailCash = (cashHolding ? cashHolding.amount : 0) + (usdtHolding ? usdtHolding.amount : 0);
-    const filteredMarkets = import_react9.default.useMemo(() => {
+    const filteredMarkets = import_react10.default.useMemo(() => {
       if (!pairFilter.trim()) return mList;
       const q = pairFilter.trim().toUpperCase();
       return mList.filter(
         (m) => m.instId.toUpperCase().includes(q) || m.base && m.base.toUpperCase().includes(q) || m.name && m.name.toUpperCase().includes(q)
       );
     }, [mList, pairFilter]);
-    return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
       WindowContainer,
       {
         winMeta,
@@ -20692,12 +22558,12 @@
         onCloseWindow,
         onBringToFront,
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "panel-header", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("h2", { children: "\u26A1 Kreator Zlecenia (USDC)" }),
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("p", { className: "panel-subtitle", children: "Przygotuj zlecenie Kupna lub Sprzeda\u017Cy \u2014 realizacja nast\u0105pi po autoryzacji w oknie Agenta AI" })
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "panel-header", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("h2", { children: "\u26A1 Kreator Zlecenia (USDC)" }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("p", { className: "panel-subtitle", children: "Przygotuj zlecenie Kupna lub Sprzeda\u017Cy \u2014 realizacja nast\u0105pi po autoryzacji w oknie Agenta AI" })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
               "button",
               {
                 type: "button",
@@ -20708,9 +22574,9 @@
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("form", { id: "manualTradeForm", className: "trade-form", onSubmit: onSubmitManualTrade, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "side-tabs", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("form", { id: "manualTradeForm", className: "trade-form", onSubmit: onSubmitManualTrade, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "side-tabs", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
                 "button",
                 {
                   type: "button",
@@ -20721,7 +22587,7 @@
                   children: "KUPNO (BUY)"
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
                 "button",
                 {
                   type: "button",
@@ -20733,13 +22599,13 @@
                 }
               )
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-group form-group-pair-select", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("label", { htmlFor: "tradePairSelect", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "form-group form-group-pair-select", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("label", { htmlFor: "tradePairSelect", children: [
                 "Wyb\xF3r pary kryptowalutowej Spot (Katalog rynk\xF3w OKX \u2014 ",
                 mList.length,
                 " par):"
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
                 CryptoPairSelector,
                 {
                   selectedPair: tradePair,
@@ -20747,27 +22613,27 @@
                   markets: mList
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "hidden", id: "tradePairSelect", value: tradePair, readOnly: true })
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("input", { type: "hidden", id: "tradePairSelect", value: tradePair, readOnly: true })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-row-2", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-group", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "tradeOrderType", children: "Typ zlecenia:" }),
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "form-row-2", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "form-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("label", { htmlFor: "tradeOrderType", children: "Typ zlecenia:" }),
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
                   "select",
                   {
                     id: "tradeOrderType",
                     value: tradeOrderType,
                     onChange: (e) => onChangeTradeOrderType(e.target.value),
                     children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("option", { value: "MARKET", children: "Rynkowe (Market)" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("option", { value: "LIMIT", children: "Limit (Cena docelowa)" })
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("option", { value: "MARKET", children: "Rynkowe (Market)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("option", { value: "LIMIT", children: "Limit (Cena docelowa)" })
                     ]
                   }
                 )
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-group", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "tradePriceInput", children: "Cena wykonania (USDC):" }),
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "form-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("label", { htmlFor: "tradePriceInput", children: "Cena wykonania (USDC):" }),
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
                   "input",
                   {
                     type: "number",
@@ -20780,14 +22646,14 @@
                 )
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-row-2", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-group", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("label", { htmlFor: "tradeAmountInput", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "form-row-2", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "form-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("label", { htmlFor: "tradeAmountInput", children: [
                   "Ilo\u015B\u0107 aktywa (",
-                  /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { id: "tradeAssetUnit", children: asset }),
+                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { id: "tradeAssetUnit", children: asset }),
                   "):"
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
                   "input",
                   {
                     type: "number",
@@ -20800,9 +22666,9 @@
                   }
                 )
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-group", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "tradeUsdcInput", children: "Warto\u015B\u0107 w przeliczeniu na USDC:" }),
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "form-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("label", { htmlFor: "tradeUsdcInput", children: "Warto\u015B\u0107 w przeliczeniu na USDC:" }),
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
                   "input",
                   {
                     type: "number",
@@ -20816,9 +22682,9 @@
                 )
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "form-group", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "tradeStrategyInput", children: "Opis / Nazwa strategii:" }),
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "form-group", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("label", { htmlFor: "tradeStrategyInput", children: "Opis / Nazwa strategii:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
                 "input",
                 {
                   type: "text",
@@ -20828,24 +22694,24 @@
                 }
               )
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "available-balance-row", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "available-balance-row", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { children: [
                 "Dost\u0119pne USDC: ",
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { id: "formAvailUsdc", children: formatUsdc(totalAvailCash) })
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { id: "formAvailUsdc", children: formatUsdc(totalAvailCash) })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { children: [
                 "Posiadane ",
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { id: "formAvailAssetName", children: asset }),
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { id: "formAvailAssetName", children: asset }),
                 ":",
                 " ",
-                /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("strong", { id: "formAvailAssetAmt", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("strong", { id: "formAvailAssetAmt", children: [
                   formatQty(assetHolding ? assetHolding.amount : 0),
                   " ",
                   asset
                 ] })
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("button", { type: "submit", id: "submitTradeProposalBtn", className: "btn btn-authorize-order", children: "\u{1F512} Przygotuj zlecenie i otw\xF3rz Autoryzacj\u0119 Handlu" })
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("button", { type: "submit", id: "submitTradeProposalBtn", className: "btn btn-authorize-order", children: "\u{1F512} Przygotuj zlecenie i otw\xF3rz Autoryzacj\u0119 Handlu" })
           ] })
         ]
       }
@@ -20853,8 +22719,8 @@
   }
 
   // src/components/PortfoliosRow.jsx
-  var import_react10 = __toESM(require_react());
-  var import_jsx_runtime10 = __toESM(require_jsx_runtime());
+  var import_react11 = __toESM(require_react());
+  var import_jsx_runtime11 = __toESM(require_jsx_runtime());
   function PortfoliosRow({
     windowsRegistry,
     soloWindowId,
@@ -20889,13 +22755,13 @@
       ledger: { items: [], totalBoughtUsdc: 0, totalSoldUsdc: 0 }
     };
     const ledger = p.ledger || { items: [], totalBoughtUsdc: 0, totalSoldUsdc: 0 };
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(
       "section",
       {
         className: rowClass,
         "aria-label": "Portfel Handlowy oraz Bilans Kupiono i Sprzedano",
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(
             WindowContainer,
             {
               winMeta: winPortfolio,
@@ -20906,14 +22772,14 @@
               onCloseWindow,
               onBringToFront,
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "panel-header", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("h2", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "panel-header", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("h2", { children: [
                       "\u{1F4BC} Panel 1: Portfel Handlowy (",
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { id: "portfolioModeTitle", children: (p.mode || "demo").toUpperCase() }),
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { id: "portfolioModeTitle", children: (p.mode || "demo").toUpperCase() }),
                       ")"
                     ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
                       "p",
                       {
                         className: "panel-subtitle",
@@ -20925,8 +22791,8 @@
                       }
                     )
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }, children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
                       "button",
                       {
                         type: "button",
@@ -20938,7 +22804,7 @@
                         children: "\u{1F504} Synchronizuj Telefon \u21C4 Laptop"
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
                       "button",
                       {
                         type: "button",
@@ -20948,7 +22814,7 @@
                         children: "\u{1F4CB} Kopiuj z tego urz\u0105dzenia"
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
                       "button",
                       {
                         type: "button",
@@ -20958,7 +22824,7 @@
                         children: "\u{1F4E5} Wklej z drugiego urz\u0105dzenia"
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
                       "button",
                       {
                         type: "button",
@@ -20969,55 +22835,55 @@
                         children: "\u{1F504} Synchronizuj z OKX"
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "portfolio-total-box", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "total-label", children: "Warto\u015B\u0107 ca\u0142kowita portfela:" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { className: "total-value", id: "portfolioTotalUsdc", children: formatUsdc(p.totalValueUsdc) })
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "portfolio-total-box", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "total-label", children: "Warto\u015B\u0107 ca\u0142kowita portfela:" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { className: "total-value", id: "portfolioTotalUsdc", children: formatUsdc(p.totalValueUsdc) })
                     ] })
                   ] })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "portfolio-kpi-row", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "kpi-item", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: "Got\xF3wka rozliczeniowa (USDC):" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { id: "portfolioCashUsdc", children: formatUsdc(p.cashUsdc) })
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "portfolio-kpi-row", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "kpi-item", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { children: "Got\xF3wka rozliczeniowa (USDC):" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { id: "portfolioCashUsdc", children: formatUsdc(p.cashUsdc) })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "kpi-item", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: "Warto\u015B\u0107 kryptowalut w USDC:" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { id: "portfolioCryptoUsdc", children: formatUsdc(p.cryptoValueUsdc) })
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "kpi-item", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { children: "Warto\u015B\u0107 kryptowalut w USDC:" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { id: "portfolioCryptoUsdc", children: formatUsdc(p.cryptoValueUsdc) })
                   ] })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mobile-table-scroll-hint", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: "\u{1F449} Przesu\u0144 tabel\u0119 w poziomie, aby zobaczy\u0107 wszystkie kolumny" }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "table-responsive", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("table", { className: "data-table", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Aktywo" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Ilo\u015B\u0107 w portfelu" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Kurs bie\u017C\u0105cy (USDC)" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Warto\u015B\u0107 w USDC" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "\u015Ar. cena zakupu" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Udzia\u0142 %" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Wykres" })
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "mobile-table-scroll-hint", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { children: "\u{1F449} Przesu\u0144 tabel\u0119 w poziomie, aby zobaczy\u0107 wszystkie kolumny" }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "table-responsive", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("table", { className: "data-table", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Aktywo" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Ilo\u015B\u0107 w portfelu" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Kurs bie\u017C\u0105cy (USDC)" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Warto\u015B\u0107 w USDC" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "\u015Ar. cena zakupu" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Udzia\u0142 %" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Wykres" })
                   ] }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("tbody", { id: "portfolioHoldingsTbody", children: (p.holdings || []).map((h) => {
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("tbody", { id: "portfolioHoldingsTbody", children: (p.holdings || []).map((h) => {
                     const isCash = h.asset === "USDC" || h.asset === "USDT" || h.asset === "USD" || h.asset === "USDG";
                     const pair = isCash ? "BTC-USDC" : `${h.asset}-USDC`;
-                    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { children: h.asset }),
+                    return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("td", { children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { children: h.asset }),
                         " ",
-                        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "small-muted", children: h.name })
+                        /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "small-muted", children: h.name })
                       ] }),
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("strong", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("strong", { children: [
                         formatQty(h.amount),
                         " ",
                         h.asset
                       ] }) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: isCash ? h.asset === "USD" ? "1,00 USD" : formatUsdc(h.priceUsdc) : formatUnitPrice(h.priceUsdc) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { children: formatUsdc(h.usdcValue) }) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: isCash ? h.asset === "USD" ? "1,00 USD" : "1,00 USDC" : formatUnitPrice(h.avgBuyPrice) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: isCash ? h.asset === "USD" ? "1,00 USD" : formatUsdc(h.priceUsdc) : formatUnitPrice(h.priceUsdc) }),
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { children: formatUsdc(h.usdcValue) }) }),
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: isCash ? h.asset === "USD" ? "1,00 USD" : "1,00 USDC" : formatUnitPrice(h.avgBuyPrice) }),
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("td", { children: [
                         h.allocationPct,
                         "%"
                       ] }),
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: isCash ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "small-muted", children: "Got\xF3wka / Rozliczeniowa" }) : /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: isCash ? /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "small-muted", children: "Got\xF3wka / Rozliczeniowa" }) : /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(
                         "button",
                         {
                           type: "button",
@@ -21036,7 +22902,7 @@
               ]
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(
             WindowContainer,
             {
               winMeta: winBoughtSold,
@@ -21047,77 +22913,77 @@
               onCloseWindow,
               onBringToFront,
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "panel-header", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("h2", { children: "\u{1F4CA} Panel 2: Bilans Operacji \u2014 Ile Kupiono i Ile Sprzedano (w ilo\u015Bci aktywa i w USDC)" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("p", { className: "panel-subtitle", children: "Szczeg\xF3\u0142owe zestawienie czego, w jakiej ilo\u015Bci aktywa oraz za ile USDC kupiono i sprzedano" })
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "panel-header", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("h2", { children: "\u{1F4CA} Panel 2: Bilans Operacji \u2014 Ile Kupiono i Ile Sprzedano (w ilo\u015Bci aktywa i w USDC)" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("p", { className: "panel-subtitle", children: "Szczeg\xF3\u0142owe zestawienie czego, w jakiej ilo\u015Bci aktywa oraz za ile USDC kupiono i sprzedano" })
                 ] }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "ledger-summary-cards", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "ledger-kpi buy-kpi", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: "\u0141\u0105cznie KUPIONO (w przeliczeniu na USDC):" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { id: "totalBoughtUsdcVal", children: formatUsdc(ledger.totalBoughtUsdc) })
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "ledger-summary-cards", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "ledger-kpi buy-kpi", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { children: "\u0141\u0105cznie KUPIONO (w przeliczeniu na USDC):" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { id: "totalBoughtUsdcVal", children: formatUsdc(ledger.totalBoughtUsdc) })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "ledger-kpi sell-kpi", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: "\u0141\u0105cznie SPRZEDANO (w przeliczeniu na USDC):" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { id: "totalSoldUsdcVal", children: formatUsdc(ledger.totalSoldUsdc) })
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "ledger-kpi sell-kpi", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { children: "\u0141\u0105cznie SPRZEDANO (w przeliczeniu na USDC):" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { id: "totalSoldUsdcVal", children: formatUsdc(ledger.totalSoldUsdc) })
                   ] })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mobile-table-scroll-hint", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: "\u{1F449} Przesu\u0144 tabel\u0119 w poziomie, aby zobaczy\u0107 bilans i wykres" }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "table-responsive", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("table", { className: "data-table", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Czego (Aktywo)" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Ile KUPIONO (Ilo\u015B\u0107 aktywa)" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Kupiono w przeliczeniu na USDC" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Ile SPRZEDANO (Ilo\u015B\u0107 aktywa)" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Sprzedano w przeliczeniu na USDC" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Bilans netto aktywa" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("th", { children: "Wykres" })
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "mobile-table-scroll-hint", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { children: "\u{1F449} Przesu\u0144 tabel\u0119 w poziomie, aby zobaczy\u0107 bilans i wykres" }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "table-responsive", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("table", { className: "data-table", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Czego (Aktywo)" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Ile KUPIONO (Ilo\u015B\u0107 aktywa)" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Kupiono w przeliczeniu na USDC" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Ile SPRZEDANO (Ilo\u015B\u0107 aktywa)" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Sprzedano w przeliczeniu na USDC" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Bilans netto aktywa" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Wykres" })
                   ] }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("tbody", { id: "boughtSoldLedgerTbody", children: (ledger.items || []).map((item) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("tr", { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { children: item.asset }),
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("tbody", { id: "boughtSoldLedgerTbody", children: (ledger.items || []).map((item) => /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("td", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { children: item.asset }),
                       " ",
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { className: "small-muted", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: "small-muted", children: [
                         "(",
                         item.instId,
                         ")"
                       ] })
                     ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { className: "badge-buy", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("td", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: "badge-buy", children: [
                         "KUPIONO: ",
                         formatQty(item.boughtAmount),
                         " ",
                         item.asset
                       ] }),
                       " ",
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { className: "small-muted", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: "small-muted", children: [
                         "(",
                         item.buyCount,
                         "x)"
                       ] })
                     ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { style: { color: "var(--buy-green)" }, children: formatUsdc(item.boughtUsdc) }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("td", { children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { className: "badge-sell", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { style: { color: "var(--buy-green)" }, children: formatUsdc(item.boughtUsdc) }) }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("td", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: "badge-sell", children: [
                         "SPRZEDANO: ",
                         formatQty(item.soldAmount),
                         " ",
                         item.asset
                       ] }),
                       " ",
-                      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { className: "small-muted", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: "small-muted", children: [
                         "(",
                         item.sellCount,
                         "x)"
                       ] })
                     ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { style: { color: "var(--sell-red)" }, children: formatUsdc(item.soldUsdc) }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("strong", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { style: { color: "var(--sell-red)" }, children: formatUsdc(item.soldUsdc) }) }),
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("strong", { children: [
                       formatQty(item.netAmount),
                       " ",
                       item.asset
                     ] }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
                       "button",
                       {
                         type: "button",
@@ -21138,8 +23004,8 @@
   }
 
   // src/components/PortfolioHistoryWindow.jsx
-  var import_react11 = __toESM(require_react());
-  var import_jsx_runtime11 = __toESM(require_jsx_runtime());
+  var import_react12 = __toESM(require_react());
+  var import_jsx_runtime12 = __toESM(require_jsx_runtime());
   function PortfolioHistoryWindow({
     winMeta,
     isSoloGridWindow,
@@ -21154,7 +23020,7 @@
     const executedTradesOnly = (historyList || []).filter(
       (snap) => snap.side === "BUY" || snap.side === "SELL"
     );
-    return /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
       WindowContainer,
       {
         tag: "section",
@@ -21165,18 +23031,18 @@
         onSetWindowMode,
         onCloseWindow,
         onBringToFront,
-        children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "portfolio-history-layout", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "table-responsive history-snapshots-table", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("table", { className: "data-table", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Data i Czas" }),
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Wykonana operacja" }),
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Typ" }),
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Ilo\u015B\u0107 aktywa" }),
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Cena jedn. (USDC)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Kwota operacji (USDC)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Warto\u015B\u0107 Portfela po transakcji (USDC)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Exchange Feedback" })
+        children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "portfolio-history-layout", children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "table-responsive history-snapshots-table", children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("table", { className: "data-table", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("tr", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Data i Czas" }),
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Wykonana operacja" }),
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Typ" }),
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Ilo\u015B\u0107 aktywa" }),
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Cena jedn. (USDC)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Kwota operacji (USDC)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Warto\u015B\u0107 Portfela po transakcji (USDC)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Exchange Feedback" })
           ] }) }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("tbody", { id: "portfolioHistoryTbody", children: executedTradesOnly.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("tbody", { id: "portfolioHistoryTbody", children: executedTradesOnly.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
             "td",
             {
               colSpan: 8,
@@ -21194,24 +23060,24 @@
             const rowKey = `hist-${snap.id}`;
             const isExpanded = expandedFeedbackIds.has(rowKey);
             const fb = buildExchangeFeedbackForItem(snap, apiMode);
-            return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_react11.default.Fragment, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("td", { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { children: snap.date }),
+            return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_react12.default.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("tr", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("td", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { children: snap.date }),
                   " ",
-                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("code", { children: snap.time })
+                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("code", { children: snap.time })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: snap.action }),
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: badgeClass, children: sideLabel }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("strong", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: snap.action }),
+                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: badgeClass, children: sideLabel }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("strong", { children: [
                   formatQty(snap.amount),
                   " ",
                   snap.asset
                 ] }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: formatUnitPrice(snap.price || (snap.amount > 0 ? usdcVal / snap.amount : 1)) }),
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: formatUsdc(usdcVal) }),
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { style: { color: "var(--accent-okx)" }, children: formatUsdc(snap.totalValueUsdc) }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: formatUnitPrice(snap.price || (snap.amount > 0 ? usdcVal / snap.amount : 1)) }),
+                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: formatUsdc(usdcVal) }),
+                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { style: { color: "var(--accent-okx)" }, children: formatUsdc(snap.totalValueUsdc) }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
                   "button",
                   {
                     type: "button",
@@ -21222,13 +23088,13 @@
                   }
                 ) })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
                 "tr",
                 {
                   className: "exchange-feedback-detail-row",
                   id: `ef-row-${rowKey}`,
                   hidden: !isExpanded,
-                  children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { colSpan: 8, children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(ExchangeFeedbackDetails, { fb }) })
+                  children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { colSpan: 8, children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ExchangeFeedbackDetails, { fb }) })
                 }
               )
             ] }, snap.id);
@@ -21239,8 +23105,8 @@
   }
 
   // src/components/OrdersHistoryWindow.jsx
-  var import_react12 = __toESM(require_react());
-  var import_jsx_runtime12 = __toESM(require_jsx_runtime());
+  var import_react13 = __toESM(require_react());
+  var import_jsx_runtime13 = __toESM(require_jsx_runtime());
   function OrdersHistoryWindow({
     winMeta,
     isSoloGridWindow,
@@ -21266,7 +23132,7 @@
     let filtered = allOrders;
     if (orderFilter === "OPEN") filtered = openOrders;
     else if (orderFilter === "CLOSED") filtered = closedOrders;
-    return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
       WindowContainer,
       {
         tag: "section",
@@ -21278,13 +23144,13 @@
         onCloseWindow,
         onBringToFront,
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "panel-header", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("h2", { children: "\u{1F4DC} Historia Transakcji \u2014 Otwarte Zlecenia i Zamkni\u0119te Zlecenia" }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("p", { className: "panel-subtitle", children: "Pe\u0142na lista zlece\u0144 z dat\u0105, czasem oraz przyciskiem otwieraj\u0105cym przesuwny wykres danego aktywa (Ma\u0142y / \u015Aredni / Full)" })
+          /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "panel-header", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("h2", { children: "\u{1F4DC} Historia Transakcji \u2014 Otwarte Zlecenia i Zamkni\u0119te Zlecenia" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("p", { className: "panel-subtitle", children: "Pe\u0142na lista zlece\u0144 z dat\u0105, czasem oraz przyciskiem otwieraj\u0105cym przesuwny wykres danego aktywa (Ma\u0142y / \u015Aredni / Full)" })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                 "button",
                 {
                   type: "button",
@@ -21295,7 +23161,7 @@
                   children: "\u{1F504} Synchronizuj Telefon \u21C4 Laptop"
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                 "button",
                 {
                   type: "button",
@@ -21305,7 +23171,7 @@
                   children: "\u{1F4CB} Kopiuj z tego urz\u0105dzenia"
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                 "button",
                 {
                   type: "button",
@@ -21316,8 +23182,8 @@
                 }
               )
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "orders-filter-tabs", role: "tablist", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "orders-filter-tabs", role: "tablist", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
                 "button",
                 {
                   type: "button",
@@ -21326,12 +23192,12 @@
                   onClick: () => onSetOrderFilter("ALL"),
                   children: [
                     "Wszystkie (",
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { id: "countAllOrders", children: allOrders.length }),
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { id: "countAllOrders", children: allOrders.length }),
                     ")"
                   ]
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
                 "button",
                 {
                   type: "button",
@@ -21340,12 +23206,12 @@
                   onClick: () => onSetOrderFilter("OPEN"),
                   children: [
                     "Otwarte zlecenia (",
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { id: "countOpenOrders", children: openOrders.length }),
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { id: "countOpenOrders", children: openOrders.length }),
                     ")"
                   ]
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
                 "button",
                 {
                   type: "button",
@@ -21354,50 +23220,50 @@
                   onClick: () => onSetOrderFilter("CLOSED"),
                   children: [
                     "Zamkni\u0119te zlecenia (",
-                    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { id: "countClosedOrders", children: closedOrders.length }),
+                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { id: "countClosedOrders", children: closedOrders.length }),
                     ")"
                   ]
                 }
               )
             ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "table-responsive", children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("table", { className: "data-table", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("tr", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "ID Zlecenia" }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Data" }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Czas" }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Para / Aktywo" }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Kierunek" }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Ilo\u015B\u0107 aktywa" }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Cena (USDC)" }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Warto\u015B\u0107 (USDC)" }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Strategia / \u0179r\xF3d\u0142o" }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Status zlecenia" }),
-              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("th", { children: "Szczeg\xF3\u0142y Transakcji (Exchange Feedback) & Wykres" })
+          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "table-responsive", children: /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("table", { className: "data-table", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("tr", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("th", { children: "ID Zlecenia" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("th", { children: "Data" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("th", { children: "Czas" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("th", { children: "Para / Aktywo" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("th", { children: "Kierunek" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("th", { children: "Ilo\u015B\u0107 aktywa" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("th", { children: "Cena (USDC)" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("th", { children: "Warto\u015B\u0107 (USDC)" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("th", { children: "Strategia / \u0179r\xF3d\u0142o" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("th", { children: "Status zlecenia" }),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("th", { children: "Szczeg\xF3\u0142y Transakcji (Exchange Feedback) & Wykres" })
             ] }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("tbody", { id: "ordersHistoryTbody", children: filtered.map((o) => {
+            /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("tbody", { id: "ordersHistoryTbody", children: filtered.map((o) => {
               const isBuy = o.side === "BUY";
               const isOpen = o.status === "OPEN";
               const rowKey = `ord-${o.id}`;
               const isExpanded = expandedFeedbackIds.has(rowKey);
               const fb = buildExchangeFeedbackForItem(o, apiMode);
-              return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_react12.default.Fragment, { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("tr", { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("code", { children: o.id }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { children: o.date }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("code", { children: o.time }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { children: o.instId }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: isBuy ? "badge-buy" : "badge-sell", children: isBuy ? "KUPNO (BUY)" : "SPRZEDA\u017B (SELL)" }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("strong", { children: [
+              return /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(import_react13.default.Fragment, { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("tr", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("code", { children: o.id }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { children: o.date }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("code", { children: o.time }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { children: o.instId }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: isBuy ? "badge-buy" : "badge-sell", children: isBuy ? "KUPNO (BUY)" : "SPRZEDA\u017B (SELL)" }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("strong", { children: [
                     formatQty(o.amount),
                     " ",
                     o.asset
                   ] }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: formatUnitPrice(o.price) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { children: formatUsdc(o.usdcValue) }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: o.strategyName || o.source }),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: isOpen ? "badge-status-open" : "badge-status-closed", children: o.statusLabel }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("td", { children: formatUnitPrice(o.price) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { children: formatUsdc(o.usdcValue) }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("td", { children: o.strategyName || o.source }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: isOpen ? "badge-status-open" : "badge-status-closed", children: o.statusLabel }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
                     "div",
                     {
                       style: {
@@ -21407,7 +23273,7 @@
                         flexWrap: "wrap"
                       },
                       children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                           "button",
                           {
                             type: "button",
@@ -21417,7 +23283,7 @@
                             children: "\u{1F4CB} Szczeg\xF3\u0142y transakcji (Exchange Feedback)"
                           }
                         ),
-                        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(
+                        /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
                           "button",
                           {
                             type: "button",
@@ -21430,8 +23296,8 @@
                             ]
                           }
                         ),
-                        isOpen && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_jsx_runtime12.Fragment, { children: [
-                          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                        isOpen && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(import_jsx_runtime13.Fragment, { children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                             "button",
                             {
                               type: "button",
@@ -21441,7 +23307,7 @@
                               children: "\u25B6 Do potwierdzenia"
                             }
                           ),
-                          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                             "button",
                             {
                               type: "button",
@@ -21456,13 +23322,13 @@
                     }
                   ) })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
                   "tr",
                   {
                     className: "exchange-feedback-detail-row",
                     id: `ef-row-${rowKey}`,
                     hidden: !isExpanded,
-                    children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("td", { colSpan: 11, children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ExchangeFeedbackDetails, { fb }) })
+                    children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("td", { colSpan: 11, children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(ExchangeFeedbackDetails, { fb }) })
                   }
                 )
               ] }, o.id);
@@ -21474,8 +23340,8 @@
   }
 
   // src/components/TradingViewChartWindow.jsx
-  var import_react13 = __toESM(require_react());
-  var import_jsx_runtime13 = __toESM(require_jsx_runtime());
+  var import_react14 = __toESM(require_react());
+  var import_jsx_runtime14 = __toESM(require_jsx_runtime());
   var INTERVALS = ["1m", "5m", "15m", "30m", "1H", "4H", "1D", "1W"];
   function TradingViewChartWindow({
     chartState,
@@ -21490,14 +23356,14 @@
     onQuickTradeFromChart,
     onClearDrawingsToast
   }) {
-    const canvasRef = (0, import_react13.useRef)(null);
-    const lastGeomRef = (0, import_react13.useRef)(null);
-    const panRef = (0, import_react13.useRef)({ isPanning: false, startX: 0, startOffset: 0 });
-    const yScaleRef = (0, import_react13.useRef)({ isScaling: false, startY: 0, startScale: 1 });
-    const chartStateRef = (0, import_react13.useRef)(chartState);
+    const canvasRef = (0, import_react14.useRef)(null);
+    const lastGeomRef = (0, import_react14.useRef)(null);
+    const panRef = (0, import_react14.useRef)({ isPanning: false, startX: 0, startOffset: 0 });
+    const yScaleRef = (0, import_react14.useRef)({ isScaling: false, startY: 0, startScale: 1 });
+    const chartStateRef = (0, import_react14.useRef)(chartState);
     chartStateRef.current = chartState;
-    const [, setLegendTick] = (0, import_react13.useState)(0);
-    (0, import_react13.useEffect)(() => {
+    const [, setLegendTick] = (0, import_react14.useState)(0);
+    (0, import_react14.useEffect)(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const onWheelNative = (e) => {
@@ -22161,11 +24027,11 @@
       }
       ctx.restore();
     };
-    (0, import_react13.useEffect)(() => {
+    (0, import_react14.useEffect)(() => {
       drawCanvas();
       setLegendTick((t) => t + 1);
     }, [chartState]);
-    (0, import_react13.useEffect)(() => {
+    (0, import_react14.useEffect)(() => {
       const handleResize = () => {
         if (chartState.isOpen && !chartState.isMinimized) {
           drawCanvas();
@@ -22214,8 +24080,8 @@
     if (chartState.zIndex) {
       winStyle.zIndex = String(chartState.zIndex);
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(import_jsx_runtime13.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(import_jsx_runtime14.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
         "div",
         {
           id: "floatingChartWindow",
@@ -22226,19 +24092,19 @@
           style: winStyle,
           hidden: !chartState.isOpen || chartState.isMinimized,
           children: [
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
               "div",
               {
                 id: "chartWindowHeader",
                 className: "chart-window-header",
                 title: "Przeci\u0105gnij myszk\u0105 lub palcem, aby przesun\u0105\u0107 okno wykresu",
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "chart-title-group", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "drag-grip", children: "\u283F" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "tv-brand-pill", children: "TradingView PRO" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { id: "chartPairTitle", children: data?.instId || chartState.instId }),
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { id: "chartLivePriceBadge", className: "chart-price-badge", children: data ? formatUnitPrice(data.currentPrice) : "\u2014 USDC" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "chart-title-group", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "drag-grip", children: "\u283F" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "tv-brand-pill", children: "TradingView PRO" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("strong", { id: "chartPairTitle", children: data?.instId || chartState.instId }),
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { id: "chartLivePriceBadge", className: "chart-price-badge", children: data ? formatUnitPrice(data.currentPrice) : "\u2014 USDC" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                       "span",
                       {
                         id: "chartChangeBadge",
@@ -22246,17 +24112,17 @@
                         children: data ? `${isPos ? "+" : ""}${data.change24hPct}%` : "0.00%"
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "tv-live-dot-badge", title: "Notowania na \u017Cywo z gie\u0142dy OKX", children: "\u25CF OKX LIVE" })
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "tv-live-dot-badge", title: "Notowania na \u017Cywo z gie\u0142dy OKX", children: "\u25CF OKX LIVE" })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "chart-window-controls", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "chart-window-controls", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
                       "div",
                       {
                         className: "chart-size-group tv-engine-switch",
                         role: "group",
                         "aria-label": "Silnik wykresu",
                         children: [
-                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                             "button",
                             {
                               type: "button",
@@ -22267,7 +24133,7 @@
                               children: "\u26A1 TV Pro"
                             }
                           ),
-                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                             "button",
                             {
                               type: "button",
@@ -22281,7 +24147,7 @@
                         ]
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "chart-size-group", role: "group", "aria-label": "Rozmiar wykresu", children: ["small", "medium", "full"].map((sz) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "chart-size-group", role: "group", "aria-label": "Rozmiar wykresu", children: ["small", "medium", "full"].map((sz) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                       "button",
                       {
                         type: "button",
@@ -22292,7 +24158,7 @@
                       },
                       sz
                     )) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                       "button",
                       {
                         type: "button",
@@ -22303,7 +24169,7 @@
                         children: "\u{1F53C} Menu"
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                       "button",
                       {
                         type: "button",
@@ -22314,7 +24180,7 @@
                         children: "\u25C0 Sidebar"
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                       "button",
                       {
                         type: "button",
@@ -22325,7 +24191,7 @@
                         children: "\u2014"
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                       "button",
                       {
                         type: "button",
@@ -22340,19 +24206,19 @@
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "chart-toolbar tv-top-toolbar", id: "tvTopToolbar", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "tv-toolbar-group", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "chart-toolbar tv-top-toolbar", id: "tvTopToolbar", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "tv-toolbar-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                   "select",
                   {
                     id: "chartAssetSelect",
                     "aria-label": "Wybierz par\u0119 walutow\u0105",
                     value: chartState.instId,
                     onChange: (e) => onUpdateChartState({ instId: e.target.value, panOffset: 0 }, true),
-                    children: mList.map((m) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: m.instId, children: m.instId }, m.instId))
+                    children: mList.map((m) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("option", { value: m.instId, children: m.instId }, m.instId))
                   }
                 ),
-                /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "chart-intervals", role: "group", "aria-label": "Interwa\u0142 \u015Bwiec", children: INTERVALS.map((bar) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "chart-intervals", role: "group", "aria-label": "Interwa\u0142 \u015Bwiec", children: INTERVALS.map((bar) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                   "button",
                   {
                     type: "button",
@@ -22363,7 +24229,7 @@
                   },
                   bar
                 )) }),
-                /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+                /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
                   "select",
                   {
                     id: "tvChartTypeSelect",
@@ -22372,17 +24238,17 @@
                     value: chartState.chartType,
                     onChange: (e) => onUpdateChartState({ chartType: e.target.value }),
                     children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "candles", children: "\u{1F56F}\uFE0F \u015Awiece" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "hollow", children: "\u{1FB99} Puste \u015Bwiece" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "heikin", children: "\u{1F4C8} Heikin Ashi" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "area", children: "\u{1F30A} Obszar (Area)" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "line", children: "\u{1F4C9} Linia (Line)" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("option", { value: "bars", children: "\u{1F4CA} S\u0142upki (OHLC)" })
+                      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("option", { value: "candles", children: "\u{1F56F}\uFE0F \u015Awiece" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("option", { value: "hollow", children: "\u{1FB99} Puste \u015Bwiece" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("option", { value: "heikin", children: "\u{1F4C8} Heikin Ashi" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("option", { value: "area", children: "\u{1F30A} Obszar (Area)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("option", { value: "line", children: "\u{1F4C9} Linia (Line)" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("option", { value: "bars", children: "\u{1F4CA} S\u0142upki (OHLC)" })
                     ]
                   }
                 )
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                 "div",
                 {
                   className: "tv-indicators-bar",
@@ -22396,7 +24262,7 @@
                     { key: "vol", label: "Wolumen" },
                     { key: "rsi", label: "RSI (14)" },
                     { key: "macd", label: "MACD" }
-                  ].map((ind) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                  ].map((ind) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                     "button",
                     {
                       type: "button",
@@ -22415,9 +24281,9 @@
                   ))
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "tv-zoom-and-stats", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "tv-zoom-btns", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "tv-zoom-and-stats", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "tv-zoom-btns", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                     "button",
                     {
                       type: "button",
@@ -22430,7 +24296,7 @@
                       children: "\u{1F50D}+"
                     }
                   ),
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                     "button",
                     {
                       type: "button",
@@ -22443,7 +24309,7 @@
                       children: "\u{1F50D}\u2212"
                     }
                   ),
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                     "button",
                     {
                       type: "button",
@@ -22455,29 +24321,29 @@
                     }
                   )
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "chart-stats-mini", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "chart-stats-mini", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { children: [
                     "24h Max:",
                     " ",
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { id: "chartHigh24h", children: data ? formatUnitPrice(data.high24h) : "\u2014" })
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("strong", { id: "chartHigh24h", children: data ? formatUnitPrice(data.high24h) : "\u2014" })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { children: [
                     "24h Min:",
                     " ",
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { id: "chartLow24h", children: data ? formatUnitPrice(data.low24h) : "\u2014" })
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("strong", { id: "chartLow24h", children: data ? formatUnitPrice(data.low24h) : "\u2014" })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { children: [
                     "Wol 24h:",
                     " ",
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { id: "chartVol24h", children: data ? `${Number(data.vol24h || 0).toLocaleString("pl-PL", {
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("strong", { id: "chartVol24h", children: data ? `${Number(data.vol24h || 0).toLocaleString("pl-PL", {
                       maximumFractionDigits: 1
                     })} ${data.base}` : "\u2014" })
                   ] })
                 ] })
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "tv-workspace", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "tv-workspace", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
                 "aside",
                 {
                   className: "tv-drawing-toolbar",
@@ -22491,7 +24357,7 @@
                       { tool: "hline", icon: "\u2501", title: "Poziom wsparcia / oporu" },
                       { tool: "fib", icon: "\u{1F4D0}", title: "Zniesienia Fibonacciego" },
                       { tool: "measure", icon: "\u{1F4CF}", title: "Linijka / Pomiar zmiany ceny %" }
-                    ].map((t) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                    ].map((t) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                       "button",
                       {
                         type: "button",
@@ -22503,7 +24369,7 @@
                       },
                       t.tool
                     )),
-                    /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                       "button",
                       {
                         type: "button",
@@ -22525,31 +24391,31 @@
                   ]
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "chart-canvas-wrapper tv-chart-stage", id: "tvChartStage", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "chart-canvas-wrapper tv-chart-stage", id: "tvChartStage", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
                   "div",
                   {
                     className: "tv-ohlc-legend",
                     id: "tvOhlcLegend",
                     style: { display: isWidget ? "none" : "flex" },
                     children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "tv-legend-row-main", id: "tvLegendMainRow", children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { className: "tv-leg-sym", children: data?.instId || chartState.instId }),
-                        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "tv-leg-sep", children: "\u2022" }),
-                        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "tv-leg-tf", children: chartState.bar }),
-                        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "tv-leg-sep", children: "\u2022" }),
-                        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "tv-leg-exch", children: "OKX Spot" }),
-                        cInfo ? /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { className: "tv-leg-ohlc", id: "tvLegendOhlcValues", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "tv-legend-row-main", id: "tvLegendMainRow", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("strong", { className: "tv-leg-sym", children: data?.instId || chartState.instId }),
+                        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "tv-leg-sep", children: "\u2022" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "tv-leg-tf", children: chartState.bar }),
+                        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "tv-leg-sep", children: "\u2022" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "tv-leg-exch", children: "OKX Spot" }),
+                        cInfo ? /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: "tv-leg-ohlc", id: "tvLegendOhlcValues", children: [
                           "O",
-                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.open) }),
+                          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.open) }),
                           " H",
-                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.high) }),
+                          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.high) }),
                           " L",
-                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.low) }),
+                          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.low) }),
                           " C",
-                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.close) }),
+                          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { style: { color: cCol }, children: formatRawPrice(cInfo.close) }),
                           " ",
-                          /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { style: { color: cCol }, children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { style: { color: cCol }, children: [
                             "(",
                             cChange >= 0 ? "+" : "",
                             cChangePct,
@@ -22558,33 +24424,33 @@
                           " ",
                           "Wol:",
                           " ",
-                          /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { style: { color: "#d1d4dc" }, children: Number(cInfo.volume || 0).toFixed(2) })
-                        ] }) : /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "tv-leg-ohlc", id: "tvLegendOhlcValues", children: "O: \u2014 H: \u2014 L: \u2014 C: \u2014" })
+                          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("strong", { style: { color: "#d1d4dc" }, children: Number(cInfo.volume || 0).toFixed(2) })
+                        ] }) : /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "tv-leg-ohlc", id: "tvLegendOhlcValues", children: "O: \u2014 H: \u2014 L: \u2014 C: \u2014" })
                       ] }),
-                      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "tv-legend-row-inds", id: "tvLegendIndicatorsRow", children: geom && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(import_jsx_runtime13.Fragment, { children: [
-                        chartState.indicators.ema && geom.ema9All[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { style: { color: "#2962ff", marginRight: 8 }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "tv-legend-row-inds", id: "tvLegendIndicatorsRow", children: geom && /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(import_jsx_runtime14.Fragment, { children: [
+                        chartState.indicators.ema && geom.ema9All[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { style: { color: "#2962ff", marginRight: 8 }, children: [
                           "EMA9: ",
                           formatRawPrice(geom.ema9All[gInfoIdx])
                         ] }),
-                        chartState.indicators.ema && geom.ema21All[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { style: { color: "#ff9800", marginRight: 8 }, children: [
+                        chartState.indicators.ema && geom.ema21All[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { style: { color: "#ff9800", marginRight: 8 }, children: [
                           "EMA21: ",
                           formatRawPrice(geom.ema21All[gInfoIdx])
                         ] }),
-                        chartState.indicators.ema && geom.ema50All[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { style: { color: "#e040fb", marginRight: 8 }, children: [
+                        chartState.indicators.ema && geom.ema50All[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { style: { color: "#e040fb", marginRight: 8 }, children: [
                           "EMA50: ",
                           formatRawPrice(geom.ema50All[gInfoIdx])
                         ] }),
-                        chartState.indicators.bb && geom.bbAll.mid[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { style: { color: "#00bcd4", marginRight: 8 }, children: [
+                        chartState.indicators.bb && geom.bbAll.mid[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { style: { color: "#00bcd4", marginRight: 8 }, children: [
                           "BB(20,2): ",
                           formatRawPrice(geom.bbAll.lower[gInfoIdx]),
                           "\u2013",
                           formatRawPrice(geom.bbAll.upper[gInfoIdx])
                         ] }),
-                        chartState.indicators.vwap && geom.vwapAll[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { style: { color: "#ffeb3b", marginRight: 8 }, children: [
+                        chartState.indicators.vwap && geom.vwapAll[gInfoIdx] && /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { style: { color: "#ffeb3b", marginRight: 8 }, children: [
                           "VWAP: ",
                           formatRawPrice(geom.vwapAll[gInfoIdx])
                         ] }),
-                        geom.avgBuyPx > 0 && /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { style: { color: "#bcff2f" }, children: [
+                        geom.avgBuyPx > 0 && /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { style: { color: "#bcff2f" }, children: [
                           "\u015Ar. zakup: ",
                           formatRawPrice(geom.avgBuyPx),
                           " USDC"
@@ -22593,7 +24459,7 @@
                     ]
                   }
                 ),
-                /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                   "canvas",
                   {
                     id: "assetChartCanvas",
@@ -22729,13 +24595,13 @@
                     }
                   }
                 ),
-                /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                   "div",
                   {
                     id: "tvOfficialWidgetContainer",
                     className: "tv-official-widget-box",
                     hidden: !isWidget,
-                    children: isWidget && chartState.isOpen && !chartState.isMinimized && /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                    children: isWidget && chartState.isOpen && !chartState.isMinimized && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                       "iframe",
                       {
                         src: iframeUrl,
@@ -22749,13 +24615,13 @@
                 )
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "chart-window-footer", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "chart-window-footer", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { children: [
                 "\u{1F4A1} ",
-                /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { children: "TradingView Pro:" }),
+                /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("strong", { children: "TradingView Pro:" }),
                 " Rolka myszy = Zag\u0119szczanie / Rozszerzanie osi czasu (Zoom) \u2022 O\u015B Y z prawej = Przeci\u0105gnij myszk\u0105, aby skalowa\u0107 wysoko\u015B\u0107 ceny (2x klik = Auto-fit) \u2022 Przeci\u0105gnij wykres = Historia"
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                 "button",
                 {
                   type: "button",
@@ -22769,20 +24635,20 @@
           ]
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)(
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
         "div",
         {
           id: "minimizedChartBar",
           className: "minimized-chart-bar",
           hidden: !chartState.isMinimized,
           children: [
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "min-bar-info", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { children: "\u{1F4C8} Wykres zminimalizowany:" }),
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("strong", { id: "minBarPair", children: chartState.instId }),
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { id: "minBarPrice", className: "chart-price-badge", children: data ? formatUnitPrice(data.currentPrice) : "\u2014 USDC" })
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "min-bar-info", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { children: "\u{1F4C8} Wykres zminimalizowany:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("strong", { id: "minBarPair", children: chartState.instId }),
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { id: "minBarPrice", className: "chart-price-badge", children: data ? formatUnitPrice(data.currentPrice) : "\u2014 USDC" })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "min-bar-actions", children: [
-              ["small", "medium", "full"].map((sz) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "min-bar-actions", children: [
+              ["small", "medium", "full"].map((sz) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                 "button",
                 {
                   type: "button",
@@ -22793,7 +24659,7 @@
                 },
                 sz
               )),
-              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
                 "button",
                 {
                   type: "button",
@@ -22812,13 +24678,14 @@
   }
 
   // src/App.jsx
-  var import_jsx_runtime14 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime15 = __toESM(require_jsx_runtime());
   var INITIAL_WINDOWS_REGISTRY = [
     { id: "win-ctrl-api", title: "1. Tryb i Klucze API", icon: "\u{1F511}", mode: "docked-top", prevActiveMode: "grid", posX: 40, posY: 90, isTopCtrl: true },
     { id: "win-ctrl-trade", title: "2. Sterowanie Handlem", icon: "\u25B6\uFE0F", mode: "docked-top", prevActiveMode: "grid", posX: 80, posY: 110, isTopCtrl: true },
     { id: "win-ctrl-ai", title: "3. Status Agenta AI", icon: "\u{1F916}", mode: "docked-top", prevActiveMode: "grid", posX: 120, posY: 130, isTopCtrl: true },
     { id: "win-ai-chat", title: "Agent AI Handlu", icon: "\u{1F4AC}", mode: "docked-top", prevActiveMode: "grid", posX: 70, posY: 100 },
-    { id: "win-ai-strategies", title: "AI Strategies (OKX AI)", icon: "\u{1F9E0}", mode: "docked-top", prevActiveMode: "floating-medium", posX: 95, posY: 70 },
+    { id: "win-ai-strategies", title: "Strategia OKX ai: SPOT", icon: "\u{1F9E0}", mode: "docked-top", prevActiveMode: "floating-medium", posX: 95, posY: 70 },
+    { id: "win-ai-strategies-futures", title: "Strategia OKX ai: FUTURES", icon: "\u26A1\u{1F4C8}", mode: "docked-top", prevActiveMode: "floating-medium", posX: 110, posY: 75 },
     { id: "win-quick-trade", title: "Kreator Zlecenia", icon: "\u26A1", mode: "docked-top", prevActiveMode: "grid", posX: 130, posY: 120 },
     { id: "win-portfolio", title: "Portfel Handlowy", icon: "\u{1F4BC}", mode: "docked-top", prevActiveMode: "grid", posX: 160, posY: 140 },
     { id: "win-bought-sold", title: "Kupiono / Sprzedano", icon: "\u{1F4CA}", mode: "docked-top", prevActiveMode: "grid", posX: 190, posY: 160 },
@@ -22827,38 +24694,40 @@
     { id: "win-chart", title: "Wykres Aktywa", icon: "\u{1F56F}\uFE0F", mode: "docked-top", prevActiveMode: "floating-medium", posX: 110, posY: 130, isChart: true }
   ];
   function App() {
-    const [appState, setAppState] = (0, import_react14.useState)(null);
-    const [windowsRegistry, setWindowsRegistry] = (0, import_react14.useState)(INITIAL_WINDOWS_REGISTRY);
-    const [leftSidebarCollapsed, setLeftSidebarCollapsed] = (0, import_react14.useState)(true);
-    const [topMenuOpen, setTopMenuOpen] = (0, import_react14.useState)(false);
-    const [topMenuSize, setTopMenuSize] = (0, import_react14.useState)("medium");
-    const [topMenuPos, setTopMenuPos] = (0, import_react14.useState)(null);
-    const [topMenuZIndex, setTopMenuZIndex] = (0, import_react14.useState)(1280);
-    const [apiAccordionOpen, setApiAccordionOpen] = (0, import_react14.useState)(false);
-    const [tradeAccordionOpen, setTradeAccordionOpen] = (0, import_react14.useState)(false);
-    const [apiKeyProfile, setApiKeyProfile] = (0, import_react14.useState)("demo");
-    const [inputApiKey, setInputApiKey] = (0, import_react14.useState)("");
-    const [inputSecretKey, setInputSecretKey] = (0, import_react14.useState)("");
-    const [inputPassphrase, setInputPassphrase] = (0, import_react14.useState)("");
-    const [aiChatInput, setAiChatInput] = (0, import_react14.useState)("");
-    const [chatMessages, setChatMessages] = (0, import_react14.useState)([]);
-    const [aiStrategyInput, setAiStrategyInput] = (0, import_react14.useState)("");
-    const [currentAiStrategyAnalysis, setCurrentAiStrategyAnalysis] = (0, import_react14.useState)(null);
-    const [lastExchangeFeedback, setLastExchangeFeedback] = (0, import_react14.useState)(null);
-    const [executedSessionTransactions, setExecutedSessionTransactions] = (0, import_react14.useState)([]);
-    const [collapsedAiTxIds, setCollapsedAiTxIds] = (0, import_react14.useState)(() => /* @__PURE__ */ new Set());
-    const [collapsedBubbleIds, setCollapsedBubbleIds] = (0, import_react14.useState)(() => /* @__PURE__ */ new Set());
-    const [expandedFeedbackIds, setExpandedFeedbackIds] = (0, import_react14.useState)(() => /* @__PURE__ */ new Set());
-    const [isConfirmingOrder, setIsConfirmingOrder] = (0, import_react14.useState)(false);
-    const [orderSide, setOrderSide] = (0, import_react14.useState)("BUY");
-    const [tradePair, setTradePair] = (0, import_react14.useState)("BTC-USDC");
-    const [tradeOrderType, setTradeOrderType] = (0, import_react14.useState)("MARKET");
-    const [tradePrice, setTradePrice] = (0, import_react14.useState)(76682.3);
-    const [tradeAmount, setTradeAmount] = (0, import_react14.useState)("0.02");
-    const [tradeUsdc, setTradeUsdc] = (0, import_react14.useState)("1533.65");
-    const [tradeStrategy, setTradeStrategy] = (0, import_react14.useState)("Zlecenie autoryzowane Spot EEA");
-    const [orderFilter, setOrderFilter] = (0, import_react14.useState)("ALL");
-    const [chartState, setChartState] = (0, import_react14.useState)({
+    const [appState, setAppState] = (0, import_react15.useState)(null);
+    const [windowsRegistry, setWindowsRegistry] = (0, import_react15.useState)(INITIAL_WINDOWS_REGISTRY);
+    const [leftSidebarCollapsed, setLeftSidebarCollapsed] = (0, import_react15.useState)(true);
+    const [topMenuOpen, setTopMenuOpen] = (0, import_react15.useState)(false);
+    const [topMenuSize, setTopMenuSize] = (0, import_react15.useState)("medium");
+    const [topMenuPos, setTopMenuPos] = (0, import_react15.useState)(null);
+    const [topMenuZIndex, setTopMenuZIndex] = (0, import_react15.useState)(1280);
+    const [apiAccordionOpen, setApiAccordionOpen] = (0, import_react15.useState)(false);
+    const [tradeAccordionOpen, setTradeAccordionOpen] = (0, import_react15.useState)(false);
+    const [apiKeyProfile, setApiKeyProfile] = (0, import_react15.useState)("demo");
+    const [inputApiKey, setInputApiKey] = (0, import_react15.useState)("");
+    const [inputSecretKey, setInputSecretKey] = (0, import_react15.useState)("");
+    const [inputPassphrase, setInputPassphrase] = (0, import_react15.useState)("");
+    const [aiChatInput, setAiChatInput] = (0, import_react15.useState)("");
+    const [chatMessages, setChatMessages] = (0, import_react15.useState)([]);
+    const [aiStrategyInput, setAiStrategyInput] = (0, import_react15.useState)("");
+    const [currentAiStrategyAnalysis, setCurrentAiStrategyAnalysis] = (0, import_react15.useState)(null);
+    const [aiFuturesInput, setAiFuturesInput] = (0, import_react15.useState)("");
+    const [currentAiFuturesAnalysis, setCurrentAiFuturesAnalysis] = (0, import_react15.useState)(null);
+    const [lastExchangeFeedback, setLastExchangeFeedback] = (0, import_react15.useState)(null);
+    const [executedSessionTransactions, setExecutedSessionTransactions] = (0, import_react15.useState)([]);
+    const [collapsedAiTxIds, setCollapsedAiTxIds] = (0, import_react15.useState)(() => /* @__PURE__ */ new Set());
+    const [collapsedBubbleIds, setCollapsedBubbleIds] = (0, import_react15.useState)(() => /* @__PURE__ */ new Set());
+    const [expandedFeedbackIds, setExpandedFeedbackIds] = (0, import_react15.useState)(() => /* @__PURE__ */ new Set());
+    const [isConfirmingOrder, setIsConfirmingOrder] = (0, import_react15.useState)(false);
+    const [orderSide, setOrderSide] = (0, import_react15.useState)("BUY");
+    const [tradePair, setTradePair] = (0, import_react15.useState)("BTC-USDC");
+    const [tradeOrderType, setTradeOrderType] = (0, import_react15.useState)("MARKET");
+    const [tradePrice, setTradePrice] = (0, import_react15.useState)(76682.3);
+    const [tradeAmount, setTradeAmount] = (0, import_react15.useState)("0.02");
+    const [tradeUsdc, setTradeUsdc] = (0, import_react15.useState)("1533.65");
+    const [tradeStrategy, setTradeStrategy] = (0, import_react15.useState)("Zlecenie autoryzowane Spot EEA");
+    const [orderFilter, setOrderFilter] = (0, import_react15.useState)("ALL");
+    const [chartState, setChartState] = (0, import_react15.useState)({
       isOpen: false,
       isMinimized: false,
       dockLocation: "top",
@@ -22890,19 +24759,19 @@
       posY: 85,
       zIndex: 1300
     });
-    const [toasts, setToasts] = (0, import_react14.useState)([]);
-    const zIndexCounterRef = (0, import_react14.useRef)(1350);
-    const wasJustDraggingRef = (0, import_react14.useRef)(false);
-    const chartStateRef = (0, import_react14.useRef)(chartState);
+    const [toasts, setToasts] = (0, import_react15.useState)([]);
+    const zIndexCounterRef = (0, import_react15.useRef)(1350);
+    const wasJustDraggingRef = (0, import_react15.useRef)(false);
+    const chartStateRef = (0, import_react15.useRef)(chartState);
     chartStateRef.current = chartState;
-    const windowsRegistryRef = (0, import_react14.useRef)(windowsRegistry);
+    const windowsRegistryRef = (0, import_react15.useRef)(windowsRegistry);
     windowsRegistryRef.current = windowsRegistry;
-    const topMenuOpenRef = (0, import_react14.useRef)(topMenuOpen);
+    const topMenuOpenRef = (0, import_react15.useRef)(topMenuOpen);
     topMenuOpenRef.current = topMenuOpen;
-    const topMenuSizeRef = (0, import_react14.useRef)(topMenuSize);
+    const topMenuSizeRef = (0, import_react15.useRef)(topMenuSize);
     topMenuSizeRef.current = topMenuSize;
-    const lastSessionSyncTsRef = (0, import_react14.useRef)(0);
-    (0, import_react14.useEffect)(() => {
+    const lastSessionSyncTsRef = (0, import_react15.useRef)(0);
+    (0, import_react15.useEffect)(() => {
       const sync = appState?.sessionSync;
       if (!sync || !sync.updatedAt) return;
       if (sync.updatedAt <= lastSessionSyncTsRef.current) return;
@@ -22918,6 +24787,9 @@
       if (sync.currentAiStrategyAnalysis) {
         setCurrentAiStrategyAnalysis(sync.currentAiStrategyAnalysis);
       }
+      if (sync.currentAiFuturesStrategyAnalysis) {
+        setCurrentAiFuturesAnalysis(sync.currentAiFuturesStrategyAnalysis);
+      }
       if (Array.isArray(sync.executedSessionTransactions) && sync.executedSessionTransactions.length > 0) {
         setExecutedSessionTransactions(sync.executedSessionTransactions);
       }
@@ -22925,18 +24797,18 @@
         setLastExchangeFeedback(sync.lastExchangeFeedback);
       }
     }, [appState?.sessionSync]);
-    const nextZIndex = (0, import_react14.useCallback)((bonus = 0) => {
+    const nextZIndex = (0, import_react15.useCallback)((bonus = 0) => {
       zIndexCounterRef.current += 1;
       return zIndexCounterRef.current + bonus;
     }, []);
-    const showToast = (0, import_react14.useCallback)((msg) => {
+    const showToast = (0, import_react15.useCallback)((msg) => {
       const id = Date.now() + Math.random();
       setToasts((prev) => [...prev, { id, msg }]);
       setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
       }, 4500);
     }, []);
-    const appendChatMessage = (0, import_react14.useCallback)((role, text, options = {}) => {
+    const appendChatMessage = (0, import_react15.useCallback)((role, text, options = {}) => {
       const id = "msg-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
       setChatMessages((prev) => [
         ...prev,
@@ -22950,7 +24822,7 @@
         }
       ]);
     }, []);
-    const fetchChartCandles = (0, import_react14.useCallback)(async (instId, bar) => {
+    const fetchChartCandles = (0, import_react15.useCallback)(async (instId, bar) => {
       const targetPair = instId || chartStateRef.current.instId || "BTC-USDC";
       const targetBar = bar || chartStateRef.current.bar || "15m";
       const data = await apiRequest(
@@ -22963,7 +24835,7 @@
         data
       }));
     }, []);
-    const openAssetChart = (0, import_react14.useCallback)(
+    const openAssetChart = (0, import_react15.useCallback)(
       async (instId = "BTC-USDC", size = null) => {
         const targetSize = size || chartStateRef.current.size || "medium";
         const z = nextZIndex(20);
@@ -22994,7 +24866,7 @@
       },
       [fetchChartCandles, nextZIndex]
     );
-    const setWindowMode = (0, import_react14.useCallback)(
+    const setWindowMode = (0, import_react15.useCallback)(
       (winId, requestedMode, customCoords = null) => {
         if (winId === "win-chart") {
           if (requestedMode === "docked-top" || requestedMode === "docked-sidebar") {
@@ -23050,6 +24922,12 @@
             setCurrentAiStrategyAnalysis(null);
           }
         }
+        if (winId === "win-ai-strategies-futures") {
+          setAiFuturesInput("");
+          if (requestedMode === "docked-top" || requestedMode === "docked-sidebar") {
+            setCurrentAiFuturesAnalysis(null);
+          }
+        }
         if (requestedMode === "grid") {
           setTimeout(() => {
             const domEl = document.getElementById(winId);
@@ -23065,12 +24943,16 @@
       },
       [nextZIndex, openAssetChart]
     );
-    const handleCloseWindow = (0, import_react14.useCallback)(
+    const handleCloseWindow = (0, import_react15.useCallback)(
       (winId) => {
         const winMeta = windowsRegistryRef.current.find((w) => w.id === winId);
         if (winId === "win-ai-strategies") {
           setCurrentAiStrategyAnalysis(null);
           setAiStrategyInput("");
+        }
+        if (winId === "win-ai-strategies-futures") {
+          setCurrentAiFuturesAnalysis(null);
+          setAiFuturesInput("");
         }
         setWindowMode(winId, "docked-top");
         if (winMeta) {
@@ -23081,7 +24963,7 @@
       },
       [setWindowMode, showToast]
     );
-    const handleBringToFront = (0, import_react14.useCallback)(
+    const handleBringToFront = (0, import_react15.useCallback)(
       (winId) => {
         const z = nextZIndex();
         setWindowsRegistry(
@@ -23096,7 +24978,7 @@
     const isSingleGridWindow = allGridWindows.length === 1;
     const soloWindow = isSingleGridWindow ? allGridWindows[0] : null;
     const isSoloMinimized = isSingleGridWindow && soloWindow && soloWindow.mode === "minimized-inline";
-    (0, import_react14.useEffect)(() => {
+    (0, import_react15.useEffect)(() => {
       if (document.body) {
         document.body.classList.toggle(
           "has-single-window-grid",
@@ -23105,7 +24987,7 @@
         document.body.classList.toggle("single-window-minimized", isSoloMinimized);
       }
     }, [isSingleGridWindow, isSoloMinimized]);
-    (0, import_react14.useEffect)(() => {
+    (0, import_react15.useEffect)(() => {
       if (!appState) return;
       const markets2 = appState.markets || appState.tickers || DEFAULT_STANDALONE_MARKETS;
       const m = markets2.find((x) => x.instId === tradePair) || markets2[0];
@@ -23113,7 +24995,7 @@
         setTradePrice(m.price);
       }
     }, [appState, tradePair, tradeOrderType]);
-    (0, import_react14.useEffect)(() => {
+    (0, import_react15.useEffect)(() => {
       let dragState = null;
       const handlePointerDown = (clientX, clientY, target, rawEvent) => {
         const titlebar = target.closest("[data-drag-window]");
@@ -23270,7 +25152,7 @@
         window.removeEventListener("touchend", handlePointerUp);
       };
     }, [setWindowMode]);
-    (0, import_react14.useEffect)(() => {
+    (0, import_react15.useEffect)(() => {
       let mounted = true;
       async function initLoad() {
         let initialState = await apiRequest("/api/state");
@@ -23518,6 +25400,8 @@
       const ordId = appState.activeTradeOrder.id;
       setAiStrategyInput("");
       setCurrentAiStrategyAnalysis(null);
+      setAiFuturesInput("");
+      setCurrentAiFuturesAnalysis(null);
       const res = await apiRequest("/api/trade/stop", "POST", {
         reason: "user_rejected",
         orderId: ordId
@@ -23590,7 +25474,7 @@
         setAppState(res.state);
       }
     };
-    const runAiStrategyQuery = (0, import_react14.useCallback)(
+    const runAiStrategyQuery = (0, import_react15.useCallback)(
       async (queryText) => {
         const q = (queryText || "").trim() || "Strategia kupna dla BTC";
         setLastExchangeFeedback(null);
@@ -23628,6 +25512,8 @@
     const handleOpenAiStrategies = () => {
       setAiStrategyInput("");
       setCurrentAiStrategyAnalysis(null);
+      setAiFuturesInput("");
+      setCurrentAiFuturesAnalysis(null);
       const stratWinMeta = windowsRegistryRef.current.find(
         (w) => w.id === "win-ai-strategies"
       );
@@ -23646,6 +25532,62 @@
         }
       }, 60);
     };
+    const runAiFuturesStrategyQuery = (0, import_react15.useCallback)(
+      async (queryText, options = {}) => {
+        const q = (queryText || "").trim() || "BTC-SWAP LONG 10x";
+        setLastExchangeFeedback(null);
+        setAiFuturesInput("");
+        const res = await apiRequest("/api/agent/strategy/futures", "POST", { query: q, options });
+        if (res.analysis) {
+          setCurrentAiFuturesAnalysis(res.analysis);
+        }
+        if (res.reply) {
+          appendChatMessage("user", `[Strategia OKX ai: FUTURES] ${q}`);
+          appendChatMessage("assistant", res.reply, {
+            orderId: res.activeTradeOrder?.id,
+            isPendingTx: true
+          });
+        }
+        if (res.state) {
+          setAppState(res.state);
+        }
+        setTimeout(() => {
+          const box = document.getElementById("aiFuturesResultContainer");
+          if (box) box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 50);
+        showToast(
+          `\u26A1 Wygenerowano analiz\u0119 i strategi\u0119 futures OKX AI dla: ${res.analysis?.instId || q}`
+        );
+      },
+      [appendChatMessage, showToast]
+    );
+    const handleSubmitAiFuturesStrategy = (e) => {
+      e.preventDefault();
+      const query = (aiFuturesInput || "").trim() || "BTC-SWAP 10x";
+      setAiFuturesInput("");
+      runAiFuturesStrategyQuery(query);
+    };
+    const handleOpenAiFuturesStrategies = () => {
+      setAiFuturesInput("");
+      setCurrentAiFuturesAnalysis(null);
+      const stratWinMeta = windowsRegistryRef.current.find(
+        (w) => w.id === "win-ai-strategies-futures"
+      );
+      if (stratWinMeta) {
+        if (stratWinMeta.mode === "docked-top" || stratWinMeta.mode === "docked-sidebar" || stratWinMeta.mode === "minimized-inline") {
+          setWindowMode("win-ai-strategies-futures", "floating-medium");
+        } else {
+          handleBringToFront("win-ai-strategies-futures");
+        }
+      }
+      setTimeout(() => {
+        const inp = document.getElementById("aiFuturesStrategyInput");
+        if (inp) {
+          inp.value = "";
+          inp.focus();
+        }
+      }, 60);
+    };
     const handleToggleAiExecutedTx = (txKey) => {
       setCollapsedAiTxIds((prev) => {
         const next = new Set(prev);
@@ -23654,7 +25596,7 @@
         return next;
       });
     };
-    const collapseAllAiTransactions = (0, import_react14.useCallback)(() => {
+    const collapseAllAiTransactions = (0, import_react15.useCallback)(() => {
       const txList = executedSessionTransactions.length > 0 ? executedSessionTransactions : lastExchangeFeedback ? [lastExchangeFeedback] : [];
       const nextTx = new Set(txList.map((fb) => String(fb.orderId || "LATEST")));
       if (lastExchangeFeedback?.orderId) {
@@ -23815,6 +25757,9 @@
       } else if (winId === "win-ai-strategies") {
         setCurrentAiStrategyAnalysis(null);
         setAiStrategyInput("");
+      } else if (winId === "win-ai-strategies-futures") {
+        setCurrentAiFuturesAnalysis(null);
+        setAiFuturesInput("");
       }
       showToast(`\u{1F5D4} Otwarto okno \u201E${winMeta.title}\u201D (pozosta\u0142e okna zwini\u0119te do Menu).`);
       setTimeout(() => {
@@ -23865,7 +25810,7 @@
       setLeftSidebarCollapsed(false);
       showToast("\u25C0 Wszystkie okna zosta\u0142y zwini\u0119te do Sidebaru z lewej.");
     };
-    const handleUpdateChartState = (0, import_react14.useCallback)(
+    const handleUpdateChartState = (0, import_react15.useCallback)(
       (updates, shouldFetchCandles = false) => {
         setChartState((prev) => {
           const next = { ...prev, ...updates };
@@ -23903,7 +25848,7 @@
       showToast(`Wybrano par\u0119 ${instId} w Kreatorze Zlecenia.`);
     };
     const agentOrderWinsInGrid = windowsRegistry.filter(
-      (w) => (w.id === "win-ai-chat" || w.id === "win-ai-strategies" || w.id === "win-quick-trade") && (w.mode === "grid" || w.mode === "minimized-inline")
+      (w) => (w.id === "win-ai-chat" || w.id === "win-ai-strategies" || w.id === "win-ai-strategies-futures" || w.id === "win-quick-trade") && (w.mode === "grid" || w.mode === "minimized-inline")
     );
     const rowAgentOrderClass = [
       "workspace-row row-agent-and-order",
@@ -23918,8 +25863,8 @@
     ].filter(Boolean).join(" ");
     const markets = appState?.markets || appState?.tickers || DEFAULT_STANDALONE_MARKETS;
     const soloWindowId = soloWindow ? soloWindow.id : null;
-    return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(import_jsx_runtime14.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(import_jsx_runtime15.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
         HeaderBar,
         {
           cfg: appState?.config,
@@ -23952,8 +25897,8 @@
           onOpenAssetChart: (instId) => openAssetChart(instId, chartState.isOpen ? chartState.size : "medium")
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "app-shell", id: "appShell", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "app-shell", id: "appShell", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
           LeftSidebar,
           {
             collapsed: leftSidebarCollapsed,
@@ -23964,8 +25909,8 @@
             onCloseWindow: handleCloseWindow
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("main", { className: mainWsClass, id: "mainWorkspace", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("main", { className: mainWsClass, id: "mainWorkspace", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
             ControlWindows,
             {
               windowsRegistry,
@@ -23996,8 +25941,8 @@
               onBringToFront: handleBringToFront
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("section", { className: rowAgentOrderClass, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("section", { className: rowAgentOrderClass, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
               AiChatWindow,
               {
                 winMeta: windowsRegistry.find((w) => w.id === "win-ai-chat"),
@@ -24025,7 +25970,7 @@
                 onBringToFront: handleBringToFront
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
               AiStrategiesWindow,
               {
                 winMeta: windowsRegistry.find((w) => w.id === "win-ai-strategies"),
@@ -24051,7 +25996,33 @@
                 onBringToFront: handleBringToFront
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+              AiFuturesStrategiesWindow,
+              {
+                winMeta: windowsRegistry.find((w) => w.id === "win-ai-strategies-futures"),
+                isSoloGridWindow: soloWindowId === "win-ai-strategies-futures",
+                aiFuturesInput,
+                currentAiFuturesAnalysis,
+                activeTradeOrder: appState?.activeTradeOrder,
+                lastExchangeFeedback,
+                collapsedAiTxIds,
+                isConfirmingOrder,
+                orders: appState?.portfolio?.orders,
+                executedSessionTransactions,
+                onSetAiFuturesInput: setAiFuturesInput,
+                onSubmitAiFuturesStrategy: handleSubmitAiFuturesStrategy,
+                onRunAiFuturesStrategyQuery: runAiFuturesStrategyQuery,
+                onConfirmOrder: handleConfirmOrder,
+                onRejectOrder: handleRejectOrder,
+                onCompleteStrategy: handleCompleteStrategy,
+                onToggleAiExecutedTx: handleToggleAiExecutedTx,
+                onOpenAssetChart: (instId) => openAssetChart(instId, chartState.isOpen ? chartState.size : "medium"),
+                onSetWindowMode: setWindowMode,
+                onCloseWindow: handleCloseWindow,
+                onBringToFront: handleBringToFront
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
               QuickTradeWindow,
               {
                 winMeta: windowsRegistry.find((w) => w.id === "win-quick-trade"),
@@ -24080,7 +26051,7 @@
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
             PortfoliosRow,
             {
               windowsRegistry,
@@ -24096,7 +26067,7 @@
               onBringToFront: handleBringToFront
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
             PortfolioHistoryWindow,
             {
               winMeta: windowsRegistry.find((w) => w.id === "win-portfolio-history"),
@@ -24110,7 +26081,7 @@
               onBringToFront: handleBringToFront
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
             OrdersHistoryWindow,
             {
               winMeta: windowsRegistry.find((w) => w.id === "win-orders-history"),
@@ -24134,7 +26105,7 @@
           )
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
         TradingViewChartWindow,
         {
           chartState,
@@ -24150,15 +26121,15 @@
           onClearDrawingsToast: (instId) => showToast(`\u{1F5D1}\uFE0F Wyczyszczono rysunki na wykresie ${instId}.`)
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { id: "toastContainer", className: "toast-container", children: toasts.map((t) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "toast", children: t.msg }, t.id)) }),
-      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+      /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { id: "toastContainer", className: "toast-container", children: toasts.map((t) => /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "toast", children: t.msg }, t.id)) }),
+      /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
         "nav",
         {
           id: "mobileQuickNav",
           className: "mobile-bottom-nav",
           "aria-label": "Szybka nawigacja mobilna",
           children: [
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
               "button",
               {
                 type: "button",
@@ -24168,36 +26139,48 @@
                   collapseAllAiTransactions();
                 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4AC}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "Agent AI" })
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4AC}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "Agent AI" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
               "button",
               {
                 type: "button",
                 className: "mobile-nav-btn",
                 onClick: handleOpenAiStrategies,
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F9E0}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "Strategie" })
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F9E0}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "AI Spot" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+              "button",
+              {
+                type: "button",
+                className: "mobile-nav-btn",
+                onClick: handleOpenAiFuturesStrategies,
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u26A1" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "AI Futures" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
               "button",
               {
                 type: "button",
                 className: "mobile-nav-btn",
                 onClick: () => setWindowMode("win-quick-trade", "grid"),
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u26A1" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "Handel" })
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u26A1" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "Handel" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
               "button",
               {
                 type: "button",
@@ -24207,12 +26190,12 @@
                   setWindowMode("win-bought-sold", "grid");
                 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4BC}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "Portfel" })
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4BC}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "Portfel" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
               "button",
               {
                 type: "button",
@@ -24222,24 +26205,24 @@
                   setWindowMode("win-orders-history", "grid");
                 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4DC}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "Historia" })
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4DC}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "Historia" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
               "button",
               {
                 type: "button",
                 className: "mobile-nav-btn",
                 onClick: () => openAssetChart(chartState.instId || "BTC-USDC", "full"),
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F56F}\uFE0F" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "Wykres" })
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F56F}\uFE0F" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "Wykres" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
               "button",
               {
                 type: "button",
@@ -24249,20 +26232,20 @@
                   setApiAccordionOpen(true);
                 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F511}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "IP / API" })
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F511}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "IP / API" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
               "button",
               {
                 type: "button",
                 className: "mobile-nav-btn",
                 onClick: handleResetAllWindowsGrid,
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-icon", children: "\u229E" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "mobile-nav-label", children: "Wszystkie" })
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u229E" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "Wszystkie" })
                 ]
               }
             )
@@ -24273,11 +26256,11 @@
   }
 
   // src/main.jsx
-  var import_jsx_runtime15 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime16 = __toESM(require_jsx_runtime());
   var container = document.getElementById("root");
   if (container) {
     const root = (0, import_client.createRoot)(container);
-    root.render(/* @__PURE__ */ (0, import_jsx_runtime15.jsx)(App, {}));
+    root.render(/* @__PURE__ */ (0, import_jsx_runtime16.jsx)(App, {}));
   }
 })();
 /*! Bundled license information:

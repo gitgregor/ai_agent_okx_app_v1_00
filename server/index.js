@@ -114,7 +114,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, result);
     }
 
-    // 4B. AI Agent OKX Buy Strategy & Deep Market Analysis
+    // 4B. AI Agent OKX Buy Strategy & Deep Market Analysis (SPOT)
     if (pathname === '/api/agent/strategy' && req.method === 'POST') {
       const body = await readJsonBody(req);
       if (Array.isArray(body.clientTickers)) {
@@ -122,6 +122,17 @@ const server = http.createServer(async (req, res) => {
       }
       await engine.fetchRealOkxTickers();
       const result = engine.generateAiBuyStrategy(body.query || body.message || 'BTC');
+      return sendJson(res, 200, result);
+    }
+
+    // 4B-FUTURES. AI Agent OKX Futures Strategy & Risk / Leverage Analysis
+    if (pathname === '/api/agent/strategy/futures' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (Array.isArray(body.clientTickers)) {
+        engine.applyClientTickers(body.clientTickers);
+      }
+      await engine.fetchRealOkxTickers();
+      const result = engine.generateAiFuturesStrategy(body.query || body.message || 'BTC', body.options || {});
       return sendJson(res, 200, result);
     }
 
