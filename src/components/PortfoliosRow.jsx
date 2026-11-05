@@ -10,6 +10,7 @@ export function PortfoliosRow({
   onForceDeviceSync,
   onExportSyncData,
   onImportSyncData,
+  onOpenDeviceSyncModal,
   onOpenAssetChart,
   onSetWindowMode,
   onCloseWindow,
@@ -80,6 +81,15 @@ export function PortfoliosRow({
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-outline-sm"
+              style={{ background: 'rgba(56, 189, 248, 0.16)', borderColor: '#38bdf8', color: '#38bdf8', fontWeight: 600 }}
+              title="Otwórz panel dwukierunkowej synchronizacji (Telefon ⇄ PC)"
+              onClick={onOpenDeviceSyncModal || onForceDeviceSync}
+            >
+              📲 Sync Telefon ⇄ PC
+            </button>
             <button
               type="button"
               id="btnForceDeviceSync"

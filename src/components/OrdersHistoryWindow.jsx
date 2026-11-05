@@ -23,6 +23,7 @@ export function OrdersHistoryWindow({
   onForceDeviceSync,
   onExportSyncData,
   onImportSyncData,
+  onOpenDeviceSyncModal,
   onSetWindowMode,
   onCloseWindow,
   onBringToFront
@@ -58,11 +59,20 @@ export function OrdersHistoryWindow({
           <button
             type="button"
             className="btn btn-outline-sm"
+            style={{ background: 'rgba(56, 189, 248, 0.16)', borderColor: '#38bdf8', color: '#38bdf8', fontWeight: 600 }}
+            title="Otwórz panel dwukierunkowej synchronizacji zleceń i strategii (Telefon ⇄ PC)"
+            onClick={onOpenDeviceSyncModal || onForceDeviceSync}
+          >
+            📲 Sync Telefon ⇄ PC
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline-sm"
             style={{ background: 'rgba(59, 130, 246, 0.12)', borderColor: '#3b82f6', color: '#60a5fa' }}
             title="Wymuś synchronizację zleceń między telefonem a laptopem przez Bramę Domową"
             onClick={onForceDeviceSync}
           >
-            🔄 Synchronizuj Telefon ⇄ Laptop
+            🔄 Szybki Sync (Brama)
           </button>
           <button
             type="button"

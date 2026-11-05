@@ -778,7 +778,7 @@
   var require_react_dom_production = __commonJS({
     "node_modules/react-dom/cjs/react-dom.production.js"(exports) {
       "use strict";
-      var React17 = require_react();
+      var React18 = require_react();
       function formatProdErrorMessage(code) {
         var url = "https://react.dev/errors/" + code;
         if (1 < arguments.length) {
@@ -820,7 +820,7 @@
           implementation
         };
       }
-      var ReactSharedInternals = React17.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+      var ReactSharedInternals = React18.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
       function getCrossOriginStringAs(as, input) {
         if ("font" === as) return "";
         if ("string" === typeof input)
@@ -962,7 +962,7 @@
     "node_modules/react-dom/cjs/react-dom-client.production.js"(exports) {
       "use strict";
       var Scheduler = require_scheduler();
-      var React17 = require_react();
+      var React18 = require_react();
       var ReactDOM = require_react_dom();
       function formatProdErrorMessage(code) {
         var url = "https://react.dev/errors/" + code;
@@ -1255,7 +1255,7 @@
         return null;
       }
       var isArrayImpl = Array.isArray;
-      var ReactSharedInternals = React17.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+      var ReactSharedInternals = React18.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
       var ReactDOMSharedInternals = ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
       var sharedNotPendingObject = {
         pending: false,
@@ -14404,7 +14404,7 @@
           0 === i && attemptExplicitHydrationTarget(target);
         }
       };
-      var isomorphicReactPackageVersion$jscomp$inline_2043 = React17.version;
+      var isomorphicReactPackageVersion$jscomp$inline_2043 = React18.version;
       if ("19.3.1" !== isomorphicReactPackageVersion$jscomp$inline_2043)
         throw Error(
           formatProdErrorMessage(
@@ -14572,11 +14572,11 @@
   });
 
   // src/main.jsx
-  var import_react16 = __toESM(require_react());
+  var import_react17 = __toESM(require_react());
   var import_client = __toESM(require_client());
 
   // src/App.jsx
-  var import_react15 = __toESM(require_react());
+  var import_react16 = __toESM(require_react());
 
   // src/engine/okxClientEngine.js
   function formatUsdc(num) {
@@ -14791,7 +14791,37 @@
       const current = loadSavedAiExecutedOrders();
       const filtered = current.filter((o) => String(o.id) !== String(order.id));
       filtered.unshift(order);
-      localStorage.setItem(LS_AI_EXECUTED_ORDERS_KEY, JSON.stringify(filtered.slice(0, 100)));
+      localStorage.setItem(LS_AI_EXECUTED_ORDERS_KEY, JSON.stringify(filtered.slice(0, 200)));
+    } catch (e) {
+    }
+  }
+  function saveMultipleAiExecutedOrdersToLocal(orders = []) {
+    if (typeof window === "undefined" || !Array.isArray(orders) || orders.length === 0) return;
+    try {
+      const current = loadSavedAiExecutedOrders();
+      const map = /* @__PURE__ */ new Map();
+      for (const o of current) {
+        if (o && o.id) map.set(String(o.id), o);
+      }
+      for (const o of orders) {
+        if (!o || !o.id) continue;
+        const idStr = String(o.id);
+        if (idStr.startsWith("OKX-DEMO-17924") || idStr.startsWith("OKX-DEMO-POS-") || idStr.startsWith("OKX-LIVE-POS-")) continue;
+        const prev = map.get(idStr) || {};
+        const mergedItem = {
+          ...prev,
+          ...o,
+          exchangeFeedback: o.exchangeFeedback || prev.exchangeFeedback,
+          rawState: o.rawState || prev.rawState,
+          status: o.status || prev.status,
+          strategyName: o.strategyName || prev.strategyName,
+          source: o.source || prev.source
+        };
+        map.set(idStr, mergedItem);
+      }
+      const merged = Array.from(map.values());
+      merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      localStorage.setItem(LS_AI_EXECUTED_ORDERS_KEY, JSON.stringify(merged.slice(0, 200)));
     } catch (e) {
     }
   }
@@ -14813,9 +14843,15 @@
       }
     } catch (e) {
     }
+    const spotCount = orders.filter(
+      (o) => !(String(o.id || "").startsWith("OKX-FUT-") || o.marketType === "FUTURES" || o.instId?.includes("SWAP") || o.source?.includes("Futures") || o.strategyName?.includes("Futures") || Boolean(o.leverage))
+    ).length;
+    const futuresCount = orders.length - spotCount;
     const payload = {
+      app: "okx-eea-agent-trading",
       exportedAt: Date.now(),
       device: typeof navigator !== "undefined" && /mobile/i.test(navigator.userAgent) ? "MOBILE" : "DESKTOP",
+      counts: { total: orders.length, spot: spotCount, futures: futuresCount },
       orders,
       portfolioHistory,
       chatMessages
@@ -14830,9 +14866,52 @@
     } catch (e) {
       throw new Error("Nieprawid\u0142owy format JSON");
     }
-    const orders = Array.isArray(parsed.orders) ? parsed.orders : [];
-    for (const o of orders) {
-      saveAiExecutedOrderToLocal(o);
+    const orders = Array.isArray(parsed.orders) ? parsed.orders : Array.isArray(parsed) ? parsed : [];
+    const spotCount = orders.filter(
+      (o) => !(String(o.id || "").startsWith("OKX-FUT-") || o.marketType === "FUTURES" || o.instId?.includes("SWAP") || o.source?.includes("Futures") || o.strategyName?.includes("Futures") || Boolean(o.leverage))
+    ).length;
+    const futuresCount = orders.length - spotCount;
+    if (orders.length > 0) {
+      saveMultipleAiExecutedOrdersToLocal(orders);
+    }
+    if (!_standaloneState) initStandaloneState();
+    if (_standaloneState) {
+      if (Array.isArray(_standaloneState.portfolio?.orders)) {
+        const existing = new Set(_standaloneState.portfolio.orders.map((o) => String(o.id)));
+        for (const o of orders) {
+          if (!existing.has(String(o.id))) {
+            existing.add(String(o.id));
+            _standaloneState.portfolio.orders.unshift(o);
+          }
+        }
+      }
+      if (Array.isArray(parsed.portfolioHistory) && Array.isArray(_standaloneState.portfolio?.portfolioHistory)) {
+        const existingHist = new Set(_standaloneState.portfolio.portfolioHistory.map((h) => String(h.id || h.orderId)));
+        for (const h of parsed.portfolioHistory) {
+          const hId = String(h.id || h.orderId || "");
+          if (hId && !existingHist.has(hId)) {
+            existingHist.add(hId);
+            _standaloneState.portfolio.portfolioHistory.unshift(h);
+          }
+        }
+      }
+      if (!_standaloneState.sessionSync) {
+        _standaloneState.sessionSync = { executedSessionTransactions: [], chatMessages: [] };
+      }
+      if (!Array.isArray(_standaloneState.sessionSync.executedSessionTransactions)) {
+        _standaloneState.sessionSync.executedSessionTransactions = [];
+      }
+      const existingTx = new Set(
+        _standaloneState.sessionSync.executedSessionTransactions.map((t) => String(t.orderId || t.id))
+      );
+      for (const o of orders) {
+        const oId = String(o.id);
+        if (o.exchangeFeedback && !existingTx.has(oId)) {
+          existingTx.add(oId);
+          _standaloneState.sessionSync.executedSessionTransactions.unshift(o.exchangeFeedback);
+        }
+      }
+      saveStandaloneState();
     }
     try {
       const res = await apiRequest("/api/session/sync-orders", "POST", {
@@ -14843,26 +14922,22 @@
           executedSessionTransactions: orders.map((o) => o.exchangeFeedback || o).filter(Boolean)
         }
       });
-      return { ok: true, count: orders.length, state: res?.state };
+      return { ok: true, count: orders.length, spotCount, futuresCount, state: res?.state };
     } catch (err) {
-      if (_standaloneState && Array.isArray(_standaloneState.portfolio?.orders)) {
-        const existing = new Set(_standaloneState.portfolio.orders.map((o) => String(o.id)));
-        for (const o of orders) {
-          if (!existing.has(String(o.id))) {
-            _standaloneState.portfolio.orders.unshift(o);
-          }
-        }
-        saveStandaloneState();
-      }
-      return { ok: true, count: orders.length, standaloneMerged: true };
+      return { ok: true, count: orders.length, spotCount, futuresCount, standaloneMerged: true };
     }
   }
   async function syncCloudSessionOrders() {
     if (typeof window === "undefined") return { ok: false, count: 0 };
-    const urls = [
-      `https://raw.githubusercontent.com/gitgregor/ai_agent_okx_app_v1_00/main/docs/session-orders.json?t=${Date.now()}`,
-      `./session-orders.json?t=${Date.now()}`
-    ];
+    if (!_standaloneState) initStandaloneState();
+    const urls = [];
+    if (_activeApiBaseUrl) {
+      urls.push(`${_activeApiBaseUrl}/session-orders.json?t=${Date.now()}`);
+    }
+    urls.push(`./session-orders.json?t=${Date.now()}`);
+    urls.push(
+      `https://raw.githubusercontent.com/gitgregor/ai_agent_okx_app_v1_00/main/docs/session-orders.json?t=${Date.now()}`
+    );
     for (const u of urls) {
       try {
         const res = await fetchWithTimeout(u, { method: "GET", cache: "no-store" }, 3500);
@@ -14875,12 +14950,9 @@
           ...Array.isArray(data.live) ? data.live : [],
           ...Array.isArray(data.orders) ? data.orders : []
         ];
-        for (const ord of allCloudOrders) {
-          if (!ord || !ord.id) continue;
-          const idStr = String(ord.id);
-          if (idStr.startsWith("OKX-DEMO-17924") || idStr.startsWith("OKX-DEMO-POS-") || idStr.startsWith("OKX-LIVE-POS-")) continue;
-          saveAiExecutedOrderToLocal(ord);
-          importedCount++;
+        if (allCloudOrders.length > 0) {
+          saveMultipleAiExecutedOrdersToLocal(allCloudOrders);
+          importedCount = allCloudOrders.length;
         }
         if (_standaloneState) {
           if (Array.isArray(_standaloneState.portfolio?.orders)) {
@@ -14910,8 +14982,29 @@
           }
           saveStandaloneState();
         }
+        if (_activeApiBaseUrl) {
+          try {
+            const allLocalOrders = loadSavedAiExecutedOrders();
+            if (allLocalOrders.length > 0) {
+              await fetchWithTimeout(
+                `${_activeApiBaseUrl}/api/session/sync-orders`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ orders: allLocalOrders })
+                },
+                3e3
+              );
+            }
+          } catch (e) {
+          }
+        }
         if (importedCount > 0) {
-          return { ok: true, count: importedCount };
+          const spotCount = allCloudOrders.filter(
+            (o) => !(String(o.id || "").startsWith("OKX-FUT-") || o.marketType === "FUTURES" || o.instId?.includes("SWAP") || o.source?.includes("Futures") || o.strategyName?.includes("Futures") || Boolean(o.leverage))
+          ).length;
+          const futuresCount = allCloudOrders.length - spotCount;
+          return { ok: true, count: importedCount, spotCount, futuresCount, orders: allCloudOrders };
         }
       } catch (e) {
       }
@@ -14919,10 +15012,11 @@
     return { ok: false, count: 0 };
   }
   function detectInitialGatewayConfig() {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || !window.location) {
       return { isRemoteHost: false, activeBaseUrl: "", customGatewayUrl: "" };
     }
-    const params = new URLSearchParams(window.location.search);
+    const searchStr = window.location.search || "";
+    const params = new URLSearchParams(searchStr);
     const urlGateway = params.get("gateway");
     if (urlGateway && urlGateway.startsWith("http")) {
       const cleaned = urlGateway.replace(/\/+$/, "");
@@ -14936,8 +15030,10 @@
       savedCustom = (localStorage.getItem(LS_CUSTOM_GATEWAY_KEY) || "").trim().replace(/\/+$/, "");
     } catch (e) {
     }
-    const isRemoteHost = window.location.hostname.includes("github.io") || window.location.protocol === "file:";
-    const forceStandalone = window.location.search.includes("standalone=true");
+    const hostname = window.location.hostname || "";
+    const protocol = window.location.protocol || "";
+    const isRemoteHost = hostname.includes("github.io") || protocol === "file:";
+    const forceStandalone = searchStr.includes("standalone=true");
     return {
       isRemoteHost,
       forceStandalone,
@@ -15278,6 +15374,31 @@
         if (_standaloneState && _standaloneState.portfolio && Array.isArray(_standaloneState.portfolio.holdings) && _standaloneState.portfolio.holdings.length >= 8 && Array.isArray(_standaloneState.portfolio.orders) && _standaloneState.portfolio.orders.length >= 8 && Array.isArray(_standaloneState.portfolio.portfolioHistory) && _standaloneState.portfolio.portfolioHistory.length >= 8 && Array.isArray(_standaloneState.markets) && _standaloneState.markets.length > 0) {
           _standaloneState.markets = JSON.parse(JSON.stringify(DEFAULT_STANDALONE_MARKETS));
           _standaloneState.tickers = _standaloneState.markets;
+          if (recoveredAiOrders.length > 0 && Array.isArray(_standaloneState.portfolio.orders)) {
+            const existingOrdIds = new Set(_standaloneState.portfolio.orders.map((o) => String(o.id)));
+            for (const ro of recoveredAiOrders) {
+              if (!existingOrdIds.has(String(ro.id))) {
+                existingOrdIds.add(String(ro.id));
+                _standaloneState.portfolio.orders.unshift(ro);
+              }
+            }
+            if (!_standaloneState.sessionSync) {
+              _standaloneState.sessionSync = { executedSessionTransactions: [], chatMessages: [] };
+            }
+            if (!Array.isArray(_standaloneState.sessionSync.executedSessionTransactions)) {
+              _standaloneState.sessionSync.executedSessionTransactions = [];
+            }
+            const existingFbIds = new Set(
+              _standaloneState.sessionSync.executedSessionTransactions.map((t) => String(t.orderId || t.id))
+            );
+            for (const ro of recoveredAiOrders) {
+              const roId = String(ro.id);
+              if (ro.exchangeFeedback && !existingFbIds.has(roId)) {
+                existingFbIds.add(roId);
+                _standaloneState.sessionSync.executedSessionTransactions.unshift(ro.exchangeFeedback);
+              }
+            }
+          }
           recalculateStateValuations(_standaloneState);
           return _standaloneState;
         }
@@ -17443,7 +17564,8 @@
     onResetAllWindowsGrid,
     onDockAllTop,
     onDockAllSidebar,
-    onOpenAssetChart
+    onOpenAssetChart,
+    onOpenDeviceSyncModal
   }) {
     const isDemo = (cfg?.apiMode || "demo") === "demo";
     const activeConn = cfg?.apiConnection || { mode: "demo", connected: true };
@@ -17511,6 +17633,32 @@
               title: "Brama Domowa IP (OKX Whitelist) \u2014 zapewnia dzia\u0142anie kluczy API na telefonie poza domem (LTE/5G) oraz pe\u0142n\u0105 synchronizacj\u0119 Desktop \u21C4 Telefon. Kliknij po szczeg\xF3\u0142y i kod QR.",
               onClick: onOpenApiKeysWindow,
               children: isGatewayReady ? `\u{1F4F1} BRAMA IP (WHITELIST): AKTYWNA${remoteGw.homePublicIp && remoteGw.homePublicIp !== "Wykrywanie IP..." ? ` (${remoteGw.homePublicIp})` : ""}` : "\u{1F4F1} BRAMA IP: TRYB MOBILNY"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: "status-pill",
+              style: {
+                cursor: "pointer",
+                background: "rgba(56, 189, 248, 0.16)",
+                border: "1px solid rgba(56, 189, 248, 0.45)",
+                color: "#38bdf8",
+                fontWeight: 700,
+                fontSize: "11px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "3px 9px"
+              },
+              title: "Dwukierunkowa synchronizacja strategii i zlece\u0144 Spot i Futures (Telefon \u21C4 PC)",
+              onClick: onOpenDeviceSyncModal,
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: "\u{1F4F2}" }),
+                " ",
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: "SYNC TELEFON \u21C4 PC" })
+              ]
             }
           ),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "header-ai-status-group", id: "headerAiStatusGroup", children: [
@@ -19421,6 +19569,8 @@
     onCompleteStrategy,
     onToggleAiExecutedTx,
     onOpenAssetChart,
+    onOpenDeviceSyncModal,
+    onForceDeviceSync,
     onSetWindowMode,
     onCloseWindow,
     onBringToFront
@@ -19645,6 +19795,25 @@
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "ai-pill-btn-label", children: "Przyk\u0142ady strategii" })
               ]
             }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: "win-ctrl-btn ai-titlebar-pill",
+              style: { color: "#38bdf8", borderColor: "rgba(56, 189, 248, 0.45)" },
+              title: "Synchronizuj strategie Spot z telefonem / drugim komputerem",
+              onClick: (e) => {
+                e.stopPropagation();
+                if (onOpenDeviceSyncModal) onOpenDeviceSyncModal();
+                else if (onForceDeviceSync) onForceDeviceSync();
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u{1F4F2}" }),
+                " ",
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "ai-pill-btn-label", children: "Sync Telefon \u21C4 PC" })
+              ]
+            }
           )
         ]
       }
@@ -19803,6 +19972,48 @@
               )
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "panel-subtitle", style: { marginBottom: "12px", color: "var(--text-secondary)" }, children: "Poni\u017Cej znajduje si\u0119 pe\u0142na historia strategii z dok\u0142adn\u0105 dat\u0105 i czasem otworzenia strategii oraz momentem jej zrealizowania na gie\u0142dzie OKX." }),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+              "div",
+              {
+                style: {
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                  padding: "8px 12px",
+                  background: "rgba(56, 189, 248, 0.08)",
+                  border: "1px solid rgba(56, 189, 248, 0.25)",
+                  borderRadius: "8px",
+                  marginBottom: "12px"
+                },
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { style: { fontSize: "12px", color: "#bae6fd" }, children: [
+                    "\u{1F4F2} ",
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: "Wzajemna synchronizacja:" }),
+                    " Po\u0142\u0105cz i uzupe\u0142nij zlecenia Spot mi\u0119dzy Telefonem a Komputerem"
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { display: "flex", gap: "6px" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                    "button",
+                    {
+                      type: "button",
+                      className: "btn btn-outline-sm",
+                      style: {
+                        background: "rgba(56, 189, 248, 0.15)",
+                        borderColor: "#38bdf8",
+                        color: "#38bdf8",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        padding: "4px 10px"
+                      },
+                      title: "Otw\xF3rz panel dwukierunkowej synchronizacji z telefonem",
+                      onClick: onOpenDeviceSyncModal,
+                      children: "\u{1F504} Otw\xF3rz Sync (Telefon \u21C4 PC)"
+                    }
+                  ) })
+                ]
+              }
+            ),
             /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "history-strategies-full-list", style: { display: "flex", flexDirection: "column", gap: "10px" }, children: candidateStrategies.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { textAlign: "center", padding: "24px", color: "var(--text-secondary)" }, children: "Brak zarejestrowanych strategii w tej sesji. Wpisz zapytanie w polu poni\u017Cej, aby wygenerowa\u0107 now\u0105 strategi\u0119." }) : candidateStrategies.map((ord) => {
               const timing = getStrategyTiming(ord);
               const isBuy = ord.side === "BUY";
@@ -20878,6 +21089,8 @@
     onCompleteStrategy,
     onToggleAiExecutedTx,
     onOpenAssetChart,
+    onOpenDeviceSyncModal,
+    onForceDeviceSync,
     onSetWindowMode,
     onCloseWindow,
     onBringToFront
@@ -21094,6 +21307,25 @@
                 /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { children: "\u{1F9EE}" }),
                 " ",
                 /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "ai-pill-btn-label", children: "Kalkulator Ryzyka" })
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: "win-ctrl-btn ai-titlebar-pill",
+              style: { color: "#38bdf8", borderColor: "rgba(56, 189, 248, 0.45)" },
+              title: "Synchronizuj pozycje i strategie Futures z telefonem / drugim komputerem",
+              onClick: (e) => {
+                e.stopPropagation();
+                if (onOpenDeviceSyncModal) onOpenDeviceSyncModal();
+                else if (onForceDeviceSync) onForceDeviceSync();
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { children: "\u{1F4F2}" }),
+                " ",
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "ai-pill-btn-label", children: "Sync Telefon \u21C4 PC" })
               ]
             }
           )
@@ -21619,6 +21851,48 @@
                     }
                   )
                 ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                  "div",
+                  {
+                    style: {
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: "8px",
+                      padding: "8px 12px",
+                      background: "rgba(168, 85, 247, 0.1)",
+                      border: "1px solid rgba(168, 85, 247, 0.3)",
+                      borderRadius: "8px",
+                      marginBottom: "14px"
+                    },
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { style: { fontSize: "12px", color: "#e9d5ff" }, children: [
+                        "\u{1F4F2} ",
+                        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { children: "Wzajemna synchronizacja Futures:" }),
+                        " Po\u0142\u0105cz pozycje i histori\u0119 mi\u0119dzy Telefonem a Komputerem"
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { style: { display: "flex", gap: "6px" }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                        "button",
+                        {
+                          type: "button",
+                          className: "btn btn-outline-sm",
+                          style: {
+                            background: "rgba(168, 85, 247, 0.18)",
+                            borderColor: "#a855f7",
+                            color: "#c084fc",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            padding: "4px 10px"
+                          },
+                          title: "Otw\xF3rz panel dwukierunkowej synchronizacji z telefonem",
+                          onClick: onOpenDeviceSyncModal,
+                          children: "\u{1F504} Otw\xF3rz Sync (Telefon \u21C4 PC)"
+                        }
+                      ) })
+                    ]
+                  }
+                ),
                 candidateStrategies.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { style: { padding: "24px", textAlign: "center", color: "var(--text-secondary)", fontSize: "13px" }, children: "Brak zrealizowanych pozycji futures w bie\u017C\u0105cej sesji. Wygeneruj i potwierd\u017A strategi\u0119 poni\u017Cej, aby pojawi\u0142a si\u0119 w historii." }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: "12px", maxHeight: "420px", overflowY: "auto" }, children: candidateStrategies.map((ord) => {
                   const timing = getStrategyTiming2(ord);
                   const breakdown = resolveFuturesBreakdown(ord, timing);
@@ -23038,6 +23312,7 @@
     onForceDeviceSync,
     onExportSyncData,
     onImportSyncData,
+    onOpenDeviceSyncModal,
     onOpenAssetChart,
     onSetWindowMode,
     onCloseWindow,
@@ -23101,6 +23376,17 @@
                     )
                   ] }),
                   /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+                      "button",
+                      {
+                        type: "button",
+                        className: "btn btn-outline-sm",
+                        style: { background: "rgba(56, 189, 248, 0.16)", borderColor: "#38bdf8", color: "#38bdf8", fontWeight: 600 },
+                        title: "Otw\xF3rz panel dwukierunkowej synchronizacji (Telefon \u21C4 PC)",
+                        onClick: onOpenDeviceSyncModal || onForceDeviceSync,
+                        children: "\u{1F4F2} Sync Telefon \u21C4 PC"
+                      }
+                    ),
                     /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
                       "button",
                       {
@@ -23431,6 +23717,7 @@
     onForceDeviceSync,
     onExportSyncData,
     onImportSyncData,
+    onOpenDeviceSyncModal,
     onSetWindowMode,
     onCloseWindow,
     onBringToFront
@@ -23464,10 +23751,21 @@
                 {
                   type: "button",
                   className: "btn btn-outline-sm",
+                  style: { background: "rgba(56, 189, 248, 0.16)", borderColor: "#38bdf8", color: "#38bdf8", fontWeight: 600 },
+                  title: "Otw\xF3rz panel dwukierunkowej synchronizacji zlece\u0144 i strategii (Telefon \u21C4 PC)",
+                  onClick: onOpenDeviceSyncModal || onForceDeviceSync,
+                  children: "\u{1F4F2} Sync Telefon \u21C4 PC"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+                "button",
+                {
+                  type: "button",
+                  className: "btn btn-outline-sm",
                   style: { background: "rgba(59, 130, 246, 0.12)", borderColor: "#3b82f6", color: "#60a5fa" },
                   title: "Wymu\u015B synchronizacj\u0119 zlece\u0144 mi\u0119dzy telefonem a laptopem przez Bram\u0119 Domow\u0105",
                   onClick: onForceDeviceSync,
-                  children: "\u{1F504} Synchronizuj Telefon \u21C4 Laptop"
+                  children: "\u{1F504} Szybki Sync (Brama)"
                 }
               ),
               /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
@@ -24986,8 +25284,492 @@
     ] });
   }
 
-  // src/App.jsx
+  // src/components/DeviceSyncModal.jsx
+  var import_react15 = __toESM(require_react());
   var import_jsx_runtime15 = __toESM(require_jsx_runtime());
+  function DeviceSyncModal({
+    isOpen,
+    onClose,
+    cfg,
+    onStateUpdate,
+    showToast
+  }) {
+    const [pasteInput, setPasteInput] = (0, import_react15.useState)("");
+    const [isSyncing, setIsSyncing] = (0, import_react15.useState)(false);
+    const [syncStatusMsg, setSyncStatusMsg] = (0, import_react15.useState)("");
+    const [showCodePreview, setShowCodePreview] = (0, import_react15.useState)(false);
+    const [previewCode, setPreviewCode] = (0, import_react15.useState)("");
+    const [stats, setStats] = (0, import_react15.useState)({ total: 0, spot: 0, futures: 0 });
+    const isMobile = typeof navigator !== "undefined" && /mobile|android|iphone|ipad/i.test(navigator.userAgent);
+    const refreshStats = () => {
+      try {
+        const orders = loadSavedAiExecutedOrders();
+        const spot = orders.filter(
+          (o) => !(String(o.id || "").startsWith("OKX-FUT-") || o.marketType === "FUTURES" || o.instId?.includes("SWAP") || o.source?.includes("Futures") || o.strategyName?.includes("Futures") || Boolean(o.leverage))
+        ).length;
+        const futures = orders.length - spot;
+        setStats({ total: orders.length, spot, futures });
+      } catch (e) {
+        setStats({ total: 0, spot: 0, futures: 0 });
+      }
+    };
+    (0, import_react15.useEffect)(() => {
+      if (isOpen) {
+        refreshStats();
+        setSyncStatusMsg("");
+        setPasteInput("");
+        setShowCodePreview(false);
+      }
+    }, [isOpen]);
+    if (!isOpen) return null;
+    const handleCloudSync = async () => {
+      setIsSyncing(true);
+      setSyncStatusMsg("\u23F3 \u0141\u0105czenie z Bram\u0105 Domow\u0105 i Chmur\u0105 GitHub...");
+      try {
+        const res = await syncCloudSessionOrders();
+        refreshStats();
+        if (res && res.ok) {
+          setSyncStatusMsg(`\u2705 Zsynchronizowano pomy\u015Blnie! Pobrano i po\u0142\u0105czono ${res.count || 0} strategii.`);
+          if (showToast) showToast(`\u2705 Pomy\u015Blnie zsynchronizowano ${res.count || 0} strategii Spot i Futures!`);
+        } else {
+          setSyncStatusMsg("\u2139\uFE0F Pami\u0119\u0107 lokalna jest aktualna \u2014 brak nowych zlece\u0144 w chmurze.");
+          if (showToast) showToast("\u2139\uFE0F Pami\u0119\u0107 lokalna jest aktualna.");
+        }
+        if (onStateUpdate) onStateUpdate();
+      } catch (e) {
+        setSyncStatusMsg(`\u26A0\uFE0F B\u0142\u0105d synchronizacji: ${e.message}`);
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+    const handleCopySyncCode = () => {
+      try {
+        const code = exportDeviceSyncCode();
+        if (!code) {
+          setSyncStatusMsg("\u26A0\uFE0F Brak zlece\u0144 w pami\u0119ci do wyeksportowania.");
+          return;
+        }
+        setPreviewCode(code);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code).then(
+            () => {
+              setSyncStatusMsg("\u{1F4CB} Skopiowano kod wszystkich strategii do schowka! Wklej go na drugim urz\u0105dzeniu.");
+              if (showToast) showToast("\u{1F4CB} Skopiowano kod synchronizacji do schowka!");
+            },
+            () => {
+              setShowCodePreview(true);
+              setSyncStatusMsg("\u2139\uFE0F Zaznacz i skopiuj poni\u017Cszy kod r\u0119cznie:");
+            }
+          );
+        } else {
+          setShowCodePreview(true);
+          setSyncStatusMsg("\u2139\uFE0F Zaznacz i skopiuj poni\u017Cszy kod r\u0119cznie:");
+        }
+      } catch (e) {
+        setSyncStatusMsg(`\u274C B\u0142\u0105d eksportu: ${e.message}`);
+      }
+    };
+    const handleImportAndMerge = async () => {
+      if (!pasteInput || !pasteInput.trim()) {
+        setSyncStatusMsg("\u26A0\uFE0F Wklej najpierw kod synchronizacji z drugiego urz\u0105dzenia.");
+        return;
+      }
+      setIsSyncing(true);
+      setSyncStatusMsg("\u23F3 Wzajemne scalanie historii strategii...");
+      try {
+        const res = await importDeviceSyncCode(pasteInput);
+        refreshStats();
+        setPasteInput("");
+        setSyncStatusMsg(`\u2705 Sukces! Wzajemnie scalono ${res.count || 0} strategii Spot i Futures z drugim urz\u0105dzeniem.`);
+        if (showToast) {
+          showToast(`\u2705 Wzajemnie scalono ${res.count || 0} strategii! \u017Badne transakcje nie zosta\u0142y utracone.`);
+        }
+        if (onStateUpdate) onStateUpdate();
+      } catch (e) {
+        setSyncStatusMsg(`\u274C B\u0142\u0105d scalania: ${e.message}`);
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+    const isGatewayConnected = cfg?.remoteGateway?.cloudflareTunnelActive || Boolean(cfg?.remoteGateway?.homePublicIp && cfg?.remoteGateway?.homePublicIp !== "Wykrywanie IP...");
+    return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+      "div",
+      {
+        className: "modal-backdrop",
+        style: {
+          position: "fixed",
+          inset: 0,
+          backgroundColor: "rgba(5, 7, 12, 0.85)",
+          backdropFilter: "blur(6px)",
+          zIndex: 99999,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "16px"
+        },
+        onClick: onClose,
+        children: /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+          "div",
+          {
+            className: "modal-content",
+            style: {
+              background: "linear-gradient(180deg, #131722 0%, #0c0e14 100%)",
+              border: "1px solid rgba(56, 189, 248, 0.35)",
+              borderRadius: "12px",
+              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.75), 0 0 30px rgba(56, 189, 248, 0.15)",
+              width: "100%",
+              maxWidth: "620px",
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              color: "#e2e8f0"
+            },
+            onClick: (e) => e.stopPropagation(),
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+                "div",
+                {
+                  style: {
+                    padding: "16px 20px",
+                    borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    background: "rgba(255, 255, 255, 0.02)"
+                  },
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "10px" }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { style: { fontSize: "24px" }, children: "\u{1F4F2}" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("h3", { style: { margin: 0, fontSize: "16px", fontWeight: 700, color: "#f8fafc" }, children: "Dwukierunkowa Synchronizacja Strategii (Telefon \u21C4 PC)" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("p", { style: { margin: 0, fontSize: "11px", color: "#94a3b8" }, children: "Wzajemne uzupe\u0142nianie historii strategii Spot i Futures mi\u0119dzy urz\u0105dzeniami" })
+                      ] })
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+                      "button",
+                      {
+                        type: "button",
+                        className: "win-ctrl-btn",
+                        style: { fontSize: "18px", padding: "4px 10px", color: "#94a3b8" },
+                        onClick: onClose,
+                        title: "Zamknij",
+                        children: "\u2716"
+                      }
+                    )
+                  ]
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+                "div",
+                {
+                  style: {
+                    padding: "20px",
+                    overflowY: "auto",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "16px"
+                  },
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+                      "div",
+                      {
+                        style: {
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: "12px",
+                          background: "rgba(15, 23, 42, 0.65)",
+                          border: "1px solid rgba(255, 255, 255, 0.07)",
+                          borderRadius: "8px",
+                          padding: "12px 16px"
+                        },
+                        children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { style: { fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }, children: "To urz\u0105dzenie" }),
+                            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { style: { fontSize: "13px", fontWeight: 600, color: "#38bdf8", marginTop: "2px" }, children: isMobile ? "\u{1F4F1} Smartfon (Mobile)" : "\u{1F4BB} Komputer (Desktop)" })
+                          ] }),
+                          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { style: { fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }, children: "Po\u0142\u0105czenie z Bram\u0105 Domow\u0105" }),
+                            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { style: { fontSize: "13px", fontWeight: 600, color: isGatewayConnected ? "#34d399" : "#fbbf24", marginTop: "2px" }, children: isGatewayConnected ? "\u{1F7E2} Brama IP: Aktywna" : "\u{1F310} Tryb Chmury / GitHub" })
+                          ] }),
+                          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+                            "div",
+                            {
+                              style: {
+                                gridColumn: "1 / -1",
+                                borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+                                paddingTop: "8px",
+                                marginTop: "4px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                flexWrap: "wrap",
+                                gap: "8px",
+                                fontSize: "12px"
+                              },
+                              children: [
+                                /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { children: [
+                                  "Pami\u0119\u0107 tego urz\u0105dzenia: ",
+                                  /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("strong", { children: [
+                                    stats.total,
+                                    " strategii"
+                                  ] })
+                                ] }),
+                                /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { style: { display: "flex", gap: "8px" }, children: [
+                                  /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+                                    "span",
+                                    {
+                                      style: {
+                                        background: "rgba(56, 189, 248, 0.15)",
+                                        color: "#38bdf8",
+                                        padding: "2px 8px",
+                                        borderRadius: "4px",
+                                        fontSize: "11px",
+                                        fontWeight: 600
+                                      },
+                                      children: [
+                                        "\u{1F7E2} Spot: ",
+                                        stats.spot
+                                      ]
+                                    }
+                                  ),
+                                  /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+                                    "span",
+                                    {
+                                      style: {
+                                        background: "rgba(168, 85, 247, 0.15)",
+                                        color: "#c084fc",
+                                        padding: "2px 8px",
+                                        borderRadius: "4px",
+                                        fontSize: "11px",
+                                        fontWeight: 600
+                                      },
+                                      children: [
+                                        "\u{1F7E3} Futures: ",
+                                        stats.futures
+                                      ]
+                                    }
+                                  )
+                                ] })
+                              ]
+                            }
+                          )
+                        ]
+                      }
+                    ),
+                    syncStatusMsg && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+                      "div",
+                      {
+                        style: {
+                          padding: "10px 14px",
+                          borderRadius: "8px",
+                          fontSize: "12px",
+                          background: syncStatusMsg.startsWith("\u2705") ? "rgba(16, 185, 129, 0.15)" : syncStatusMsg.startsWith("\u26A0\uFE0F") ? "rgba(245, 158, 11, 0.15)" : syncStatusMsg.startsWith("\u274C") ? "rgba(239, 68, 68, 0.15)" : "rgba(56, 189, 248, 0.15)",
+                          border: syncStatusMsg.startsWith("\u2705") ? "1px solid #10b981" : syncStatusMsg.startsWith("\u26A0\uFE0F") ? "1px solid #f59e0b" : syncStatusMsg.startsWith("\u274C") ? "1px solid #ef4444" : "1px solid #38bdf8",
+                          color: syncStatusMsg.startsWith("\u2705") ? "#6ee7b7" : syncStatusMsg.startsWith("\u26A0\uFE0F") ? "#fde68a" : syncStatusMsg.startsWith("\u274C") ? "#fca5a5" : "#bae6fd"
+                        },
+                        children: syncStatusMsg
+                      }
+                    ),
+                    /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+                      "div",
+                      {
+                        style: {
+                          background: "rgba(255, 255, 255, 0.02)",
+                          border: "1px solid rgba(255, 255, 255, 0.06)",
+                          borderRadius: "8px",
+                          padding: "14px 16px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "10px"
+                        },
+                        children: /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }, children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("strong", { style: { fontSize: "13px", color: "#f1f5f9" }, children: "1. Szybka synchronizacja (Brama / Chmura)" }),
+                            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("p", { style: { margin: 0, fontSize: "11px", color: "#94a3b8" }, children: "Pobiera i scala najnowsze zlecenia z Bramy Domowej lub chmury GitHub Pages." })
+                          ] }),
+                          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+                            "button",
+                            {
+                              type: "button",
+                              className: "btn btn-primary",
+                              style: {
+                                background: "linear-gradient(135deg, #0284c7 0%, #2563eb 100%)",
+                                padding: "8px 16px",
+                                fontWeight: 600,
+                                fontSize: "12px"
+                              },
+                              disabled: isSyncing,
+                              onClick: handleCloudSync,
+                              children: isSyncing ? "\u23F3 Synchronizuj\u0119..." : "\u26A1 Pobierz i scal z Chmury / Bramy"
+                            }
+                          )
+                        ] })
+                      }
+                    ),
+                    /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+                      "div",
+                      {
+                        style: {
+                          background: "rgba(255, 255, 255, 0.02)",
+                          border: "1px solid rgba(255, 255, 255, 0.06)",
+                          borderRadius: "8px",
+                          padding: "14px 16px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "10px"
+                        },
+                        children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }, children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { children: [
+                              /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("strong", { style: { fontSize: "13px", color: "#f1f5f9" }, children: "2. Wy\u015Blij na drugie urz\u0105dzenie" }),
+                              /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("p", { style: { margin: 0, fontSize: "11px", color: "#94a3b8" }, children: "Kopiuje pe\u0142ny pakiet strategii Spot i Futures do schowka, aby wklei\u0107 go na drugim urz\u0105dzeniu." })
+                            ] }),
+                            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+                              "button",
+                              {
+                                type: "button",
+                                className: "btn",
+                                style: {
+                                  background: "rgba(168, 85, 247, 0.2)",
+                                  borderColor: "#a855f7",
+                                  color: "#c084fc",
+                                  padding: "8px 16px",
+                                  fontWeight: 600,
+                                  fontSize: "12px"
+                                },
+                                onClick: handleCopySyncCode,
+                                children: "\u{1F4CB} Kopiuj kod do schowka"
+                              }
+                            )
+                          ] }),
+                          showCodePreview && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { style: { marginTop: "8px" }, children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+                            "textarea",
+                            {
+                              readOnly: true,
+                              value: previewCode,
+                              style: {
+                                width: "100%",
+                                height: "90px",
+                                background: "#090b10",
+                                color: "#a5b4fc",
+                                border: "1px solid #4338ca",
+                                borderRadius: "6px",
+                                fontFamily: "monospace",
+                                fontSize: "10px",
+                                padding: "8px",
+                                boxSizing: "border-box"
+                              },
+                              onFocus: (e) => e.target.select()
+                            }
+                          ) })
+                        ]
+                      }
+                    ),
+                    /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+                      "div",
+                      {
+                        style: {
+                          background: "rgba(255, 255, 255, 0.02)",
+                          border: "1px solid rgba(255, 255, 255, 0.06)",
+                          borderRadius: "8px",
+                          padding: "14px 16px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "10px"
+                        },
+                        children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("strong", { style: { fontSize: "13px", color: "#f1f5f9" }, children: "3. Odbierz z drugiego urz\u0105dzenia (Wzajemne uzupe\u0142nienie)" }),
+                            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("p", { style: { margin: "2px 0 0", fontSize: "11px", color: "#94a3b8" }, children: [
+                              "Wklej poni\u017Cej kod skopiowany z telefonu lub komputera. Transakcje zostan\u0105 ",
+                              /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("strong", { children: "bezpiecznie po\u0142\u0105czone i uzupe\u0142nione bez duplikat\xF3w" }),
+                              "."
+                            ] })
+                          ] }),
+                          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+                            "textarea",
+                            {
+                              placeholder: "Wklej tutaj dane synchronizacji (kod JSON z telefonu / komputera)...",
+                              value: pasteInput,
+                              onChange: (e) => setPasteInput(e.target.value),
+                              style: {
+                                width: "100%",
+                                height: "80px",
+                                background: "#090b10",
+                                color: "#e2e8f0",
+                                border: "1px solid rgba(255, 255, 255, 0.15)",
+                                borderRadius: "6px",
+                                fontFamily: "monospace",
+                                fontSize: "11px",
+                                padding: "8px",
+                                boxSizing: "border-box"
+                              }
+                            }
+                          ),
+                          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+                            "button",
+                            {
+                              type: "button",
+                              className: "btn btn-primary",
+                              style: {
+                                alignSelf: "flex-start",
+                                background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                                color: "#ffffff",
+                                fontWeight: 600,
+                                fontSize: "12px",
+                                padding: "8px 18px",
+                                border: "none",
+                                borderRadius: "6px"
+                              },
+                              disabled: isSyncing || !pasteInput.trim(),
+                              onClick: handleImportAndMerge,
+                              children: "\u{1F4E5} Wklej i scal z histori\u0105 tego urz\u0105dzenia"
+                            }
+                          )
+                        ]
+                      }
+                    )
+                  ]
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+                "div",
+                {
+                  style: {
+                    padding: "12px 20px",
+                    borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    background: "rgba(255, 255, 255, 0.02)",
+                    fontSize: "11px",
+                    color: "#64748b"
+                  },
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { children: "Wszystkie strategie Spot i Futures s\u0105 synchronizowane dwukierunkowo i trwale przechowywane." }),
+                    /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+                      "button",
+                      {
+                        type: "button",
+                        className: "btn btn-outline-sm",
+                        style: { borderColor: "rgba(255, 255, 255, 0.2)", color: "#cbd5e1" },
+                        onClick: onClose,
+                        children: "Zamknij"
+                      }
+                    )
+                  ]
+                }
+              )
+            ]
+          }
+        )
+      }
+    );
+  }
+
+  // src/App.jsx
+  var import_jsx_runtime16 = __toESM(require_jsx_runtime());
   var INITIAL_WINDOWS_REGISTRY = [
     { id: "win-ctrl-api", title: "1. Tryb i Klucze API", icon: "\u{1F511}", mode: "docked-top", prevActiveMode: "grid", posX: 40, posY: 90, isTopCtrl: true },
     { id: "win-ctrl-trade", title: "2. Sterowanie Handlem", icon: "\u25B6\uFE0F", mode: "docked-top", prevActiveMode: "grid", posX: 80, posY: 110, isTopCtrl: true },
@@ -25003,41 +25785,42 @@
     { id: "win-chart", title: "Wykres Aktywa", icon: "\u{1F56F}\uFE0F", mode: "docked-top", prevActiveMode: "floating-medium", posX: 110, posY: 130, isChart: true }
   ];
   function App() {
-    const [appState, setAppState] = (0, import_react15.useState)(null);
-    const [windowsRegistry, setWindowsRegistry] = (0, import_react15.useState)(INITIAL_WINDOWS_REGISTRY);
-    const [leftSidebarCollapsed, setLeftSidebarCollapsed] = (0, import_react15.useState)(true);
-    const [topMenuOpen, setTopMenuOpen] = (0, import_react15.useState)(false);
-    const [topMenuSize, setTopMenuSize] = (0, import_react15.useState)("medium");
-    const [topMenuPos, setTopMenuPos] = (0, import_react15.useState)(null);
-    const [topMenuZIndex, setTopMenuZIndex] = (0, import_react15.useState)(1280);
-    const [apiAccordionOpen, setApiAccordionOpen] = (0, import_react15.useState)(false);
-    const [tradeAccordionOpen, setTradeAccordionOpen] = (0, import_react15.useState)(false);
-    const [apiKeyProfile, setApiKeyProfile] = (0, import_react15.useState)("demo");
-    const [inputApiKey, setInputApiKey] = (0, import_react15.useState)("");
-    const [inputSecretKey, setInputSecretKey] = (0, import_react15.useState)("");
-    const [inputPassphrase, setInputPassphrase] = (0, import_react15.useState)("");
-    const [aiChatInput, setAiChatInput] = (0, import_react15.useState)("");
-    const [chatMessages, setChatMessages] = (0, import_react15.useState)([]);
-    const [aiStrategyInput, setAiStrategyInput] = (0, import_react15.useState)("");
-    const [currentAiStrategyAnalysis, setCurrentAiStrategyAnalysis] = (0, import_react15.useState)(null);
-    const [aiFuturesInput, setAiFuturesInput] = (0, import_react15.useState)("");
-    const [currentAiFuturesAnalysis, setCurrentAiFuturesAnalysis] = (0, import_react15.useState)(null);
-    const [isGeneratingFutures, setIsGeneratingFutures] = (0, import_react15.useState)(false);
-    const [lastExchangeFeedback, setLastExchangeFeedback] = (0, import_react15.useState)(null);
-    const [executedSessionTransactions, setExecutedSessionTransactions] = (0, import_react15.useState)([]);
-    const [collapsedAiTxIds, setCollapsedAiTxIds] = (0, import_react15.useState)(() => /* @__PURE__ */ new Set());
-    const [collapsedBubbleIds, setCollapsedBubbleIds] = (0, import_react15.useState)(() => /* @__PURE__ */ new Set());
-    const [expandedFeedbackIds, setExpandedFeedbackIds] = (0, import_react15.useState)(() => /* @__PURE__ */ new Set());
-    const [isConfirmingOrder, setIsConfirmingOrder] = (0, import_react15.useState)(false);
-    const [orderSide, setOrderSide] = (0, import_react15.useState)("BUY");
-    const [tradePair, setTradePair] = (0, import_react15.useState)("BTC-USDC");
-    const [tradeOrderType, setTradeOrderType] = (0, import_react15.useState)("MARKET");
-    const [tradePrice, setTradePrice] = (0, import_react15.useState)(76682.3);
-    const [tradeAmount, setTradeAmount] = (0, import_react15.useState)("0.02");
-    const [tradeUsdc, setTradeUsdc] = (0, import_react15.useState)("1533.65");
-    const [tradeStrategy, setTradeStrategy] = (0, import_react15.useState)("Zlecenie autoryzowane Spot EEA");
-    const [orderFilter, setOrderFilter] = (0, import_react15.useState)("ALL");
-    const [chartState, setChartState] = (0, import_react15.useState)({
+    const [appState, setAppState] = (0, import_react16.useState)(null);
+    const [windowsRegistry, setWindowsRegistry] = (0, import_react16.useState)(INITIAL_WINDOWS_REGISTRY);
+    const [leftSidebarCollapsed, setLeftSidebarCollapsed] = (0, import_react16.useState)(true);
+    const [topMenuOpen, setTopMenuOpen] = (0, import_react16.useState)(false);
+    const [topMenuSize, setTopMenuSize] = (0, import_react16.useState)("medium");
+    const [topMenuPos, setTopMenuPos] = (0, import_react16.useState)(null);
+    const [topMenuZIndex, setTopMenuZIndex] = (0, import_react16.useState)(1280);
+    const [isDeviceSyncModalOpen, setIsDeviceSyncModalOpen] = (0, import_react16.useState)(false);
+    const [apiAccordionOpen, setApiAccordionOpen] = (0, import_react16.useState)(false);
+    const [tradeAccordionOpen, setTradeAccordionOpen] = (0, import_react16.useState)(false);
+    const [apiKeyProfile, setApiKeyProfile] = (0, import_react16.useState)("demo");
+    const [inputApiKey, setInputApiKey] = (0, import_react16.useState)("");
+    const [inputSecretKey, setInputSecretKey] = (0, import_react16.useState)("");
+    const [inputPassphrase, setInputPassphrase] = (0, import_react16.useState)("");
+    const [aiChatInput, setAiChatInput] = (0, import_react16.useState)("");
+    const [chatMessages, setChatMessages] = (0, import_react16.useState)([]);
+    const [aiStrategyInput, setAiStrategyInput] = (0, import_react16.useState)("");
+    const [currentAiStrategyAnalysis, setCurrentAiStrategyAnalysis] = (0, import_react16.useState)(null);
+    const [aiFuturesInput, setAiFuturesInput] = (0, import_react16.useState)("");
+    const [currentAiFuturesAnalysis, setCurrentAiFuturesAnalysis] = (0, import_react16.useState)(null);
+    const [isGeneratingFutures, setIsGeneratingFutures] = (0, import_react16.useState)(false);
+    const [lastExchangeFeedback, setLastExchangeFeedback] = (0, import_react16.useState)(null);
+    const [executedSessionTransactions, setExecutedSessionTransactions] = (0, import_react16.useState)([]);
+    const [collapsedAiTxIds, setCollapsedAiTxIds] = (0, import_react16.useState)(() => /* @__PURE__ */ new Set());
+    const [collapsedBubbleIds, setCollapsedBubbleIds] = (0, import_react16.useState)(() => /* @__PURE__ */ new Set());
+    const [expandedFeedbackIds, setExpandedFeedbackIds] = (0, import_react16.useState)(() => /* @__PURE__ */ new Set());
+    const [isConfirmingOrder, setIsConfirmingOrder] = (0, import_react16.useState)(false);
+    const [orderSide, setOrderSide] = (0, import_react16.useState)("BUY");
+    const [tradePair, setTradePair] = (0, import_react16.useState)("BTC-USDC");
+    const [tradeOrderType, setTradeOrderType] = (0, import_react16.useState)("MARKET");
+    const [tradePrice, setTradePrice] = (0, import_react16.useState)(76682.3);
+    const [tradeAmount, setTradeAmount] = (0, import_react16.useState)("0.02");
+    const [tradeUsdc, setTradeUsdc] = (0, import_react16.useState)("1533.65");
+    const [tradeStrategy, setTradeStrategy] = (0, import_react16.useState)("Zlecenie autoryzowane Spot EEA");
+    const [orderFilter, setOrderFilter] = (0, import_react16.useState)("ALL");
+    const [chartState, setChartState] = (0, import_react16.useState)({
       isOpen: false,
       isMinimized: false,
       dockLocation: "top",
@@ -25069,19 +25852,19 @@
       posY: 85,
       zIndex: 1300
     });
-    const [toasts, setToasts] = (0, import_react15.useState)([]);
-    const zIndexCounterRef = (0, import_react15.useRef)(1350);
-    const wasJustDraggingRef = (0, import_react15.useRef)(false);
-    const chartStateRef = (0, import_react15.useRef)(chartState);
+    const [toasts, setToasts] = (0, import_react16.useState)([]);
+    const zIndexCounterRef = (0, import_react16.useRef)(1350);
+    const wasJustDraggingRef = (0, import_react16.useRef)(false);
+    const chartStateRef = (0, import_react16.useRef)(chartState);
     chartStateRef.current = chartState;
-    const windowsRegistryRef = (0, import_react15.useRef)(windowsRegistry);
+    const windowsRegistryRef = (0, import_react16.useRef)(windowsRegistry);
     windowsRegistryRef.current = windowsRegistry;
-    const topMenuOpenRef = (0, import_react15.useRef)(topMenuOpen);
+    const topMenuOpenRef = (0, import_react16.useRef)(topMenuOpen);
     topMenuOpenRef.current = topMenuOpen;
-    const topMenuSizeRef = (0, import_react15.useRef)(topMenuSize);
+    const topMenuSizeRef = (0, import_react16.useRef)(topMenuSize);
     topMenuSizeRef.current = topMenuSize;
-    const lastSessionSyncTsRef = (0, import_react15.useRef)(0);
-    (0, import_react15.useEffect)(() => {
+    const lastSessionSyncTsRef = (0, import_react16.useRef)(0);
+    (0, import_react16.useEffect)(() => {
       const sync = appState?.sessionSync;
       if (!sync || !sync.updatedAt) return;
       if (sync.updatedAt <= lastSessionSyncTsRef.current) return;
@@ -25107,18 +25890,18 @@
         setLastExchangeFeedback(sync.lastExchangeFeedback);
       }
     }, [appState?.sessionSync]);
-    const nextZIndex = (0, import_react15.useCallback)((bonus = 0) => {
+    const nextZIndex = (0, import_react16.useCallback)((bonus = 0) => {
       zIndexCounterRef.current += 1;
       return zIndexCounterRef.current + bonus;
     }, []);
-    const showToast = (0, import_react15.useCallback)((msg) => {
+    const showToast = (0, import_react16.useCallback)((msg) => {
       const id = Date.now() + Math.random();
       setToasts((prev) => [...prev, { id, msg }]);
       setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
       }, 4500);
     }, []);
-    const appendChatMessage = (0, import_react15.useCallback)((role, text, options = {}) => {
+    const appendChatMessage = (0, import_react16.useCallback)((role, text, options = {}) => {
       const id = "msg-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
       setChatMessages((prev) => [
         ...prev,
@@ -25132,7 +25915,7 @@
         }
       ]);
     }, []);
-    const fetchChartCandles = (0, import_react15.useCallback)(async (instId, bar) => {
+    const fetchChartCandles = (0, import_react16.useCallback)(async (instId, bar) => {
       const targetPair = instId || chartStateRef.current.instId || "BTC-USDC";
       const targetBar = bar || chartStateRef.current.bar || "15m";
       const data = await apiRequest(
@@ -25145,7 +25928,7 @@
         data
       }));
     }, []);
-    const openAssetChart = (0, import_react15.useCallback)(
+    const openAssetChart = (0, import_react16.useCallback)(
       async (instId = "BTC-USDC", size = null) => {
         const targetSize = size || chartStateRef.current.size || "medium";
         const z = nextZIndex(20);
@@ -25176,7 +25959,7 @@
       },
       [fetchChartCandles, nextZIndex]
     );
-    const setWindowMode = (0, import_react15.useCallback)(
+    const setWindowMode = (0, import_react16.useCallback)(
       (winId, requestedMode, customCoords = null) => {
         if (winId === "win-chart") {
           if (requestedMode === "docked-top" || requestedMode === "docked-sidebar") {
@@ -25253,7 +26036,7 @@
       },
       [nextZIndex, openAssetChart]
     );
-    const handleCloseWindow = (0, import_react15.useCallback)(
+    const handleCloseWindow = (0, import_react16.useCallback)(
       (winId) => {
         const winMeta = windowsRegistryRef.current.find((w) => w.id === winId);
         if (winId === "win-ai-strategies") {
@@ -25273,7 +26056,7 @@
       },
       [setWindowMode, showToast]
     );
-    const handleBringToFront = (0, import_react15.useCallback)(
+    const handleBringToFront = (0, import_react16.useCallback)(
       (winId) => {
         const z = nextZIndex();
         setWindowsRegistry(
@@ -25288,7 +26071,7 @@
     const isSingleGridWindow = allGridWindows.length === 1;
     const soloWindow = isSingleGridWindow ? allGridWindows[0] : null;
     const isSoloMinimized = isSingleGridWindow && soloWindow && soloWindow.mode === "minimized-inline";
-    (0, import_react15.useEffect)(() => {
+    (0, import_react16.useEffect)(() => {
       if (document.body) {
         document.body.classList.toggle(
           "has-single-window-grid",
@@ -25297,7 +26080,7 @@
         document.body.classList.toggle("single-window-minimized", isSoloMinimized);
       }
     }, [isSingleGridWindow, isSoloMinimized]);
-    (0, import_react15.useEffect)(() => {
+    (0, import_react16.useEffect)(() => {
       if (!appState) return;
       const markets2 = appState.markets || appState.tickers || DEFAULT_STANDALONE_MARKETS;
       const m = markets2.find((x) => x.instId === tradePair) || markets2[0];
@@ -25305,7 +26088,7 @@
         setTradePrice(m.price);
       }
     }, [appState, tradePair, tradeOrderType]);
-    (0, import_react15.useEffect)(() => {
+    (0, import_react16.useEffect)(() => {
       let dragState = null;
       const handlePointerDown = (clientX, clientY, target, rawEvent) => {
         const titlebar = target.closest("[data-drag-window]");
@@ -25462,7 +26245,7 @@
         window.removeEventListener("touchend", handlePointerUp);
       };
     }, [setWindowMode]);
-    (0, import_react15.useEffect)(() => {
+    (0, import_react16.useEffect)(() => {
       let mounted = true;
       async function initLoad() {
         syncCloudSessionOrders().catch(() => {
@@ -25497,9 +26280,21 @@
         } catch (e) {
         }
       }, 2500);
+      const handleWindowFocus = () => {
+        syncCloudSessionOrders().then((res) => {
+          if (res && res.ok && res.count > 0 && mounted) {
+            apiRequest("/api/state").then((live) => {
+              if (live && mounted) setAppState(live);
+            });
+          }
+        }).catch(() => {
+        });
+      };
+      window.addEventListener("focus", handleWindowFocus);
       return () => {
         mounted = false;
         clearInterval(intervalId);
+        window.removeEventListener("focus", handleWindowFocus);
       };
     }, [fetchChartCandles]);
     const handleSwitchApiMode = async (mode) => {
@@ -25557,6 +26352,9 @@
         );
       }
     };
+    const handleOpenDeviceSyncModal = () => {
+      setIsDeviceSyncModalOpen(true);
+    };
     const handleExportSyncData = () => {
       try {
         const code = exportDeviceSyncCode();
@@ -25568,44 +26366,49 @@
           navigator.clipboard.writeText(code).then(() => {
             showToast("\u{1F4CB} Skopiowano dane transakcji do schowka! Wklej je na drugim urz\u0105dzeniu.");
           }).catch(() => {
-            prompt("Skopiuj poni\u017Csze dane transakcji r\u0119cznie (Ctrl+C):", code);
+            setIsDeviceSyncModalOpen(true);
           });
         } else {
-          prompt("Skopiuj poni\u017Csze dane transakcji r\u0119cznie (Ctrl+C):", code);
+          setIsDeviceSyncModalOpen(true);
         }
       } catch (e) {
         showToast("\u274C B\u0142\u0105d eksportu: " + e.message);
       }
     };
-    const handleImportSyncData = async () => {
-      const input = prompt("Wklej dane synchronizacji transakcji z telefonu / drugiego urz\u0105dzenia (JSON):");
-      if (!input || !input.trim()) return;
-      try {
-        showToast("\u23F3 Importowanie i scalanie transakcji w bazie...");
-        const res = await importDeviceSyncCode(input);
-        if (res.state) {
-          setAppState(res.state);
-        } else {
-          const live = await apiRequest("/api/state");
-          if (live) setAppState(live);
+    const handleImportSyncData = async (optionalCode) => {
+      if (typeof optionalCode === "string" && optionalCode.trim()) {
+        try {
+          showToast("\u23F3 Importowanie i scalanie transakcji w bazie...");
+          const res = await importDeviceSyncCode(optionalCode);
+          if (res.state) {
+            setAppState(res.state);
+          } else {
+            const live = await apiRequest("/api/state");
+            if (live) setAppState(live);
+          }
+          showToast(`\u2705 Pomy\u015Blnie zaimportowano ${res.count || 0} transakcji do bazy i portfela!`);
+        } catch (e) {
+          alert("B\u0142\u0105d importu transakcji: " + e.message);
         }
-        showToast(`\u2705 Pomy\u015Blnie zaimportowano ${res.count || 0} transakcji do bazy i portfela!`);
-      } catch (e) {
-        alert("B\u0142\u0105d importu transakcji: " + e.message);
+        return;
       }
+      setIsDeviceSyncModalOpen(true);
     };
     const handleForceDeviceSync = async () => {
       showToast("\u{1F504} \u0141\u0105czenie z bram\u0105 i synchronizacja historii zlece\u0144...");
       try {
-        await Promise.all([
+        const [cloudRes] = await Promise.all([
           syncCloudSessionOrders().catch(() => ({ ok: false })),
           probeHomeGateway(true).catch(() => false)
         ]);
         const res = await apiRequest("/api/state");
         if (res) setAppState(res);
-        showToast("\u2705 Zsynchronizowano transakcje, histori\u0119 Spot i Futures oraz portfel z Bram\u0105 Domow\u0105 i chmur\u0105!");
+        const count = cloudRes?.count || 0;
+        showToast(
+          count > 0 ? `\u2705 Zsynchronizowano ${count} strategii Spot i Futures z Bram\u0105 Domow\u0105 i chmur\u0105!` : "\u2705 Pami\u0119\u0107 lokalna jest aktualna i zsynchronizowana z bram\u0105."
+        );
       } catch (e) {
-        showToast("\u26A0\uFE0F Brak bezpo\u015Bredniego po\u0142\u0105czenia z bram\u0105. U\u017Cyj przycisku [Kopiuj z tego urz\u0105dzenia] i wklej na drugim urz\u0105dzeniu.");
+        showToast("\u26A0\uFE0F Brak bezpo\u015Bredniego po\u0142\u0105czenia z bram\u0105. U\u017Cyj panelu [Sync Telefon \u21C4 PC] do bezpo\u015Bredniego scalenia.");
       }
     };
     const handleDisconnectApiKeys = async () => {
@@ -25681,6 +26484,7 @@
         }
         const execOrd = res.executedOrder || pendingOrder;
         const fb = res.exchangeFeedback || buildExchangeFeedbackForItem(execOrd, appState.config?.apiMode);
+        saveAiExecutedOrderToLocal({ ...execOrd, exchangeFeedback: fb });
         setLastExchangeFeedback(fb);
         setExecutedSessionTransactions((prev) => {
           if (prev.some((t) => t.orderId === fb.orderId)) return prev;
@@ -25789,7 +26593,7 @@
         setAppState(res.state);
       }
     };
-    const runAiStrategyQuery = (0, import_react15.useCallback)(
+    const runAiStrategyQuery = (0, import_react16.useCallback)(
       async (queryText) => {
         const q = (queryText || "").trim() || "Strategia kupna dla BTC";
         setLastExchangeFeedback(null);
@@ -25848,7 +26652,7 @@
         }
       }, 60);
     };
-    const runAiFuturesStrategyQuery = (0, import_react15.useCallback)(
+    const runAiFuturesStrategyQuery = (0, import_react16.useCallback)(
       async (queryText, options = {}) => {
         const q = (queryText || "").trim() || "BTC-SWAP LONG 10x";
         setLastExchangeFeedback(null);
@@ -25930,7 +26734,7 @@
         return next;
       });
     };
-    const collapseAllAiTransactions = (0, import_react15.useCallback)(() => {
+    const collapseAllAiTransactions = (0, import_react16.useCallback)(() => {
       const txList = executedSessionTransactions.length > 0 ? executedSessionTransactions : lastExchangeFeedback ? [lastExchangeFeedback] : [];
       const nextTx = new Set(txList.map((fb) => String(fb.orderId || "LATEST")));
       if (lastExchangeFeedback?.orderId) {
@@ -26144,7 +26948,7 @@
       setLeftSidebarCollapsed(false);
       showToast("\u25C0 Wszystkie okna zosta\u0142y zwini\u0119te do Sidebaru z lewej.");
     };
-    const handleUpdateChartState = (0, import_react15.useCallback)(
+    const handleUpdateChartState = (0, import_react16.useCallback)(
       (updates, shouldFetchCandles = false) => {
         setChartState((prev) => {
           const next = { ...prev, ...updates };
@@ -26197,8 +27001,8 @@
     ].filter(Boolean).join(" ");
     const markets = appState?.markets || appState?.tickers || DEFAULT_STANDALONE_MARKETS;
     const soloWindowId = soloWindow ? soloWindow.id : null;
-    return /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(import_jsx_runtime15.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(import_jsx_runtime16.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
         HeaderBar,
         {
           cfg: appState?.config,
@@ -26228,11 +27032,12 @@
           onResetAllWindowsGrid: handleResetAllWindowsGrid,
           onDockAllTop: handleDockAllTop,
           onDockAllSidebar: handleDockAllSidebar,
-          onOpenAssetChart: (instId) => openAssetChart(instId, chartState.isOpen ? chartState.size : "medium")
+          onOpenAssetChart: (instId) => openAssetChart(instId, chartState.isOpen ? chartState.size : "medium"),
+          onOpenDeviceSyncModal: handleOpenDeviceSyncModal
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "app-shell", id: "appShell", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("div", { className: "app-shell", id: "appShell", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
           LeftSidebar,
           {
             collapsed: leftSidebarCollapsed,
@@ -26243,8 +27048,8 @@
             onCloseWindow: handleCloseWindow
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("main", { className: mainWsClass, id: "mainWorkspace", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("main", { className: mainWsClass, id: "mainWorkspace", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
             ControlWindows,
             {
               windowsRegistry,
@@ -26275,8 +27080,8 @@
               onBringToFront: handleBringToFront
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("section", { className: rowAgentOrderClass, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("section", { className: rowAgentOrderClass, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
               AiChatWindow,
               {
                 winMeta: windowsRegistry.find((w) => w.id === "win-ai-chat"),
@@ -26304,7 +27109,7 @@
                 onBringToFront: handleBringToFront
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
               AiStrategiesWindow,
               {
                 winMeta: windowsRegistry.find((w) => w.id === "win-ai-strategies"),
@@ -26325,12 +27130,14 @@
                 onCompleteStrategy: handleCompleteStrategy,
                 onToggleAiExecutedTx: handleToggleAiExecutedTx,
                 onOpenAssetChart: (instId) => openAssetChart(instId, chartState.isOpen ? chartState.size : "medium"),
+                onOpenDeviceSyncModal: handleOpenDeviceSyncModal,
+                onForceDeviceSync: handleForceDeviceSync,
                 onSetWindowMode: setWindowMode,
                 onCloseWindow: handleCloseWindow,
                 onBringToFront: handleBringToFront
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
               AiFuturesStrategiesWindow,
               {
                 winMeta: windowsRegistry.find((w) => w.id === "win-ai-strategies-futures"),
@@ -26352,12 +27159,14 @@
                 onCompleteStrategy: handleCompleteStrategy,
                 onToggleAiExecutedTx: handleToggleAiExecutedTx,
                 onOpenAssetChart: (instId) => openAssetChart(instId, chartState.isOpen ? chartState.size : "medium"),
+                onOpenDeviceSyncModal: handleOpenDeviceSyncModal,
+                onForceDeviceSync: handleForceDeviceSync,
                 onSetWindowMode: setWindowMode,
                 onCloseWindow: handleCloseWindow,
                 onBringToFront: handleBringToFront
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
               QuickTradeWindow,
               {
                 winMeta: windowsRegistry.find((w) => w.id === "win-quick-trade"),
@@ -26386,7 +27195,7 @@
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
             PortfoliosRow,
             {
               windowsRegistry,
@@ -26396,13 +27205,14 @@
               onForceDeviceSync: handleForceDeviceSync,
               onExportSyncData: handleExportSyncData,
               onImportSyncData: handleImportSyncData,
+              onOpenDeviceSyncModal: handleOpenDeviceSyncModal,
               onOpenAssetChart: (instId) => openAssetChart(instId, chartState.isOpen ? chartState.size : "medium"),
               onSetWindowMode: setWindowMode,
               onCloseWindow: handleCloseWindow,
               onBringToFront: handleBringToFront
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
             PortfolioHistoryWindow,
             {
               winMeta: windowsRegistry.find((w) => w.id === "win-portfolio-history"),
@@ -26416,7 +27226,7 @@
               onBringToFront: handleBringToFront
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
             OrdersHistoryWindow,
             {
               winMeta: windowsRegistry.find((w) => w.id === "win-orders-history"),
@@ -26433,6 +27243,7 @@
               onForceDeviceSync: handleForceDeviceSync,
               onExportSyncData: handleExportSyncData,
               onImportSyncData: handleImportSyncData,
+              onOpenDeviceSyncModal: handleOpenDeviceSyncModal,
               onSetWindowMode: setWindowMode,
               onCloseWindow: handleCloseWindow,
               onBringToFront: handleBringToFront
@@ -26440,7 +27251,7 @@
           )
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
         TradingViewChartWindow,
         {
           chartState,
@@ -26456,15 +27267,15 @@
           onClearDrawingsToast: (instId) => showToast(`\u{1F5D1}\uFE0F Wyczyszczono rysunki na wykresie ${instId}.`)
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { id: "toastContainer", className: "toast-container", children: toasts.map((t) => /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "toast", children: t.msg }, t.id)) }),
-      /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+      /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { id: "toastContainer", className: "toast-container", children: toasts.map((t) => /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { className: "toast", children: t.msg }, t.id)) }),
+      /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
         "nav",
         {
           id: "mobileQuickNav",
           className: "mobile-bottom-nav",
           "aria-label": "Szybka nawigacja mobilna",
           children: [
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
               "button",
               {
                 type: "button",
@@ -26474,48 +27285,48 @@
                   collapseAllAiTransactions();
                 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4AC}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "Agent AI" })
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4AC}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-label", children: "Agent AI" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
               "button",
               {
                 type: "button",
                 className: "mobile-nav-btn",
                 onClick: handleOpenAiStrategies,
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F9E0}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "AI Spot" })
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F9E0}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-label", children: "AI Spot" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
               "button",
               {
                 type: "button",
                 className: "mobile-nav-btn",
                 onClick: handleOpenAiFuturesStrategies,
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u26A1" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "AI Futures" })
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-icon", children: "\u26A1" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-label", children: "AI Futures" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
               "button",
               {
                 type: "button",
                 className: "mobile-nav-btn",
                 onClick: () => setWindowMode("win-quick-trade", "grid"),
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u26A1" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "Handel" })
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-icon", children: "\u26A1" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-label", children: "Handel" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
               "button",
               {
                 type: "button",
@@ -26525,12 +27336,12 @@
                   setWindowMode("win-bought-sold", "grid");
                 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4BC}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "Portfel" })
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4BC}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-label", children: "Portfel" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
               "button",
               {
                 type: "button",
@@ -26540,24 +27351,24 @@
                   setWindowMode("win-orders-history", "grid");
                 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4DC}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "Historia" })
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4DC}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-label", children: "Historia" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
               "button",
               {
                 type: "button",
                 className: "mobile-nav-btn",
                 onClick: () => openAssetChart(chartState.instId || "BTC-USDC", "full"),
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F56F}\uFE0F" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "Wykres" })
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F56F}\uFE0F" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-label", children: "Wykres" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
               "button",
               {
                 type: "button",
@@ -26567,35 +27378,61 @@
                   setApiAccordionOpen(true);
                 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F511}" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "IP / API" })
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F511}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-label", children: "IP / API" })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
+              "button",
+              {
+                type: "button",
+                className: "mobile-nav-btn",
+                onClick: handleOpenDeviceSyncModal,
+                style: { color: "#38bdf8" },
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-icon", children: "\u{1F4F2}" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-label", children: "Sync" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
               "button",
               {
                 type: "button",
                 className: "mobile-nav-btn",
                 onClick: handleResetAllWindowsGrid,
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-icon", children: "\u229E" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "mobile-nav-label", children: "Wszystkie" })
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-icon", children: "\u229E" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "mobile-nav-label", children: "Wszystkie" })
                 ]
               }
             )
           ]
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+        DeviceSyncModal,
+        {
+          isOpen: isDeviceSyncModalOpen,
+          onClose: () => setIsDeviceSyncModalOpen(false),
+          cfg: appState?.config,
+          onStateUpdate: async () => {
+            const live = await apiRequest("/api/state");
+            if (live) setAppState(live);
+          },
+          showToast
         }
       )
     ] });
   }
 
   // src/main.jsx
-  var import_jsx_runtime16 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime17 = __toESM(require_jsx_runtime());
   var container = document.getElementById("root");
   if (container) {
     const root = (0, import_client.createRoot)(container);
-    root.render(/* @__PURE__ */ (0, import_jsx_runtime16.jsx)(App, {}));
+    root.render(/* @__PURE__ */ (0, import_jsx_runtime17.jsx)(App, {}));
   }
 })();
 /*! Bundled license information:

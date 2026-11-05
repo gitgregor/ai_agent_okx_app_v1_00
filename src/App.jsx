@@ -8,6 +8,7 @@ import {
   saveKeysToLocalStorage,
   clearKeysFromLocalStorage,
   getKeysFromLocalStorage,
+  saveAiExecutedOrderToLocal,
   exportDeviceSyncCode,
   importDeviceSyncCode,
   probeHomeGateway,
@@ -25,6 +26,7 @@ import { PortfoliosRow } from './components/PortfoliosRow';
 import { PortfolioHistoryWindow } from './components/PortfolioHistoryWindow';
 import { OrdersHistoryWindow } from './components/OrdersHistoryWindow';
 import { TradingViewChartWindow } from './components/TradingViewChartWindow';
+import { DeviceSyncModal } from './components/DeviceSyncModal';
 
 const INITIAL_WINDOWS_REGISTRY = [
   { id: 'win-ctrl-api', title: '1. Tryb i Klucze API', icon: '🔑', mode: 'docked-top', prevActiveMode: 'grid', posX: 40, posY: 90, isTopCtrl: true },
@@ -49,6 +51,7 @@ export function App() {
   const [topMenuSize, setTopMenuSize] = useState('medium');
   const [topMenuPos, setTopMenuPos] = useState(null);
   const [topMenuZIndex, setTopMenuZIndex] = useState(1280);
+  const [isDeviceSyncModalOpen, setIsDeviceSyncModalOpen] = useState(false);
 
   // Accordions & API Form state
   const [apiAccordionOpen, setApiAccordionOpen] = useState(false);
@@ -645,9 +648,21 @@ export function App() {
       } catch (e) {}
     }, 2500);
 
+    const handleWindowFocus = () => {
+      syncCloudSessionOrders().then((res) => {
+        if (res && res.ok && res.count > 0 && mounted) {
+          apiRequest('/api/state').then((live) => {
+            if (live && mounted) setAppState(live);
+          });
+        }
+      }).catch(() => {});
+    };
+    window.addEventListener('focus', handleWindowFocus);
+
     return () => {
       mounted = false;
       clearInterval(intervalId);
+      window.removeEventListener('focus', handleWindowFocus);
     };
   }, [fetchChartCandles]);
 
@@ -715,6 +730,10 @@ export function App() {
     }
   };
 
+  const handleOpenDeviceSyncModal = () => {
+    setIsDeviceSyncModalOpen(true);
+  };
+
   const handleExportSyncData = () => {
     try {
       const code = exportDeviceSyncCode();
@@ -729,46 +748,53 @@ export function App() {
             showToast('📋 Skopiowano dane transakcji do schowka! Wklej je na drugim urządzeniu.');
           })
           .catch(() => {
-            prompt('Skopiuj poniższe dane transakcji ręcznie (Ctrl+C):', code);
+            setIsDeviceSyncModalOpen(true);
           });
       } else {
-        prompt('Skopiuj poniższe dane transakcji ręcznie (Ctrl+C):', code);
+        setIsDeviceSyncModalOpen(true);
       }
     } catch (e) {
       showToast('❌ Błąd eksportu: ' + e.message);
     }
   };
 
-  const handleImportSyncData = async () => {
-    const input = prompt('Wklej dane synchronizacji transakcji z telefonu / drugiego urządzenia (JSON):');
-    if (!input || !input.trim()) return;
-    try {
-      showToast('⏳ Importowanie i scalanie transakcji w bazie...');
-      const res = await importDeviceSyncCode(input);
-      if (res.state) {
-        setAppState(res.state);
-      } else {
-        const live = await apiRequest('/api/state');
-        if (live) setAppState(live);
+  const handleImportSyncData = async (optionalCode) => {
+    if (typeof optionalCode === 'string' && optionalCode.trim()) {
+      try {
+        showToast('⏳ Importowanie i scalanie transakcji w bazie...');
+        const res = await importDeviceSyncCode(optionalCode);
+        if (res.state) {
+          setAppState(res.state);
+        } else {
+          const live = await apiRequest('/api/state');
+          if (live) setAppState(live);
+        }
+        showToast(`✅ Pomyślnie zaimportowano ${res.count || 0} transakcji do bazy i portfela!`);
+      } catch (e) {
+        alert('Błąd importu transakcji: ' + e.message);
       }
-      showToast(`✅ Pomyślnie zaimportowano ${res.count || 0} transakcji do bazy i portfela!`);
-    } catch (e) {
-      alert('Błąd importu transakcji: ' + e.message);
+      return;
     }
+    setIsDeviceSyncModalOpen(true);
   };
 
   const handleForceDeviceSync = async () => {
     showToast('🔄 Łączenie z bramą i synchronizacja historii zleceń...');
     try {
-      await Promise.all([
+      const [cloudRes] = await Promise.all([
         syncCloudSessionOrders().catch(() => ({ ok: false })),
         probeHomeGateway(true).catch(() => false)
       ]);
       const res = await apiRequest('/api/state');
       if (res) setAppState(res);
-      showToast('✅ Zsynchronizowano transakcje, historię Spot i Futures oraz portfel z Bramą Domową i chmurą!');
+      const count = cloudRes?.count || 0;
+      showToast(
+        count > 0
+          ? `✅ Zsynchronizowano ${count} strategii Spot i Futures z Bramą Domową i chmurą!`
+          : '✅ Pamięć lokalna jest aktualna i zsynchronizowana z bramą.'
+      );
     } catch (e) {
-      showToast('⚠️ Brak bezpośredniego połączenia z bramą. Użyj przycisku [Kopiuj z tego urządzenia] i wklej na drugim urządzeniu.');
+      showToast('⚠️ Brak bezpośredniego połączenia z bramą. Użyj panelu [Sync Telefon ⇄ PC] do bezpośredniego scalenia.');
     }
   };
 
@@ -854,6 +880,7 @@ export function App() {
       const fb =
         res.exchangeFeedback ||
         buildExchangeFeedbackForItem(execOrd, appState.config?.apiMode);
+      saveAiExecutedOrderToLocal({ ...execOrd, exchangeFeedback: fb });
       setLastExchangeFeedback(fb);
       setExecutedSessionTransactions((prev) => {
         if (prev.some((t) => t.orderId === fb.orderId)) return prev;
@@ -1500,6 +1527,7 @@ export function App() {
         onOpenAssetChart={(instId) =>
           openAssetChart(instId, chartState.isOpen ? chartState.size : 'medium')
         }
+        onOpenDeviceSyncModal={handleOpenDeviceSyncModal}
       />
 
       <div className="app-shell" id="appShell">
@@ -1590,6 +1618,8 @@ export function App() {
               onOpenAssetChart={(instId) =>
                 openAssetChart(instId, chartState.isOpen ? chartState.size : 'medium')
               }
+              onOpenDeviceSyncModal={handleOpenDeviceSyncModal}
+              onForceDeviceSync={handleForceDeviceSync}
               onSetWindowMode={setWindowMode}
               onCloseWindow={handleCloseWindow}
               onBringToFront={handleBringToFront}
@@ -1617,6 +1647,8 @@ export function App() {
               onOpenAssetChart={(instId) =>
                 openAssetChart(instId, chartState.isOpen ? chartState.size : 'medium')
               }
+              onOpenDeviceSyncModal={handleOpenDeviceSyncModal}
+              onForceDeviceSync={handleForceDeviceSync}
               onSetWindowMode={setWindowMode}
               onCloseWindow={handleCloseWindow}
               onBringToFront={handleBringToFront}
@@ -1657,6 +1689,7 @@ export function App() {
             onForceDeviceSync={handleForceDeviceSync}
             onExportSyncData={handleExportSyncData}
             onImportSyncData={handleImportSyncData}
+            onOpenDeviceSyncModal={handleOpenDeviceSyncModal}
             onOpenAssetChart={(instId) =>
               openAssetChart(instId, chartState.isOpen ? chartState.size : 'medium')
             }
@@ -1694,6 +1727,7 @@ export function App() {
             onForceDeviceSync={handleForceDeviceSync}
             onExportSyncData={handleExportSyncData}
             onImportSyncData={handleImportSyncData}
+            onOpenDeviceSyncModal={handleOpenDeviceSyncModal}
             onSetWindowMode={setWindowMode}
             onCloseWindow={handleCloseWindow}
             onBringToFront={handleBringToFront}
@@ -1810,12 +1844,32 @@ export function App() {
         <button
           type="button"
           className="mobile-nav-btn"
+          onClick={handleOpenDeviceSyncModal}
+          style={{ color: '#38bdf8' }}
+        >
+          <span className="mobile-nav-icon">📲</span>
+          <span className="mobile-nav-label">Sync</span>
+        </button>
+        <button
+          type="button"
+          className="mobile-nav-btn"
           onClick={handleResetAllWindowsGrid}
         >
           <span className="mobile-nav-icon">⊞</span>
           <span className="mobile-nav-label">Wszystkie</span>
         </button>
       </nav>
+
+      <DeviceSyncModal
+        isOpen={isDeviceSyncModalOpen}
+        onClose={() => setIsDeviceSyncModalOpen(false)}
+        cfg={appState?.config}
+        onStateUpdate={async () => {
+          const live = await apiRequest('/api/state');
+          if (live) setAppState(live);
+        }}
+        showToast={showToast}
+      />
     </>
   );
 }

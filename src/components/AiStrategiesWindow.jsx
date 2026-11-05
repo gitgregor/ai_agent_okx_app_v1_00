@@ -301,6 +301,8 @@ export function AiStrategiesWindow({
   onCompleteStrategy,
   onToggleAiExecutedTx,
   onOpenAssetChart,
+  onOpenDeviceSyncModal,
+  onForceDeviceSync,
   onSetWindowMode,
   onCloseWindow,
   onBringToFront
@@ -570,6 +572,20 @@ export function AiStrategiesWindow({
       >
         <span>💡</span> <span className="ai-pill-btn-label">Przykłady strategii</span>
       </button>
+
+      <button
+        type="button"
+        className="win-ctrl-btn ai-titlebar-pill"
+        style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.45)' }}
+        title="Synchronizuj strategie Spot z telefonem / drugim komputerem"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onOpenDeviceSyncModal) onOpenDeviceSyncModal();
+          else if (onForceDeviceSync) onForceDeviceSync();
+        }}
+      >
+        <span>📲</span> <span className="ai-pill-btn-label">Sync Telefon ⇄ PC</span>
+      </button>
     </div>
   );
 
@@ -719,6 +735,43 @@ export function AiStrategiesWindow({
           <p className="panel-subtitle" style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>
             Poniżej znajduje się pełna historia strategii z dokładną datą i czasem otworzenia strategii oraz momentem jej zrealizowania na giełdzie OKX.
           </p>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '8px',
+              padding: '8px 12px',
+              background: 'rgba(56, 189, 248, 0.08)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              borderRadius: '8px',
+              marginBottom: '12px'
+            }}
+          >
+            <span style={{ fontSize: '12px', color: '#bae6fd' }}>
+              📲 <strong>Wzajemna synchronizacja:</strong> Połącz i uzupełnij zlecenia Spot między Telefonem a Komputerem
+            </span>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                className="btn btn-outline-sm"
+                style={{
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  borderColor: '#38bdf8',
+                  color: '#38bdf8',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  padding: '4px 10px'
+                }}
+                title="Otwórz panel dwukierunkowej synchronizacji z telefonem"
+                onClick={onOpenDeviceSyncModal}
+              >
+                🔄 Otwórz Sync (Telefon ⇄ PC)
+              </button>
+            </div>
+          </div>
 
           <div className="history-strategies-full-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {candidateStrategies.length === 0 ? (

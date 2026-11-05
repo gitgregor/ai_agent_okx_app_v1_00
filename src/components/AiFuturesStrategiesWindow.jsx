@@ -248,6 +248,8 @@ export function AiFuturesStrategiesWindow({
   onCompleteStrategy,
   onToggleAiExecutedTx,
   onOpenAssetChart,
+  onOpenDeviceSyncModal,
+  onForceDeviceSync,
   onSetWindowMode,
   onCloseWindow,
   onBringToFront
@@ -512,6 +514,20 @@ export function AiFuturesStrategiesWindow({
         }}
       >
         <span>🧮</span> <span className="ai-pill-btn-label">Kalkulator Ryzyka</span>
+      </button>
+
+      <button
+        type="button"
+        className="win-ctrl-btn ai-titlebar-pill"
+        style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.45)' }}
+        title="Synchronizuj pozycje i strategie Futures z telefonem / drugim komputerem"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onOpenDeviceSyncModal) onOpenDeviceSyncModal();
+          else if (onForceDeviceSync) onForceDeviceSync();
+        }}
+      >
+        <span>📲</span> <span className="ai-pill-btn-label">Sync Telefon ⇄ PC</span>
       </button>
     </div>
   );
@@ -997,6 +1013,43 @@ export function AiFuturesStrategiesWindow({
             >
               ✕ Zamknij
             </button>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '8px',
+              padding: '8px 12px',
+              background: 'rgba(168, 85, 247, 0.1)',
+              border: '1px solid rgba(168, 85, 247, 0.3)',
+              borderRadius: '8px',
+              marginBottom: '14px'
+            }}
+          >
+            <span style={{ fontSize: '12px', color: '#e9d5ff' }}>
+              📲 <strong>Wzajemna synchronizacja Futures:</strong> Połącz pozycje i historię między Telefonem a Komputerem
+            </span>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                className="btn btn-outline-sm"
+                style={{
+                  background: 'rgba(168, 85, 247, 0.18)',
+                  borderColor: '#a855f7',
+                  color: '#c084fc',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  padding: '4px 10px'
+                }}
+                title="Otwórz panel dwukierunkowej synchronizacji z telefonem"
+                onClick={onOpenDeviceSyncModal}
+              >
+                🔄 Otwórz Sync (Telefon ⇄ PC)
+              </button>
+            </div>
           </div>
 
           {candidateStrategies.length === 0 ? (

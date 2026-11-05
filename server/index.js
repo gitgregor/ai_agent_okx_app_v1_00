@@ -183,6 +183,25 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, state });
     }
 
+    // 6C-2. Read session orders endpoint (for mobile / desktop cloud sync)
+    if ((pathname === '/session-orders.json' || pathname === '/api/session-orders') && req.method === 'GET') {
+      const ordersFile = path.join(__dirname, '.okx-session-orders.json');
+      if (fs.existsSync(ordersFile)) {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
+        });
+        return res.end(fs.readFileSync(ordersFile, 'utf8'));
+      }
+      return sendJson(res, 200, {
+        updatedAt: Date.now(),
+        demo: engine.portfolios.demo.sessionOrders || [],
+        live: engine.portfolios.live.sessionOrders || [],
+        sessionSync: engine.sessionSync
+      });
+    }
+
     // 6D. Gateway discovery endpoint
     if ((pathname === '/api/gateway' || pathname === '/gateway.json') && req.method === 'GET') {
       return sendJson(res, 200, getGatewayRegistryPayload());
@@ -336,14 +355,14 @@ function updateAndPublishGatewayStatus() {
     }
   } catch (e) {}
 
-  // If a new Cloudflare URL is active, auto-push gateway.json to GitHub in background so mobile phones outside home discover it via raw.githubusercontent.com
+  // If a new Cloudflare URL is active, auto-push gateway.json & session-orders.json to GitHub in background so mobile phones outside home discover it via raw.githubusercontent.com
   if (activeCloudflareUrl && activeCloudflareUrl !== lastPublishedPrimaryUrl && !gitSyncInFlight) {
     lastPublishedPrimaryUrl = activeCloudflareUrl;
     gitSyncInFlight = true;
     const { exec } = require('child_process');
     const rootDir = path.join(__dirname, '..');
     exec(
-      'git add gateway.json public/gateway.json docs/gateway.json && git commit -m "chore: update active Home IP Gateway tunnel URL" && git push origin main',
+      'git add gateway.json public/gateway.json docs/gateway.json docs/session-orders.json public/session-orders.json session-orders.json && git commit -m "chore: sync active Home IP Gateway & session orders" && git push origin main',
       { cwd: rootDir, timeout: 25000 },
       () => {
         gitSyncInFlight = false;

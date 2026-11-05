@@ -240,7 +240,37 @@ export function saveAiExecutedOrderToLocal(order) {
     const current = loadSavedAiExecutedOrders();
     const filtered = current.filter((o) => String(o.id) !== String(order.id));
     filtered.unshift(order);
-    localStorage.setItem(LS_AI_EXECUTED_ORDERS_KEY, JSON.stringify(filtered.slice(0, 100)));
+    localStorage.setItem(LS_AI_EXECUTED_ORDERS_KEY, JSON.stringify(filtered.slice(0, 200)));
+  } catch (e) {}
+}
+
+export function saveMultipleAiExecutedOrdersToLocal(orders = []) {
+  if (typeof window === 'undefined' || !Array.isArray(orders) || orders.length === 0) return;
+  try {
+    const current = loadSavedAiExecutedOrders();
+    const map = new Map();
+    for (const o of current) {
+      if (o && o.id) map.set(String(o.id), o);
+    }
+    for (const o of orders) {
+      if (!o || !o.id) continue;
+      const idStr = String(o.id);
+      if (idStr.startsWith('OKX-DEMO-17924') || idStr.startsWith('OKX-DEMO-POS-') || idStr.startsWith('OKX-LIVE-POS-')) continue;
+      const prev = map.get(idStr) || {};
+      const mergedItem = {
+        ...prev,
+        ...o,
+        exchangeFeedback: o.exchangeFeedback || prev.exchangeFeedback,
+        rawState: o.rawState || prev.rawState,
+        status: o.status || prev.status,
+        strategyName: o.strategyName || prev.strategyName,
+        source: o.source || prev.source
+      };
+      map.set(idStr, mergedItem);
+    }
+    const merged = Array.from(map.values());
+    merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    localStorage.setItem(LS_AI_EXECUTED_ORDERS_KEY, JSON.stringify(merged.slice(0, 200)));
   } catch (e) {}
 }
 
@@ -262,9 +292,24 @@ export function exportDeviceSyncCode() {
     }
   } catch (e) {}
 
+  const spotCount = orders.filter(
+    (o) =>
+      !(
+        String(o.id || '').startsWith('OKX-FUT-') ||
+        o.marketType === 'FUTURES' ||
+        o.instId?.includes('SWAP') ||
+        o.source?.includes('Futures') ||
+        o.strategyName?.includes('Futures') ||
+        Boolean(o.leverage)
+      )
+  ).length;
+  const futuresCount = orders.length - spotCount;
+
   const payload = {
+    app: 'okx-eea-agent-trading',
     exportedAt: Date.now(),
     device: typeof navigator !== 'undefined' && /mobile/i.test(navigator.userAgent) ? 'MOBILE' : 'DESKTOP',
+    counts: { total: orders.length, spot: spotCount, futures: futuresCount },
     orders,
     portfolioHistory,
     chatMessages
@@ -281,12 +326,70 @@ export async function importDeviceSyncCode(rawInput) {
     throw new Error('Nieprawidłowy format JSON');
   }
 
-  const orders = Array.isArray(parsed.orders) ? parsed.orders : [];
-  for (const o of orders) {
-    saveAiExecutedOrderToLocal(o);
+  const orders = Array.isArray(parsed.orders)
+    ? parsed.orders
+    : Array.isArray(parsed)
+    ? parsed
+    : [];
+
+  const spotCount = orders.filter(
+    (o) =>
+      !(
+        String(o.id || '').startsWith('OKX-FUT-') ||
+        o.marketType === 'FUTURES' ||
+        o.instId?.includes('SWAP') ||
+        o.source?.includes('Futures') ||
+        o.strategyName?.includes('Futures') ||
+        Boolean(o.leverage)
+      )
+  ).length;
+  const futuresCount = orders.length - spotCount;
+
+  if (orders.length > 0) {
+    saveMultipleAiExecutedOrdersToLocal(orders);
   }
 
-  // If connected to gateway or local server, push immediately
+  if (!_standaloneState) initStandaloneState();
+  if (_standaloneState) {
+    if (Array.isArray(_standaloneState.portfolio?.orders)) {
+      const existing = new Set(_standaloneState.portfolio.orders.map((o) => String(o.id)));
+      for (const o of orders) {
+        if (!existing.has(String(o.id))) {
+          existing.add(String(o.id));
+          _standaloneState.portfolio.orders.unshift(o);
+        }
+      }
+    }
+    if (Array.isArray(parsed.portfolioHistory) && Array.isArray(_standaloneState.portfolio?.portfolioHistory)) {
+      const existingHist = new Set(_standaloneState.portfolio.portfolioHistory.map((h) => String(h.id || h.orderId)));
+      for (const h of parsed.portfolioHistory) {
+        const hId = String(h.id || h.orderId || '');
+        if (hId && !existingHist.has(hId)) {
+          existingHist.add(hId);
+          _standaloneState.portfolio.portfolioHistory.unshift(h);
+        }
+      }
+    }
+    if (!_standaloneState.sessionSync) {
+      _standaloneState.sessionSync = { executedSessionTransactions: [], chatMessages: [] };
+    }
+    if (!Array.isArray(_standaloneState.sessionSync.executedSessionTransactions)) {
+      _standaloneState.sessionSync.executedSessionTransactions = [];
+    }
+    const existingTx = new Set(
+      _standaloneState.sessionSync.executedSessionTransactions.map((t) => String(t.orderId || t.id))
+    );
+    for (const o of orders) {
+      const oId = String(o.id);
+      if (o.exchangeFeedback && !existingTx.has(oId)) {
+        existingTx.add(oId);
+        _standaloneState.sessionSync.executedSessionTransactions.unshift(o.exchangeFeedback);
+      }
+    }
+    saveStandaloneState();
+  }
+
+  // If connected to gateway or local server, push immediately to server so server also merges
   try {
     const res = await apiRequest('/api/session/sync-orders', 'POST', {
       orders,
@@ -296,28 +399,24 @@ export async function importDeviceSyncCode(rawInput) {
         executedSessionTransactions: orders.map((o) => o.exchangeFeedback || o).filter(Boolean)
       }
     });
-    return { ok: true, count: orders.length, state: res?.state };
+    return { ok: true, count: orders.length, spotCount, futuresCount, state: res?.state };
   } catch (err) {
-    // Standalone fallback: merge into local standalone state
-    if (_standaloneState && Array.isArray(_standaloneState.portfolio?.orders)) {
-      const existing = new Set(_standaloneState.portfolio.orders.map((o) => String(o.id)));
-      for (const o of orders) {
-        if (!existing.has(String(o.id))) {
-          _standaloneState.portfolio.orders.unshift(o);
-        }
-      }
-      saveStandaloneState();
-    }
-    return { ok: true, count: orders.length, standaloneMerged: true };
+    return { ok: true, count: orders.length, spotCount, futuresCount, standaloneMerged: true };
   }
 }
 
 export async function syncCloudSessionOrders() {
   if (typeof window === 'undefined') return { ok: false, count: 0 };
-  const urls = [
-    `https://raw.githubusercontent.com/gitgregor/ai_agent_okx_app_v1_00/main/docs/session-orders.json?t=${Date.now()}`,
-    `./session-orders.json?t=${Date.now()}`
-  ];
+  if (!_standaloneState) initStandaloneState();
+
+  const urls = [];
+  if (_activeApiBaseUrl) {
+    urls.push(`${_activeApiBaseUrl}/session-orders.json?t=${Date.now()}`);
+  }
+  urls.push(`./session-orders.json?t=${Date.now()}`);
+  urls.push(
+    `https://raw.githubusercontent.com/gitgregor/ai_agent_okx_app_v1_00/main/docs/session-orders.json?t=${Date.now()}`
+  );
 
   for (const u of urls) {
     try {
@@ -333,15 +432,12 @@ export async function syncCloudSessionOrders() {
         ...(Array.isArray(data.orders) ? data.orders : [])
       ];
 
-      for (const ord of allCloudOrders) {
-        if (!ord || !ord.id) continue;
-        const idStr = String(ord.id);
-        if (idStr.startsWith('OKX-DEMO-17924') || idStr.startsWith('OKX-DEMO-POS-') || idStr.startsWith('OKX-LIVE-POS-')) continue;
-        saveAiExecutedOrderToLocal(ord);
-        importedCount++;
+      if (allCloudOrders.length > 0) {
+        saveMultipleAiExecutedOrdersToLocal(allCloudOrders);
+        importedCount = allCloudOrders.length;
       }
 
-      // Merge into in-memory standalone state if running standalone
+      // Merge into in-memory standalone state
       if (_standaloneState) {
         if (Array.isArray(_standaloneState.portfolio?.orders)) {
           const existingIds = new Set(_standaloneState.portfolio.orders.map((o) => String(o.id)));
@@ -374,8 +470,38 @@ export async function syncCloudSessionOrders() {
         saveStandaloneState();
       }
 
+      // If connected to Home IP Gateway, also push all local orders to gateway so gateway merges phone orders
+      if (_activeApiBaseUrl) {
+        try {
+          const allLocalOrders = loadSavedAiExecutedOrders();
+          if (allLocalOrders.length > 0) {
+            await fetchWithTimeout(
+              `${_activeApiBaseUrl}/api/session/sync-orders`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orders: allLocalOrders })
+              },
+              3000
+            );
+          }
+        } catch (e) {}
+      }
+
       if (importedCount > 0) {
-        return { ok: true, count: importedCount };
+        const spotCount = allCloudOrders.filter(
+          (o) =>
+            !(
+              String(o.id || '').startsWith('OKX-FUT-') ||
+              o.marketType === 'FUTURES' ||
+              o.instId?.includes('SWAP') ||
+              o.source?.includes('Futures') ||
+              o.strategyName?.includes('Futures') ||
+              Boolean(o.leverage)
+            )
+        ).length;
+        const futuresCount = allCloudOrders.length - spotCount;
+        return { ok: true, count: importedCount, spotCount, futuresCount, orders: allCloudOrders };
       }
     } catch (e) {}
   }
@@ -383,10 +509,11 @@ export async function syncCloudSessionOrders() {
 }
 
 function detectInitialGatewayConfig() {
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' || !window.location) {
     return { isRemoteHost: false, activeBaseUrl: '', customGatewayUrl: '' };
   }
-  const params = new URLSearchParams(window.location.search);
+  const searchStr = window.location.search || '';
+  const params = new URLSearchParams(searchStr);
   const urlGateway = params.get('gateway');
   if (urlGateway && urlGateway.startsWith('http')) {
     const cleaned = urlGateway.replace(/\/+$/, '');
@@ -399,11 +526,14 @@ function detectInitialGatewayConfig() {
     savedCustom = (localStorage.getItem(LS_CUSTOM_GATEWAY_KEY) || '').trim().replace(/\/+$/, '');
   } catch (e) {}
 
-  const isRemoteHost =
-    window.location.hostname.includes('github.io') ||
-    window.location.protocol === 'file:';
+  const hostname = window.location.hostname || '';
+  const protocol = window.location.protocol || '';
 
-  const forceStandalone = window.location.search.includes('standalone=true');
+  const isRemoteHost =
+    hostname.includes('github.io') ||
+    protocol === 'file:';
+
+  const forceStandalone = searchStr.includes('standalone=true');
 
   return {
     isRemoteHost,
@@ -796,6 +926,34 @@ export function initStandaloneState() {
       ) {
         _standaloneState.markets = JSON.parse(JSON.stringify(DEFAULT_STANDALONE_MARKETS));
         _standaloneState.tickers = _standaloneState.markets;
+
+        // Merge all saved Spot and Futures strategies into portfolio orders and sessionSync
+        if (recoveredAiOrders.length > 0 && Array.isArray(_standaloneState.portfolio.orders)) {
+          const existingOrdIds = new Set(_standaloneState.portfolio.orders.map((o) => String(o.id)));
+          for (const ro of recoveredAiOrders) {
+            if (!existingOrdIds.has(String(ro.id))) {
+              existingOrdIds.add(String(ro.id));
+              _standaloneState.portfolio.orders.unshift(ro);
+            }
+          }
+          if (!_standaloneState.sessionSync) {
+            _standaloneState.sessionSync = { executedSessionTransactions: [], chatMessages: [] };
+          }
+          if (!Array.isArray(_standaloneState.sessionSync.executedSessionTransactions)) {
+            _standaloneState.sessionSync.executedSessionTransactions = [];
+          }
+          const existingFbIds = new Set(
+            _standaloneState.sessionSync.executedSessionTransactions.map((t) => String(t.orderId || t.id))
+          );
+          for (const ro of recoveredAiOrders) {
+            const roId = String(ro.id);
+            if (ro.exchangeFeedback && !existingFbIds.has(roId)) {
+              existingFbIds.add(roId);
+              _standaloneState.sessionSync.executedSessionTransactions.unshift(ro.exchangeFeedback);
+            }
+          }
+        }
+
         recalculateStateValuations(_standaloneState);
         return _standaloneState;
       }

@@ -21,7 +21,8 @@ export function HeaderBar({
   onResetAllWindowsGrid,
   onDockAllTop,
   onDockAllSidebar,
-  onOpenAssetChart
+  onOpenAssetChart,
+  onOpenDeviceSyncModal
 }) {
   const isDemo = (cfg?.apiMode || 'demo') === 'demo';
   const activeConn = cfg?.apiConnection || { mode: 'demo', connected: true };
@@ -91,6 +92,27 @@ export function HeaderBar({
                 ? `📱 BRAMA IP (WHITELIST): AKTYWNA${remoteGw.homePublicIp && remoteGw.homePublicIp !== 'Wykrywanie IP...' ? ` (${remoteGw.homePublicIp})` : ''}`
                 : '📱 BRAMA IP: TRYB MOBILNY'}
             </span>
+
+            <button
+              type="button"
+              className="status-pill"
+              style={{
+                cursor: 'pointer',
+                background: 'rgba(56, 189, 248, 0.16)',
+                border: '1px solid rgba(56, 189, 248, 0.45)',
+                color: '#38bdf8',
+                fontWeight: 700,
+                fontSize: '11px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '3px 9px'
+              }}
+              title="Dwukierunkowa synchronizacja strategii i zleceń Spot i Futures (Telefon ⇄ PC)"
+              onClick={onOpenDeviceSyncModal}
+            >
+              <span>📲</span> <span>SYNC TELEFON ⇄ PC</span>
+            </button>
 
             <div className="header-ai-status-group" id="headerAiStatusGroup">
               <span className="header-ai-label">AGENT AI</span>
