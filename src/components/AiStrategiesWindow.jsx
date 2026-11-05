@@ -354,15 +354,9 @@ export function AiStrategiesWindow({
     }
   }, [winMeta?.mode, onSetAiStrategyInput]);
 
-  // TYLKO gdy użytkownik W TEJ CHWILI zada nowe zapytanie w bieżącym oknie — wtedy pokazujemy rekomendację
+  // Gdy użytkownik zażąda nowej strategii w oknie, aktywujemy nową analizę
   useEffect(() => {
-    if (!hasRequestedNewStrategy) return;
-    if (
-      currentAiStrategyAnalysis &&
-      currentAiStrategyAnalysis.timestamp &&
-      currentAiStrategyAnalysis.timestamp !== prevAnalysisTsRef.current
-    ) {
-      prevAnalysisTsRef.current = currentAiStrategyAnalysis.timestamp;
+    if (currentAiStrategyAnalysis && hasRequestedNewStrategy) {
       setActiveSessionAnalysis(currentAiStrategyAnalysis);
       setIsRecommendationOpen(true);
     }
@@ -371,12 +365,22 @@ export function AiStrategiesWindow({
   const handleFormSubmit = (e) => {
     if (e) e.preventDefault();
     setHasRequestedNewStrategy(true);
+    setIsRecommendationOpen(true);
+    setShowExamples(false);
+    setShowHistory(false);
+    setShowInstruction(false);
+    const query = (aiStrategyInput || '').trim();
     if (onSubmitAiStrategy) onSubmitAiStrategy(e);
+    else if (onRunAiStrategyQuery) onRunAiStrategyQuery(query || 'BTC');
     if (onSetAiStrategyInput) onSetAiStrategyInput('');
   };
 
   const handleRunQuery = (queryText) => {
     setHasRequestedNewStrategy(true);
+    setIsRecommendationOpen(true);
+    setShowExamples(false);
+    setShowHistory(false);
+    setShowInstruction(false);
     if (onRunAiStrategyQuery) onRunAiStrategyQuery(queryText);
     if (onSetAiStrategyInput) onSetAiStrategyInput('');
   };
@@ -569,7 +573,7 @@ export function AiStrategiesWindow({
     </div>
   );
 
-  const a = activeSessionAnalysis;
+  const a = hasRequestedNewStrategy ? (activeSessionAnalysis || currentAiStrategyAnalysis) : null;
 
   return (
     <WindowContainer

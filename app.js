@@ -16535,6 +16535,8 @@
           }
         }
       };
+      analysis.timestamp = Date.now();
+      analysis.id = `STRAT-AI-${Date.now()}`;
       const reply = [
         `\u{1F9E0} **Analiza Agenta AI z OKX (\`eea.okx.com\`) \u2014 Strategia Kupna dla \`${instId}\`:**`,
         `- **Rekomendowana strategia:** **${strategyName}**`,
@@ -16695,6 +16697,8 @@
       };
       _standaloneState.activeTradeOrder = order;
       const analysis = {
+        id: `STRAT-FUT-${Date.now()}`,
+        timestamp: Date.now(),
         engine: "@okx_ai/okx-futures-mcp \u2022 okx/agent-trade-kit (eea.okx.com v5 Perpetual Swap)",
         mode: (_standaloneState.config.apiMode || "demo").toUpperCase(),
         marketType: "FUTURES",
@@ -19451,9 +19455,7 @@
       }
     }, [winMeta?.mode, onSetAiStrategyInput]);
     (0, import_react7.useEffect)(() => {
-      if (!hasRequestedNewStrategy) return;
-      if (currentAiStrategyAnalysis && currentAiStrategyAnalysis.timestamp && currentAiStrategyAnalysis.timestamp !== prevAnalysisTsRef.current) {
-        prevAnalysisTsRef.current = currentAiStrategyAnalysis.timestamp;
+      if (currentAiStrategyAnalysis && hasRequestedNewStrategy) {
         setActiveSessionAnalysis(currentAiStrategyAnalysis);
         setIsRecommendationOpen(true);
       }
@@ -19461,11 +19463,21 @@
     const handleFormSubmit = (e) => {
       if (e) e.preventDefault();
       setHasRequestedNewStrategy(true);
+      setIsRecommendationOpen(true);
+      setShowExamples(false);
+      setShowHistory(false);
+      setShowInstruction(false);
+      const query = (aiStrategyInput || "").trim();
       if (onSubmitAiStrategy) onSubmitAiStrategy(e);
+      else if (onRunAiStrategyQuery) onRunAiStrategyQuery(query || "BTC");
       if (onSetAiStrategyInput) onSetAiStrategyInput("");
     };
     const handleRunQuery = (queryText) => {
       setHasRequestedNewStrategy(true);
+      setIsRecommendationOpen(true);
+      setShowExamples(false);
+      setShowHistory(false);
+      setShowInstruction(false);
       if (onRunAiStrategyQuery) onRunAiStrategyQuery(queryText);
       if (onSetAiStrategyInput) onSetAiStrategyInput("");
     };
@@ -19637,7 +19649,7 @@
         ]
       }
     );
-    const a = activeSessionAnalysis;
+    const a = hasRequestedNewStrategy ? activeSessionAnalysis || currentAiStrategyAnalysis : null;
     return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
       WindowContainer,
       {
@@ -20907,9 +20919,7 @@
       }
     }, [winMeta?.mode, onSetAiFuturesInput]);
     (0, import_react8.useEffect)(() => {
-      if (!hasRequestedNewStrategy) return;
-      if (currentAiFuturesAnalysis && currentAiFuturesAnalysis.timestamp && currentAiFuturesAnalysis.timestamp !== prevAnalysisTsRef.current) {
-        prevAnalysisTsRef.current = currentAiFuturesAnalysis.timestamp;
+      if (currentAiFuturesAnalysis && hasRequestedNewStrategy) {
         setActiveSessionAnalysis(currentAiFuturesAnalysis);
       }
     }, [currentAiFuturesAnalysis, hasRequestedNewStrategy]);
@@ -21104,6 +21114,10 @@
     };
     const handleApplyQuickQuery = (asset) => {
       setHasRequestedNewStrategy(true);
+      setShowExamples(false);
+      setShowHistory(false);
+      setShowInstruction(false);
+      setShowCalculator(false);
       const dirTxt = selectedDirection === "AUTO" ? "" : selectedDirection === "SHORT" ? " SHORT" : " LONG";
       const query = `${asset}-USDC-SWAP${dirTxt} ${selectedLeverage}x za ${customMarginUsdc}$`;
       if (onRunAiFuturesStrategyQuery) {
@@ -21118,6 +21132,10 @@
     const handleFormSubmit = (e) => {
       if (e) e.preventDefault();
       setHasRequestedNewStrategy(true);
+      setShowExamples(false);
+      setShowHistory(false);
+      setShowInstruction(false);
+      setShowCalculator(false);
       const dirTxt = selectedDirection === "AUTO" ? "" : selectedDirection === "SHORT" ? " SHORT" : " LONG";
       const q = (aiFuturesInput || "").trim() || `BTC-USDC-SWAP${dirTxt} ${selectedLeverage}x za ${customMarginUsdc}$`;
       if (onRunAiFuturesStrategyQuery) {
@@ -21130,7 +21148,7 @@
       }
       if (onSetAiFuturesInput) onSetAiFuturesInput("");
     };
-    const a = activeSessionAnalysis;
+    const a = hasRequestedNewStrategy ? activeSessionAnalysis || currentAiFuturesAnalysis : null;
     return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
       WindowContainer,
       {
@@ -21548,6 +21566,9 @@
                       setSelectedLeverage(lev);
                       setHasRequestedNewStrategy(true);
                       setShowExamples(false);
+                      setShowHistory(false);
+                      setShowInstruction(false);
+                      setShowCalculator(false);
                       if (onRunAiFuturesStrategyQuery) {
                         onRunAiFuturesStrategyQuery(ex.prompt, {
                           direction: dir,
@@ -25775,7 +25796,8 @@
         setAiStrategyInput("");
         const res = await apiRequest("/api/agent/strategy", "POST", { query: q });
         if (res.analysis) {
-          setCurrentAiStrategyAnalysis(res.analysis);
+          if (!res.analysis.timestamp) res.analysis.timestamp = Date.now();
+          setCurrentAiStrategyAnalysis({ ...res.analysis });
         }
         if (res.reply) {
           appendChatMessage("user", `[AI Strategies] ${q}`);
@@ -25835,7 +25857,8 @@
         try {
           const res = await apiRequest("/api/agent/strategy/futures", "POST", { query: q, options });
           if (res && res.analysis) {
-            setCurrentAiFuturesAnalysis(res.analysis);
+            if (!res.analysis.timestamp) res.analysis.timestamp = Date.now();
+            setCurrentAiFuturesAnalysis({ ...res.analysis });
           }
           if (res && res.reply) {
             appendChatMessage("user", `[Strategia OKX ai: FUTURES] ${q}`);

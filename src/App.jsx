@@ -980,7 +980,8 @@ export function App() {
 
       const res = await apiRequest('/api/agent/strategy', 'POST', { query: q });
       if (res.analysis) {
-        setCurrentAiStrategyAnalysis(res.analysis);
+        if (!res.analysis.timestamp) res.analysis.timestamp = Date.now();
+        setCurrentAiStrategyAnalysis({ ...res.analysis });
       }
       if (res.reply) {
         appendChatMessage('user', `[AI Strategies] ${q}`);
@@ -1050,7 +1051,8 @@ export function App() {
       try {
         const res = await apiRequest('/api/agent/strategy/futures', 'POST', { query: q, options });
         if (res && res.analysis) {
-          setCurrentAiFuturesAnalysis(res.analysis);
+          if (!res.analysis.timestamp) res.analysis.timestamp = Date.now();
+          setCurrentAiFuturesAnalysis({ ...res.analysis });
         }
         if (res && res.reply) {
           appendChatMessage('user', `[Strategia OKX ai: FUTURES] ${q}`);

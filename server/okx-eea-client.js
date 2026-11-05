@@ -2657,6 +2657,9 @@ class OkxEeaTradingEngine {
       }
     };
 
+    analysis.timestamp = Date.now();
+    analysis.id = `STRAT-AI-${Date.now()}`;
+
     const reply = [
       `🧠 **Analiza Agenta AI z OKX (\`eea.okx.com\`) — Strategia Kupna dla \`${instId}\`:**`,
       `- **Rekomendowana strategia:** **${strategyName}**`,
@@ -2868,6 +2871,8 @@ class OkxEeaTradingEngine {
     const now = new Date();
 
     const analysis = {
+      id: `STRAT-FUT-${Date.now()}`,
+      timestamp: Date.now(),
       engine: '@okx_ai/okx-futures-mcp • okx/agent-trade-kit (eea.okx.com v5 Perpetual Swap)',
       mode: (this.config.apiMode || 'demo').toUpperCase(),
       marketType: 'FUTURES',

@@ -306,15 +306,9 @@ export function AiFuturesStrategiesWindow({
     }
   }, [winMeta?.mode, onSetAiFuturesInput]);
 
-  // TYLKO gdy użytkownik W TEJ CHWILI zada nowe zapytanie w bieżącym oknie — wtedy pokazujemy analizę futures
+  // Gdy użytkownik zażąda nowej strategii futures w oknie, aktywujemy analizę
   useEffect(() => {
-    if (!hasRequestedNewStrategy) return;
-    if (
-      currentAiFuturesAnalysis &&
-      currentAiFuturesAnalysis.timestamp &&
-      currentAiFuturesAnalysis.timestamp !== prevAnalysisTsRef.current
-    ) {
-      prevAnalysisTsRef.current = currentAiFuturesAnalysis.timestamp;
+    if (currentAiFuturesAnalysis && hasRequestedNewStrategy) {
       setActiveSessionAnalysis(currentAiFuturesAnalysis);
     }
   }, [currentAiFuturesAnalysis, hasRequestedNewStrategy]);
@@ -538,6 +532,10 @@ export function AiFuturesStrategiesWindow({
 
   const handleApplyQuickQuery = (asset) => {
     setHasRequestedNewStrategy(true);
+    setShowExamples(false);
+    setShowHistory(false);
+    setShowInstruction(false);
+    setShowCalculator(false);
     const dirTxt = selectedDirection === 'AUTO' ? '' : selectedDirection === 'SHORT' ? ' SHORT' : ' LONG';
     const query = `${asset}-USDC-SWAP${dirTxt} ${selectedLeverage}x za ${customMarginUsdc}$`;
     if (onRunAiFuturesStrategyQuery) {
@@ -553,6 +551,10 @@ export function AiFuturesStrategiesWindow({
   const handleFormSubmit = (e) => {
     if (e) e.preventDefault();
     setHasRequestedNewStrategy(true);
+    setShowExamples(false);
+    setShowHistory(false);
+    setShowInstruction(false);
+    setShowCalculator(false);
     const dirTxt = selectedDirection === 'AUTO' ? '' : selectedDirection === 'SHORT' ? ' SHORT' : ' LONG';
     const q = (aiFuturesInput || '').trim() || `BTC-USDC-SWAP${dirTxt} ${selectedLeverage}x za ${customMarginUsdc}$`;
     if (onRunAiFuturesStrategyQuery) {
@@ -566,7 +568,7 @@ export function AiFuturesStrategiesWindow({
     if (onSetAiFuturesInput) onSetAiFuturesInput('');
   };
 
-  const a = activeSessionAnalysis;
+  const a = hasRequestedNewStrategy ? (activeSessionAnalysis || currentAiFuturesAnalysis) : null;
 
   return (
     <WindowContainer
@@ -942,6 +944,9 @@ export function AiFuturesStrategiesWindow({
                   setSelectedLeverage(lev);
                   setHasRequestedNewStrategy(true);
                   setShowExamples(false);
+                  setShowHistory(false);
+                  setShowInstruction(false);
+                  setShowCalculator(false);
                   if (onRunAiFuturesStrategyQuery) {
                     onRunAiFuturesStrategyQuery(ex.prompt, {
                       direction: dir,

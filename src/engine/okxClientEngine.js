@@ -2172,6 +2172,9 @@ export async function clientMockEngine(url, method = 'GET', body = null) {
       }
     };
 
+    analysis.timestamp = Date.now();
+    analysis.id = `STRAT-AI-${Date.now()}`;
+
     const reply = [
       `🧠 **Analiza Agenta AI z OKX (\`eea.okx.com\`) — Strategia Kupna dla \`${instId}\`:**`,
       `- **Rekomendowana strategia:** **${strategyName}**`,
@@ -2361,6 +2364,8 @@ export async function clientMockEngine(url, method = 'GET', body = null) {
     _standaloneState.activeTradeOrder = order;
 
     const analysis = {
+      id: `STRAT-FUT-${Date.now()}`,
+      timestamp: Date.now(),
       engine: '@okx_ai/okx-futures-mcp • okx/agent-trade-kit (eea.okx.com v5 Perpetual Swap)',
       mode: (_standaloneState.config.apiMode || 'demo').toUpperCase(),
       marketType: 'FUTURES',
