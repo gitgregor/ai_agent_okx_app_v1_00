@@ -1,10 +1,11 @@
 {
-  "updatedAt": 1793888201256,
-  "homePublicIp": "Wykrywanie IP...",
-  "primaryTunnelUrl": "https://okx-eea-gregor-home-gw.loca.lt",
-  "cloudflareTunnelUrl": null,
+  "updatedAt": 1793889520209,
+  "homePublicIp": "81.99.228.78",
+  "primaryTunnelUrl": "https://flying-typical-plant-strengths.trycloudflare.com",
+  "cloudflareTunnelUrl": "https://flying-typical-plant-strengths.trycloudflare.com",
   "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw.loca.lt",
   "tunnels": [
+    "https://flying-typical-plant-strengths.trycloudflare.com",
     "https://okx-eea-gregor-home-gw.loca.lt",
     "https://okx-eea-gregor-home-gw-2.loca.lt",
     "https://okx-eea-gregor-home-gw-3.loca.lt"
