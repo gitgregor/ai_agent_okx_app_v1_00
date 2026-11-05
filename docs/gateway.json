@@ -1,13 +1,13 @@
 {
-  "updatedAt": 1793889520209,
+  "updatedAt": 1793904937423,
   "homePublicIp": "81.99.228.78",
-  "primaryTunnelUrl": "https://flying-typical-plant-strengths.trycloudflare.com",
-  "cloudflareTunnelUrl": "https://flying-typical-plant-strengths.trycloudflare.com",
-  "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw.loca.lt",
+  "primaryTunnelUrl": "https://generic-caps-sections-guys.trycloudflare.com",
+  "cloudflareTunnelUrl": "https://generic-caps-sections-guys.trycloudflare.com",
+  "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw-2.loca.lt",
   "tunnels": [
-    "https://flying-typical-plant-strengths.trycloudflare.com",
-    "https://okx-eea-gregor-home-gw.loca.lt",
+    "https://generic-caps-sections-guys.trycloudflare.com",
     "https://okx-eea-gregor-home-gw-2.loca.lt",
+    "https://okx-eea-gregor-home-gw.loca.lt",
     "https://okx-eea-gregor-home-gw-3.loca.lt"
   ]
 }
