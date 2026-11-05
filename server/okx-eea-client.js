@@ -1885,9 +1885,20 @@ class OkxEeaTradingEngine {
       const spendCurrency = (portfolio.holdings.USDC.amount < usdcValue && portfolio.holdings.USDT?.amount >= usdcValue) ? 'USDT' : 'USDC';
       if (isBuy) {
         if ((portfolio.holdings[spendCurrency]?.amount || 0) < usdcValue) {
+          const errDetail = `Niewystarczające środki ${spendCurrency} w portfelu (${(portfolio.holdings[spendCurrency]?.amount || 0).toFixed(2)} ${spendCurrency} < ${usdcValue.toFixed(2)} USDC).${okxExecutionNote}`;
+          this.stopTrading({
+            reason: 'system_error',
+            errorCode: 'ERR_OKX_BALANCE_51000',
+            errorType: 'Błąd salda rachunku OKX Europe',
+            errorMessage: errDetail
+          });
           return {
             ok: false,
-            error: `Niewystarczające środki ${spendCurrency} w portfelu (${(portfolio.holdings[spendCurrency]?.amount || 0).toFixed(2)} ${spendCurrency} < ${usdcValue.toFixed(2)} USDC).${okxExecutionNote}`
+            isRejectedSystem: true,
+            errorCode: 'ERR_OKX_BALANCE_51000',
+            errorType: 'Błąd salda rachunku OKX Europe',
+            error: errDetail,
+            state: this.getState()
           };
         }
         const prevAmt = portfolio.holdings[asset].amount;
@@ -1904,9 +1915,20 @@ class OkxEeaTradingEngine {
         portfolio.ledger[asset].buyCount += 1;
       } else {
         if (portfolio.holdings[asset].amount < order.amount) {
+          const errDetail = `Niewystarczająca ilość ${asset} w portfelu (${portfolio.holdings[asset].amount} ${asset} < ${order.amount} ${asset}).${okxExecutionNote}`;
+          this.stopTrading({
+            reason: 'system_error',
+            errorCode: 'ERR_OKX_INSUFFICIENT_ASSET_51001',
+            errorType: 'Błąd salda aktywa na OKX Europe',
+            errorMessage: errDetail
+          });
           return {
             ok: false,
-            error: `Niewystarczająca ilość ${asset} w portfelu (${portfolio.holdings[asset].amount} ${asset} < ${order.amount} ${asset}).${okxExecutionNote}`
+            isRejectedSystem: true,
+            errorCode: 'ERR_OKX_INSUFFICIENT_ASSET_51001',
+            errorType: 'Błąd salda aktywa na OKX Europe',
+            error: errDetail,
+            state: this.getState()
           };
         }
         portfolio.holdings[asset].amount = Number((portfolio.holdings[asset].amount - order.amount).toFixed(6));
@@ -1971,6 +1993,19 @@ class OkxEeaTradingEngine {
     this.config.tradingStatus = 'in_progress';
     this.config.tradingStatusLabel = `Zrealizowano: ${order.side === 'BUY' ? 'KUPIONO' : 'SPRZEDANO'} ${order.amount} ${asset} @ ${currentPrice} USDC = ${usdcValue.toFixed(2)} USDC`;
 
+    const isMultiStageStrategy =
+      order.strategyName &&
+      (order.strategyName.includes('DCA') ||
+        order.strategyName.includes('Grid') ||
+        order.strategyName.includes('Take-Profit') ||
+        order.strategyName.includes('TP') ||
+        order.strategyName.includes('SL'));
+
+    const initialStatus = isMultiStageStrategy ? 'in_progress' : (order.orderType === 'LIMIT' && executedOnOkxServer ? 'OPEN' : 'CLOSED');
+    const initialStatusLabel = isMultiStageStrategy
+      ? 'W trakcie realizacji (OKX)'
+      : (executedOnOkxServer ? 'Zrealizowane na OKX Demo API' : 'Zrealizowana na OKX');
+
     const orderRecord = {
       id: finalOrderId,
       instId: order.instId,
@@ -1985,8 +2020,9 @@ class OkxEeaTradingEngine {
       feeAsset,
       totalUsdcWithFee,
       executedOnOkxServer: Boolean(executedOnOkxServer),
-      status: order.orderType === 'LIMIT' && executedOnOkxServer ? 'OPEN' : 'CLOSED',
-      statusLabel: executedOnOkxServer ? 'Zrealizowane na OKX Demo API' : 'Zamknięte (Zrealizowane po kursie OKX Live)',
+      isStrategyInProgress: Boolean(isMultiStageStrategy),
+      status: initialStatus,
+      statusLabel: initialStatusLabel,
       source: order.source,
       strategyName: order.strategyName,
       date: dateStr,
@@ -2072,10 +2108,17 @@ class OkxEeaTradingEngine {
     };
   }
 
-  stopTrading() {
+  stopTrading(params = {}) {
     const hadPending = this.activeTradeOrder && this.activeTradeOrder.status === 'waiting_for_start';
     if (hadPending) {
       const now = new Date();
+      const isSystem = params && params.reason === 'system_error';
+      const errorCode = (params && params.errorCode) || (isSystem ? 'ERR_OKX_BALANCE_51000' : 'USER_REJECTED');
+      const errorType = (params && params.errorType) || (isSystem ? 'Błąd walidacji / salda giełdy OKX Europe' : 'Anulowanie przez użytkownika');
+      const errorMessage = (params && params.errorMessage) || (isSystem
+        ? 'Transakcja nie doszła do skutku z powodów systemowych (niewystarczające środki lub błąd API OKX).'
+        : 'Transakcja została odrzucona przez użytkownika przed realizacją.');
+
       const canceled = {
         id: this.activeTradeOrder.id,
         instId: this.activeTradeOrder.instId,
@@ -2085,9 +2128,15 @@ class OkxEeaTradingEngine {
         amount: this.activeTradeOrder.amount,
         price: this.activeTradeOrder.price,
         usdcValue: this.activeTradeOrder.usdcValue,
-        status: 'CANCELED',
-        rawState: 'canceled',
-        statusLabel: 'Zamknięte (Anulowane przez Stop Handlu)',
+        status: isSystem ? 'REJECTED_SYSTEM' : 'REJECTED_USER',
+        rawState: isSystem ? 'rejected_system' : 'rejected_user',
+        rejectedBy: isSystem ? 'SYSTEM' : 'USER',
+        statusLabel: isSystem ? 'Transakcja odrzucona przez System' : 'Transakcja odrzucona przez użytkownika',
+        systemError: isSystem ? {
+          code: errorCode,
+          type: errorType,
+          message: errorMessage
+        } : null,
         source: this.activeTradeOrder.source,
         strategyName: this.activeTradeOrder.strategyName,
         date: now.toISOString().slice(0, 10),
@@ -2096,19 +2145,48 @@ class OkxEeaTradingEngine {
       };
       this.portfolios[this.config.apiMode].sessionOrders.unshift(canceled);
       this.portfolios[this.config.apiMode].orders.unshift(canceled);
+      this._saveSessionOrders();
     }
 
     this.activeTradeOrder = null;
-    this.config.tradingStatus = 'stopped';
-    this.config.tradingStatusLabel = 'Handel zatrzymany (Stop handlu)';
+    this.config.tradingStatus = 'idle';
+    this.config.tradingStatusLabel = params && params.reason === 'system_error'
+      ? 'Transakcja odrzucona przez System'
+      : 'Transakcja odrzucona przez użytkownika';
 
     return {
       ok: true,
       message: hadPending
-        ? 'Oczekujące zlecenie zostało zatrzymane i anulowane.'
+        ? (params && params.reason === 'system_error' ? 'Zlecenie odrzucone przez System.' : 'Transakcja odrzucona przez użytkownika.')
         : 'Handel został zatrzymany.',
       state: this.getState()
     };
+  }
+
+  completeStrategy(orderId) {
+    const mode = this.config.apiMode;
+    const portfolio = this.portfolios[mode];
+    const target = (portfolio.orders || []).find((o) => String(o.id) === String(orderId)) ||
+      (portfolio.sessionOrders || []).find((o) => String(o.id) === String(orderId));
+    if (target) {
+      target.status = 'CLOSED';
+      target.rawState = 'filled';
+      target.statusLabel = 'Zrealizowana na OKX';
+      target.isStrategyInProgress = false;
+      const now = new Date();
+      target.date = now.toISOString().slice(0, 10);
+      target.time = now.toTimeString().slice(0, 8);
+      if (target.exchangeFeedback) {
+        target.exchangeFeedback.status = 'FILLED (Zrealizowana na OKX)';
+      }
+      this._saveSessionOrders();
+      return {
+        ok: true,
+        message: `Strategia ${orderId} została oznaczona jako Zrealizowana na OKX.`,
+        state: this.getState()
+      };
+    }
+    return { ok: false, error: 'Nie znaleziono podanej strategii.' };
   }
 
   async cancelOpenOrder(orderId) {

@@ -15967,14 +15967,16 @@
         strategyMessage: `Za\u0142o\u017Cono strategi\u0119 \u201E${order.strategyName}\u201D oraz uruchomiono proces ${isBuy ? "KUPNA (BUY)" : "SPRZEDA\u017BY (SELL)"} dla pary ${order.instId}.`,
         exchangeMessage: `Gie\u0142da OKX Europe (eea.okx.com) potwierdzi\u0142a dokonanie transakcji #${order.id}: ${isBuy ? "Kupiono" : "Sprzedano"} ${order.amount} ${order.asset} po kursie ${order.price} USDC (Przeliczenie na USDC: ${order.usdcValue.toFixed(2)} USDC, Fee 0.10%: ${feeUsdc.toFixed(2)} USDC / ${feeAsset} ${order.asset}, Rozliczenie ca\u0142kowite: ${totalUsdcWithFee.toFixed(2)} USDC).`
       };
+      const isMultiStage = order.strategyName && (order.strategyName.includes("DCA") || order.strategyName.includes("Grid") || order.strategyName.includes("Take-Profit") || order.strategyName.includes("TP") || order.strategyName.includes("SL"));
       order.date = dateStr;
       order.time = timeStr;
       order.feeRate = "0.10%";
       order.feeUsdc = feeUsdc;
       order.feeAsset = feeAsset;
       order.totalUsdcWithFee = totalUsdcWithFee;
-      order.status = "CLOSED";
-      order.statusLabel = "Zamkni\u0119te (Zrealizowane na OKX)";
+      order.isStrategyInProgress = Boolean(isMultiStage);
+      order.status = isMultiStage ? "in_progress" : "CLOSED";
+      order.statusLabel = isMultiStage ? "W trakcie realizacji (OKX)" : "Zrealizowana na OKX";
       order.exchangeFeedback = exchangeFeedback;
       let holding = _standaloneState.portfolio.holdings.find((h) => h.asset === order.asset);
       if (!holding) {
@@ -16109,11 +16111,56 @@
       };
     }
     if (url.startsWith("/api/trade/stop") && method === "POST") {
+      const isSystem = body && body.reason === "system_error";
+      const pending = _standaloneState.activeTradeOrder;
+      if (pending) {
+        const now = /* @__PURE__ */ new Date();
+        const canceled = {
+          ...pending,
+          status: isSystem ? "REJECTED_SYSTEM" : "REJECTED_USER",
+          rawState: isSystem ? "rejected_system" : "rejected_user",
+          rejectedBy: isSystem ? "SYSTEM" : "USER",
+          statusLabel: isSystem ? "Transakcja odrzucona przez System" : "Transakcja odrzucona przez u\u017Cytkownika",
+          systemError: isSystem ? {
+            code: body?.errorCode || "ERR_OKX_BALANCE_51000",
+            type: body?.errorType || "Walidacja salda / API gie\u0142dy OKX Europe",
+            message: body?.errorMessage || "Transakcja nie dosz\u0142a do skutku z powod\xF3w systemowych."
+          } : null,
+          date: now.toISOString().slice(0, 10),
+          time: now.toTimeString().slice(0, 8),
+          timestamp: now.getTime()
+        };
+        _standaloneState.portfolio.orders = [canceled, ..._standaloneState.portfolio.orders || []];
+        _standaloneState.portfolio.sessionOrders = [canceled, ..._standaloneState.portfolio.sessionOrders || []];
+      }
       _standaloneState.activeTradeOrder = null;
       _standaloneState.config.tradingStatus = "idle";
-      _standaloneState.config.tradingStatusLabel = "Gotowy \u2014 brak oczekuj\u0105cego zlecenia";
+      _standaloneState.config.tradingStatusLabel = isSystem ? "Transakcja odrzucona przez System" : "Transakcja odrzucona przez u\u017Cytkownika";
       saveStandaloneState();
-      return { ok: true, message: "Wycofano oczekuj\u0105ce zlecenie.", state: JSON.parse(JSON.stringify(_standaloneState)) };
+      return {
+        ok: true,
+        message: isSystem ? "Transakcja odrzucona przez System." : "Transakcja odrzucona przez u\u017Cytkownika.",
+        state: JSON.parse(JSON.stringify(_standaloneState))
+      };
+    }
+    if (url.startsWith("/api/strategy/complete") && method === "POST") {
+      const ordId = body?.orderId;
+      const target = (_standaloneState.portfolio.orders || []).find((o) => String(o.id) === String(ordId)) || (_standaloneState.portfolio.sessionOrders || []).find((o) => String(o.id) === String(ordId));
+      if (target) {
+        target.status = "CLOSED";
+        target.rawState = "filled";
+        target.statusLabel = "Zrealizowana na OKX";
+        target.isStrategyInProgress = false;
+        const now = /* @__PURE__ */ new Date();
+        target.date = now.toISOString().slice(0, 10);
+        target.time = now.toTimeString().slice(0, 8);
+        if (target.exchangeFeedback) {
+          target.exchangeFeedback.status = "FILLED (Zrealizowana na OKX)";
+        }
+        saveStandaloneState();
+        return { ok: true, message: `Strategia ${ordId} zosta\u0142a oznaczona jako Zrealizowana na OKX.`, state: JSON.parse(JSON.stringify(_standaloneState)) };
+      }
+      return { ok: false, error: "Nie znaleziono podanej strategii." };
     }
     if (url.startsWith("/api/orders/cancel") && method === "POST") {
       const order = _standaloneState.portfolio.orders.find((o) => o.id === body?.orderId);
@@ -18778,18 +18825,215 @@
     "SUI"
   ];
   function getStrategyTiming(ord) {
-    if (!ord) return { openDate: "", openTime: "", execDate: "", execTime: "", isFilled: false };
+    if (!ord) {
+      return {
+        openDate: "",
+        openTime: "",
+        execDate: "",
+        execTime: "",
+        isFilled: false,
+        isPendingApproval: false,
+        isInProgress: false,
+        isRejectedUser: false,
+        isRejectedSystem: false,
+        badgeText: "",
+        badgeColor: "",
+        badgeBg: "",
+        statusText: ""
+      };
+    }
     const openDate = ord.createdAtDate || ord.date || "";
     const openTime = ord.createdAtTime || ord.time || "";
-    const isFilled = ord.status === "CLOSED" || ord.status === "FILLED" || ord.rawState === "filled" || Boolean(ord.exchangeFeedback && ord.exchangeFeedback.status && ord.exchangeFeedback.status.includes("FILLED"));
     const execDate = ord.date || openDate;
     const execTime = ord.time || openTime;
+    const rawStatus = (ord.status || "").toUpperCase();
+    const label = (ord.statusLabel || "").toLowerCase();
+    const rejBy = (ord.rejectedBy || "").toUpperCase();
+    const isRejectedSystem = rawStatus === "REJECTED_SYSTEM" || rejBy === "SYSTEM" || label.includes("odrzucona przez system") || Boolean(ord.systemError);
+    const isRejectedUser = !isRejectedSystem && (rawStatus === "REJECTED_USER" || rawStatus === "CANCELED" || rejBy === "USER" || label.includes("odrzucona przez u\u017Cytkownika") || label.includes("anulowane przez stop handlu") || label.includes("anulowane"));
+    const isPendingApproval = !isRejectedSystem && !isRejectedUser && (ord.isCurrentlyActive || rawStatus === "WAITING_FOR_START" || rawStatus === "PENDING_APPROVAL");
+    const isInProgress = !isRejectedSystem && !isRejectedUser && !isPendingApproval && (rawStatus === "IN_PROGRESS" || Boolean(ord.isStrategyInProgress) || label.includes("w trakcie realizacji") && !label.includes("zrealizowana"));
+    const isFilled = !isRejectedSystem && !isRejectedUser && !isPendingApproval && !isInProgress && (rawStatus === "CLOSED" || rawStatus === "FILLED" || ord.rawState === "filled" || Boolean(ord.exchangeFeedback && ord.exchangeFeedback.status && ord.exchangeFeedback.status.includes("FILLED")) || label.includes("zrealizowan"));
+    let badgeText = "\u23F3 OCZEKUJE NA REALIZACJ\u0118";
+    let badgeColor = "#fbbf24";
+    let badgeBg = "rgba(245, 158, 11, 0.2)";
+    let statusText = "Oczekuje na realizacj\u0119";
+    if (isRejectedUser) {
+      badgeText = "\u{1F6AB} ODRZUCONA PRZEZ U\u017BYTKOWNIKA";
+      badgeColor = "#f87171";
+      badgeBg = "rgba(239, 68, 68, 0.18)";
+      statusText = "Transakcja odrzucona przez u\u017Cytkownika";
+    } else if (isRejectedSystem) {
+      badgeText = "\u26A0\uFE0F ODRZUCONA PRZEZ SYSTEM";
+      badgeColor = "#f87171";
+      badgeBg = "rgba(239, 68, 68, 0.25)";
+      statusText = "Transakcja odrzucona przez System";
+    } else if (isInProgress) {
+      badgeText = "\u2699\uFE0F W TRAKCIE REALIZACJI";
+      badgeColor = "#38bdf8";
+      badgeBg = "rgba(56, 189, 248, 0.2)";
+      statusText = "W trakcie realizacji (OKX)";
+    } else if (isFilled) {
+      badgeText = "\u2705 ZREALIZOWANA NA OKX";
+      badgeColor = "#34d399";
+      badgeBg = "rgba(16, 185, 129, 0.2)";
+      statusText = `${execDate} ${execTime}`;
+    }
     return {
       openDate,
       openTime,
       execDate,
       execTime,
-      isFilled
+      isFilled,
+      isPendingApproval,
+      isInProgress,
+      isRejectedUser,
+      isRejectedSystem,
+      badgeText,
+      badgeColor,
+      badgeBg,
+      statusText
+    };
+  }
+  function resolveStrategyBreakdown(ord, timing) {
+    if (!ord) return null;
+    const price = Number(ord.price) || 0;
+    const amount = Number(ord.amount) || 0;
+    const usdcValue = Number(ord.usdcValue) || price * amount;
+    const asset = ord.asset || "BTC";
+    const name = ord.strategyName || "";
+    const isDca = name.toUpperCase().includes("DCA") || ord.strategyType === "DCA";
+    const isGrid = name.toUpperCase().includes("GRID") || ord.strategyType === "GRID";
+    const s1 = Number((price * 0.98).toFixed(price > 100 ? 2 : 4));
+    const s2 = Number((price * 0.955).toFixed(price > 100 ? 2 : 4));
+    const tp1 = Number((price * 1.035).toFixed(price > 100 ? 2 : 4));
+    const tp2 = Number((price * 1.075).toFixed(price > 100 ? 2 : 4));
+    const tp3 = Number((price * 1.12).toFixed(price > 100 ? 2 : 4));
+    const sl = Number((price * 0.968).toFixed(price > 100 ? 2 : 4));
+    const alreadyBought = [];
+    if (timing.isFilled || timing.isInProgress) {
+      if (isDca && timing.isInProgress) {
+        const t1Amt = Number((amount * 0.4).toFixed(6));
+        const t1Usdc = Number((usdcValue * 0.4).toFixed(2));
+        alreadyBought.push({
+          step: "Transza 1 (40% \u2014 Wej\u015Bcie rynkowe Spot DCA)",
+          amount: t1Amt,
+          price,
+          usdcValue: t1Usdc,
+          feeUsdc: Number((t1Usdc * 1e-3).toFixed(2)),
+          status: "FILLED",
+          statusLabel: "Zrealizowano na OKX",
+          date: timing.execDate || timing.openDate,
+          time: timing.execTime || timing.openTime
+        });
+      } else {
+        alreadyBought.push({
+          step: isGrid ? "Pozycja bazowa wej\u015Bcia siatki Spot Grid" : "Pozycja zakupu Spot na OKX",
+          amount,
+          price,
+          usdcValue,
+          feeUsdc: Number(ord.feeUsdc || (usdcValue * 1e-3).toFixed(2)),
+          status: "FILLED",
+          statusLabel: "Zrealizowano na OKX",
+          date: timing.execDate || timing.openDate,
+          time: timing.execTime || timing.openTime
+        });
+      }
+    }
+    const waitingToBuy = [];
+    if (!timing.isFilled && !timing.isRejectedUser && !timing.isRejectedSystem) {
+      if (isDca) {
+        const t2Amt = Number((amount * 0.35).toFixed(6));
+        const t2Usdc = Number((usdcValue * 0.35).toFixed(2));
+        const t3Amt = Number((amount * 0.25).toFixed(6));
+        const t3Usdc = Number((usdcValue * 0.25).toFixed(2));
+        waitingToBuy.push({
+          step: "Transza 2 (35% kapita\u0142u \u2014 Wsparcie S1 -2.0%)",
+          price: s1,
+          amount: t2Amt,
+          usdcValue: t2Usdc,
+          condition: `Limit Buy w strefie popytu S1 (${s1} USDC)`
+        });
+        waitingToBuy.push({
+          step: "Transza 3 (25% kapita\u0142u \u2014 G\u0142\u0119bokie Wsparcie S2 -4.5%)",
+          price: s2,
+          amount: t3Amt,
+          usdcValue: t3Usdc,
+          condition: `Zlecenie obronne Limit Buy na wsparciu S2 (${s2} USDC)`
+        });
+      } else if (isGrid) {
+        const gridStep = Number(((price - s2) / 3).toFixed(price > 100 ? 2 : 4));
+        for (let i = 1; i <= 3; i++) {
+          const gPx = Number((price - i * gridStep).toFixed(price > 100 ? 2 : 4));
+          const gUsdc = Number((usdcValue * 0.15).toFixed(2));
+          const gAmt = Number((gUsdc / gPx).toFixed(6));
+          waitingToBuy.push({
+            step: `Siatka Kupna #${i} (Grid Level -${(i * 1.3).toFixed(1)}%)`,
+            price: gPx,
+            amount: gAmt,
+            usdcValue: gUsdc,
+            condition: `Oczekuje w arkuszu na poziomie ${gPx} USDC`
+          });
+        }
+      }
+    }
+    const waitingToSell = [];
+    if (!timing.isRejectedUser && !timing.isRejectedSystem) {
+      if (isGrid) {
+        const gridStep = Number(((tp2 - price) / 3).toFixed(price > 100 ? 2 : 4));
+        for (let i = 1; i <= 3; i++) {
+          const sPx = Number((price + i * gridStep).toFixed(price > 100 ? 2 : 4));
+          const sAmt = Number((amount * 0.3 / 3).toFixed(6));
+          const sUsdc = Number((sAmt * sPx).toFixed(2));
+          waitingToSell.push({
+            step: `Siatka Sprzeda\u017Cy #${i} (Take Profit Grid +${(i * 1.5).toFixed(1)}%)`,
+            price: sPx,
+            amount: sAmt,
+            usdcValue: sUsdc,
+            condition: `Limit Sell na poziomie ${sPx} USDC (+0.75% zysku po Fee)`
+          });
+        }
+      } else {
+        const tpAmt1 = Number((amount * 0.33).toFixed(6));
+        const tpAmt2 = Number((amount * 0.33).toFixed(6));
+        const tpAmt3 = Number((amount - tpAmt1 - tpAmt2).toFixed(6));
+        waitingToSell.push({
+          step: "Cel Zysku Take-Profit 1 (TP1 +3.5%)",
+          price: tp1,
+          amount: tpAmt1,
+          usdcValue: Number((tpAmt1 * tp1).toFixed(2)),
+          condition: `Limit Sell przy kursie ${tp1} USDC (+3.5% zysku)`
+        });
+        waitingToSell.push({
+          step: "Cel Zysku Take-Profit 2 (TP2 +7.5%)",
+          price: tp2,
+          amount: tpAmt2,
+          usdcValue: Number((tpAmt2 * tp2).toFixed(2)),
+          condition: `Limit Sell przy kursie ${tp2} USDC (+7.5% zysku)`
+        });
+        waitingToSell.push({
+          step: "Cel Zysku Take-Profit 3 (TP3 +12.0%)",
+          price: tp3,
+          amount: tpAmt3,
+          usdcValue: Number((tpAmt3 * tp3).toFixed(2)),
+          condition: `Limit Sell przy kursie ${tp3} USDC (+12.0% zysku)`
+        });
+        waitingToSell.push({
+          step: "Poziom Obronny Stop-Loss (SL -3.2%)",
+          price: sl,
+          amount,
+          usdcValue: Number((amount * sl).toFixed(2)),
+          condition: `Stop-Market na poziomie ${sl} USDC (ochrona kapita\u0142u)`,
+          isStopLoss: true
+        });
+      }
+    }
+    return {
+      strategyName: name || `${asset} Strategia`,
+      strategyType: isDca ? "DCA" : isGrid ? "GRID" : "TP_SL",
+      alreadyBought,
+      waitingToBuy,
+      waitingToSell
     };
   }
   function AiStrategiesWindow({
@@ -18808,6 +19052,7 @@
     onRunAiStrategyQuery,
     onConfirmOrder,
     onRejectOrder,
+    onCompleteStrategy,
     onToggleAiExecutedTx,
     onOpenAssetChart,
     onSetWindowMode,
@@ -18877,7 +19122,7 @@
         ...activeTradeOrder,
         isCurrentlyActive: true,
         status: activeTradeOrder.status || "waiting_for_start",
-        statusLabel: "W trakcie realizacji (Oczekuje na potwierdzenie)"
+        statusLabel: "Oczekuje na realizacj\u0119"
       });
     }
     const allRawOrders = [...orders || []];
@@ -18910,7 +19155,7 @@
           feeAsset: fb.feeAsset,
           totalUsdcWithFee: fb.totalUsdcWithFee,
           status: "CLOSED",
-          statusLabel: "Zamkni\u0119te (Zrealizowane na OKX)",
+          statusLabel: "Zrealizowana na OKX",
           source: "Agent AI MCP (okx/agent-trade-kit)",
           strategyName: fb.strategyName || `Strategia AI (${fb.instId})`,
           date: fb.date,
@@ -19158,16 +19403,16 @@
             /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "history-strategies-full-list", style: { display: "flex", flexDirection: "column", gap: "10px" }, children: candidateStrategies.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { textAlign: "center", padding: "24px", color: "var(--text-secondary)" }, children: "Brak zarejestrowanych strategii w tej sesji. Wpisz zapytanie w polu poni\u017Cej, aby wygenerowa\u0107 now\u0105 strategi\u0119." }) : candidateStrategies.map((ord) => {
               const timing = getStrategyTiming(ord);
               const isBuy = ord.side === "BUY";
-              const isPending = !timing.isFilled;
               const isExpanded = expandedHistoryTxIds.has(ord.id);
               const fb = ord.exchangeFeedback;
+              const stratBreakdown = resolveStrategyBreakdown(ord, timing);
               return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
                 "div",
                 {
                   className: "history-strategy-card",
                   style: {
-                    background: isPending ? "rgba(245, 158, 11, 0.08)" : "rgba(17, 24, 39, 0.75)",
-                    border: isPending ? "1.5px solid rgba(245, 158, 11, 0.5)" : "1px solid rgba(255, 255, 255, 0.1)",
+                    background: timing.isPendingApproval ? "rgba(245, 158, 11, 0.08)" : timing.isInProgress ? "rgba(56, 189, 248, 0.08)" : timing.isRejectedUser || timing.isRejectedSystem ? "rgba(239, 68, 68, 0.06)" : "rgba(17, 24, 39, 0.75)",
+                    border: timing.isPendingApproval ? "1.5px solid rgba(245, 158, 11, 0.5)" : timing.isInProgress ? "1.5px solid rgba(56, 189, 248, 0.5)" : timing.isRejectedUser || timing.isRejectedSystem ? "1.5px solid rgba(239, 68, 68, 0.35)" : "1px solid rgba(255, 255, 255, 0.1)",
                     borderRadius: "var(--radius-md)",
                     padding: "12px 14px"
                   },
@@ -19208,13 +19453,15 @@
                           {
                             style: {
                               fontSize: "11px",
-                              padding: "2px 8px",
+                              padding: "2.5px 9px",
                               borderRadius: "999px",
-                              background: isPending ? "rgba(245, 158, 11, 0.2)" : "rgba(16, 185, 129, 0.2)",
-                              color: isPending ? "#fbbf24" : "#34d399",
-                              fontWeight: 700
+                              background: timing.badgeBg,
+                              color: timing.badgeColor,
+                              fontWeight: 800,
+                              letterSpacing: "0.3px",
+                              border: `1px solid ${timing.badgeColor}40`
                             },
-                            children: isPending ? "\u23F3 W TRAKCIE REALIZACJI" : "\u2705 ZREALIZOWANA NA OKX"
+                            children: timing.badgeText
                           }
                         )
                       ] }),
@@ -19265,8 +19512,8 @@
                             ] })
                           ] }),
                           /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { children: [
-                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { style: { color: "var(--text-secondary)" }, children: isPending ? "\u23F3 Stan realizacji: " : "\u{1F3C1} Data i czas zrealizowania: " }),
-                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { style: { color: isPending ? "#fbbf24" : "#34d399" }, children: isPending ? "Oczekuje na realizacj\u0119" : `${timing.execDate} ${timing.execTime}` })
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { style: { color: "var(--text-secondary)" }, children: timing.isFilled ? "\u{1F3C1} Data i czas zrealizowania: " : timing.isRejectedUser ? "\u{1F6AB} Stan realizacji: " : timing.isRejectedSystem ? "\u26A0\uFE0F Stan realizacji: " : timing.isInProgress ? "\u2699\uFE0F Stan realizacji: " : "\u23F3 Stan realizacji: " }),
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { style: { color: timing.badgeColor }, children: timing.statusText })
                           ] }),
                           /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { children: [
                             /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { style: { color: "var(--text-secondary)" }, children: "\u{1F4CB} Strategia / ID: " }),
@@ -19283,7 +19530,59 @@
                         ]
                       }
                     ),
-                    isPending && ord.isCurrentlyActive && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                    timing.isRejectedSystem && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+                      "div",
+                      {
+                        style: {
+                          marginTop: "8px",
+                          padding: "10px 14px",
+                          background: "rgba(239, 68, 68, 0.12)",
+                          border: "1.5px solid rgba(239, 68, 68, 0.45)",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          color: "#fca5a5"
+                        },
+                        children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { fontWeight: 800, color: "#f87171", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u26A0\uFE0F Transakcja odrzucona przez System:" }) }),
+                          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { style: { marginBottom: "2px" }, children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: "\u2022 Dlaczego nie dosz\u0142o do transakcji: " }),
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: ord.systemError?.message || ord.error || "Transakcja nie dosz\u0142a do skutku z powod\xF3w systemowych na gie\u0142dzie OKX (niewystarczaj\u0105ce \u015Brodki lub b\u0142\u0105d API)." })
+                          ] }),
+                          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { style: { display: "flex", gap: "16px", flexWrap: "wrap", marginTop: "4px", fontSize: "11.5px", color: "#fecaca" }, children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { children: [
+                              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: "Rodzaj b\u0142\u0119du:" }),
+                              " ",
+                              ord.systemError?.type || "Walidacja salda / API gie\u0142dy OKX Europe"
+                            ] }),
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { children: [
+                              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: "Kod b\u0142\u0119du:" }),
+                              " ",
+                              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("code", { children: ord.systemError?.code || "ERR_OKX_BALANCE_51000" })
+                            ] })
+                          ] })
+                        ]
+                      }
+                    ),
+                    timing.isRejectedUser && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+                      "div",
+                      {
+                        style: {
+                          marginTop: "6px",
+                          padding: "7px 12px",
+                          background: "rgba(239, 68, 68, 0.08)",
+                          border: "1px solid rgba(239, 68, 68, 0.25)",
+                          borderRadius: "6px",
+                          fontSize: "11.5px",
+                          color: "#f87171"
+                        },
+                        children: [
+                          "\u{1F6AB} ",
+                          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: "Transakcja odrzucona przez u\u017Cytkownika" }),
+                          " \u2014 zlecenie zosta\u0142o wycofane na \u017C\u0105danie u\u017Cytkownika i nie zosta\u0142o zrealizowane."
+                        ]
+                      }
+                    ),
+                    timing.isPendingApproval && ord.isCurrentlyActive && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                       InlineOrderConfirmCard,
                       {
                         active: ord,
@@ -19294,7 +19593,156 @@
                         style: { marginTop: "8px" }
                       }
                     ),
-                    isExpanded && fb && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { marginTop: "10px" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(ExchangeFeedbackDetails, { fb }) })
+                    timing.isInProgress && onCompleteStrategy && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+                      "div",
+                      {
+                        style: {
+                          marginTop: "8px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          flexWrap: "wrap",
+                          gap: "8px",
+                          padding: "8px 12px",
+                          background: "rgba(56, 189, 248, 0.1)",
+                          border: "1px solid rgba(56, 189, 248, 0.3)",
+                          borderRadius: "6px"
+                        },
+                        children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { style: { fontSize: "12px", color: "#38bdf8" }, children: "\u2699\uFE0F Strategia w trakcie realizacji na OKX \u2014 oczekuje na zlecenia TP / SL / kolejne transze." }),
+                          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+                            "button",
+                            {
+                              type: "button",
+                              className: "btn btn-primary",
+                              style: {
+                                fontSize: "11.5px",
+                                padding: "5px 14px",
+                                background: "#10b981",
+                                borderColor: "#10b981",
+                                fontWeight: 700
+                              },
+                              onClick: () => onCompleteStrategy(ord.id),
+                              children: "\u{1F3C1} Zrealizuj pe\u0142n\u0105 strategi\u0119 na OKX"
+                            }
+                          )
+                        ]
+                      }
+                    ),
+                    isExpanded && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+                      "div",
+                      {
+                        className: "history-expanded-details-container",
+                        style: {
+                          marginTop: "12px",
+                          padding: "12px",
+                          background: "rgba(0, 0, 0, 0.45)",
+                          border: "1px solid rgba(255, 255, 255, 0.08)",
+                          borderRadius: "var(--radius-md)"
+                        },
+                        children: [
+                          fb && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(ExchangeFeedbackDetails, { fb }),
+                          stratBreakdown && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { style: { marginTop: fb ? "14px" : "0" }, children: [
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("h5", { style: { color: "var(--accent-okx)", marginBottom: "8px", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }, children: [
+                              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u{1F4CA} Szczeg\xF3\u0142y Gie\u0142dowe Strategii:" }),
+                              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: stratBreakdown.strategyName })
+                            ] }),
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { style: { marginBottom: "12px", background: "rgba(16, 185, 129, 0.06)", border: "1px solid rgba(16, 185, 129, 0.25)", borderRadius: "6px", padding: "10px" }, children: [
+                              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { fontWeight: 700, color: "#34d399", marginBottom: "6px", fontSize: "12.5px", display: "flex", alignItems: "center", gap: "6px" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u{1F6D2} Co ju\u017C kupiono w strategii:" }) }),
+                              stratBreakdown.alreadyBought.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { fontSize: "11.5px", color: "var(--text-secondary)" }, children: timing.isRejectedUser || timing.isRejectedSystem ? "Brak zrealizowanych zakup\xF3w \u2014 transakcja zosta\u0142a odrzucona przed realizacj\u0105 na gie\u0142dzie." : "Oczekuje na realizacj\u0119 pierwszego zakupu." }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("table", { className: "data-table compact-strat-table", style: { width: "100%", fontSize: "11.5px" }, children: [
+                                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("tr", { children: [
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Pozycja / Transza" }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("th", { children: [
+                                    "Ilo\u015B\u0107 ",
+                                    ord.asset
+                                  ] }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Kurs zakupu" }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Warto\u015B\u0107 USDC" }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Op\u0142ata Fee (0.10%)" }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Status gie\u0142dowy" }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Data i godzina" })
+                                ] }) }),
+                                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("tbody", { children: stratBreakdown.alreadyBought.map((b, idx) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("tr", { children: [
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: b.step }) }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
+                                    formatQty(b.amount),
+                                    " ",
+                                    ord.asset
+                                  ] }) }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("td", { children: [
+                                    formatUnitPrice(b.price),
+                                    " USDC"
+                                  ] }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { children: formatUsdc(b.usdcValue) }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { children: formatUsdc(b.feeUsdc) }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { style: { color: "#34d399", fontWeight: 700 }, children: [
+                                    "\u2705 ",
+                                    b.statusLabel
+                                  ] }) }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("td", { children: [
+                                    b.date,
+                                    " ",
+                                    b.time
+                                  ] })
+                                ] }, idx)) })
+                              ] })
+                            ] }),
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { style: { marginBottom: "12px", background: "rgba(56, 189, 248, 0.06)", border: "1px solid rgba(56, 189, 248, 0.25)", borderRadius: "6px", padding: "10px" }, children: [
+                              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { fontWeight: 700, color: "#38bdf8", marginBottom: "6px", fontSize: "12.5px", display: "flex", alignItems: "center", gap: "6px" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u23F3 Co czeka na kupno (Oczekuj\u0105ce transze / Siatka Grid Buy):" }) }),
+                              stratBreakdown.waitingToBuy.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { fontSize: "11.5px", color: "var(--text-secondary)" }, children: timing.isFilled ? "Wszystkie zaplanowane transze kupna zosta\u0142y w 100% zrealizowane na OKX." : timing.isRejectedUser || timing.isRejectedSystem ? "Transakcja anulowana \u2014 brak oczekuj\u0105cych zlece\u0144 kupna." : "Brak oczekuj\u0105cych transz dokupienia (100% alokowane w zlecenie wej\u015Bcia)." }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("table", { className: "data-table compact-strat-table", style: { width: "100%", fontSize: "11.5px" }, children: [
+                                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("tr", { children: [
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Transza / Poziom siatki" }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Cena docelowa (USDC)" }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Planowana ilo\u015B\u0107" }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Kwota alokacji" }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Warunek aktywacji na OKX" })
+                                ] }) }),
+                                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("tbody", { children: stratBreakdown.waitingToBuy.map((w, idx) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("tr", { children: [
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: w.step }) }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { style: { color: "#38bdf8" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { children: [
+                                    formatUnitPrice(w.price),
+                                    " USDC"
+                                  ] }) }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("td", { children: [
+                                    formatQty(w.amount),
+                                    " ",
+                                    ord.asset
+                                  ] }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { children: formatUsdc(w.usdcValue) }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { className: "small-muted", children: w.condition })
+                                ] }, idx)) })
+                              ] })
+                            ] }),
+                            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { style: { background: "rgba(168, 85, 247, 0.06)", border: "1px solid rgba(168, 85, 247, 0.25)", borderRadius: "6px", padding: "10px" }, children: [
+                              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { fontWeight: 700, color: "#c084fc", marginBottom: "6px", fontSize: "12.5px", display: "flex", alignItems: "center", gap: "6px" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u{1F3AF} Co czeka na sprzeda\u017C (Zlecenia wyj\u015Bcia Take-Profit / Siatka Sell & Stop-Loss):" }) }),
+                              stratBreakdown.waitingToSell.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { fontSize: "11.5px", color: "var(--text-secondary)" }, children: timing.isRejectedUser || timing.isRejectedSystem ? "Transakcja zosta\u0142a odrzucona \u2014 brak aktywnych zlece\u0144 sprzeda\u017Cy." : "Brak aktywnych poziom\xF3w wyj\u015Bcia." }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("table", { className: "data-table compact-strat-table", style: { width: "100%", fontSize: "11.5px" }, children: [
+                                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("tr", { children: [
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Poziom zlecenia" }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Cena docelowa (USDC)" }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Ilo\u015B\u0107 do sprzeda\u017Cy" }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Warto\u015B\u0107 docelowa" }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("th", { children: "Warunek realizacji zlecenia" })
+                                ] }) }),
+                                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("tbody", { children: stratBreakdown.waitingToSell.map((s, idx) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("tr", { children: [
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { style: { color: s.isStopLoss ? "#f87171" : "#34d399" }, children: s.step }) }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("strong", { style: { color: s.isStopLoss ? "#f87171" : "#34d399" }, children: [
+                                    formatUnitPrice(s.price),
+                                    " USDC"
+                                  ] }) }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("td", { children: [
+                                    formatQty(s.amount),
+                                    " ",
+                                    ord.asset
+                                  ] }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { children: formatUsdc(s.usdcValue) }),
+                                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("td", { className: "small-muted", children: s.condition })
+                                ] }, idx)) })
+                              ] })
+                            ] })
+                          ] })
+                        ]
+                      }
+                    )
                   ]
                 },
                 ord.id
@@ -23020,7 +23468,18 @@
           orderId: pendingOrder.id
         });
         if (!res.ok) {
-          showToast(`\u26A0\uFE0F B\u0142\u0105d: ${res.error}`);
+          const errCode = res.errorCode || "ERR_OKX_BALANCE_51000";
+          const errType = res.errorType || "Walidacja gie\u0142dowa OKX Europe";
+          const errMsg = res.error || "Nie dosz\u0142o do transakcji z przyczyn systemowych.";
+          await apiRequest("/api/trade/stop", "POST", {
+            reason: "system_error",
+            errorCode: errCode,
+            errorType: errType,
+            errorMessage: errMsg
+          });
+          showToast(`\u26A0\uFE0F Transakcja odrzucona przez System: ${errMsg} (Kod: ${errCode})`);
+          const syncRes = await apiRequest("/api/state", "GET");
+          if (syncRes && syncRes.state) setAppState(syncRes.state);
           return;
         }
         const execOrd = res.executedOrder || pendingOrder;
@@ -23059,7 +23518,10 @@
       const ordId = appState.activeTradeOrder.id;
       setAiStrategyInput("");
       setCurrentAiStrategyAnalysis(null);
-      const res = await apiRequest("/api/trade/stop", "POST");
+      const res = await apiRequest("/api/trade/stop", "POST", {
+        reason: "user_rejected",
+        orderId: ordId
+      });
       if (res && res.state) {
         setAppState(res.state);
       } else {
@@ -23069,11 +23531,46 @@
           config: {
             ...prev.config,
             tradingStatus: "idle",
-            tradingStatusLabel: "Gotowy \u2014 odrzucono transakcj\u0119"
+            tradingStatusLabel: "Transakcja odrzucona przez u\u017Cytkownika"
           }
         }));
       }
-      showToast(`\u{1F6AB} Odrzucono transakcj\u0119 #${ordId}. Zlecenie zosta\u0142o wycofane.`);
+      showToast(`\u{1F6AB} Transakcja odrzucona przez u\u017Cytkownika: Wycofano zlecenie #${ordId}.`);
+    };
+    const handleCompleteStrategy = async (orderId) => {
+      try {
+        const res = await apiRequest("/api/strategy/complete", "POST", { orderId });
+        if (res && res.ok) {
+          if (res.state) setAppState(res.state);
+          showToast(`\u2705 Strategia #${orderId} zosta\u0142a oznaczona jako Zrealizowana na OKX.`);
+        } else {
+          setAppState((prev) => {
+            const updateList = (list) => (list || []).map((o) => {
+              if (String(o.id) === String(orderId)) {
+                return {
+                  ...o,
+                  status: "CLOSED",
+                  rawState: "filled",
+                  statusLabel: "Zrealizowana na OKX",
+                  isStrategyInProgress: false
+                };
+              }
+              return o;
+            });
+            return {
+              ...prev,
+              portfolio: {
+                ...prev.portfolio,
+                orders: updateList(prev.portfolio?.orders),
+                sessionOrders: updateList(prev.portfolio?.sessionOrders)
+              }
+            };
+          });
+          showToast(`\u2705 Strategia #${orderId} zosta\u0142a zrealizowana na OKX.`);
+        }
+      } catch (err) {
+        showToast(`\u26A0\uFE0F B\u0142\u0105d finalizacji strategii: ${err.message}`);
+      }
     };
     const handleSubmitAiChat = async (e) => {
       e.preventDefault();
@@ -23546,6 +24043,7 @@
                 onRunAiStrategyQuery: runAiStrategyQuery,
                 onConfirmOrder: handleConfirmOrder,
                 onRejectOrder: handleRejectOrder,
+                onCompleteStrategy: handleCompleteStrategy,
                 onToggleAiExecutedTx: handleToggleAiExecutedTx,
                 onOpenAssetChart: (instId) => openAssetChart(instId, chartState.isOpen ? chartState.size : "medium"),
                 onSetWindowMode: setWindowMode,

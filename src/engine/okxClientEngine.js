@@ -1513,14 +1513,22 @@ export async function clientMockEngine(url, method = 'GET', body = null) {
       exchangeMessage: `Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #${order.id}: ${isBuy ? 'Kupiono' : 'Sprzedano'} ${order.amount} ${order.asset} po kursie ${order.price} USDC (Przeliczenie na USDC: ${order.usdcValue.toFixed(2)} USDC, Fee 0.10%: ${feeUsdc.toFixed(2)} USDC / ${feeAsset} ${order.asset}, Rozliczenie całkowite: ${totalUsdcWithFee.toFixed(2)} USDC).`
     };
 
+    const isMultiStage = order.strategyName &&
+      (order.strategyName.includes('DCA') ||
+       order.strategyName.includes('Grid') ||
+       order.strategyName.includes('Take-Profit') ||
+       order.strategyName.includes('TP') ||
+       order.strategyName.includes('SL'));
+
     order.date = dateStr;
     order.time = timeStr;
     order.feeRate = '0.10%';
     order.feeUsdc = feeUsdc;
     order.feeAsset = feeAsset;
     order.totalUsdcWithFee = totalUsdcWithFee;
-    order.status = 'CLOSED';
-    order.statusLabel = 'Zamknięte (Zrealizowane na OKX)';
+    order.isStrategyInProgress = Boolean(isMultiStage);
+    order.status = isMultiStage ? 'in_progress' : 'CLOSED';
+    order.statusLabel = isMultiStage ? 'W trakcie realizacji (OKX)' : 'Zrealizowana na OKX';
     order.exchangeFeedback = exchangeFeedback;
 
     let holding = _standaloneState.portfolio.holdings.find((h) => h.asset === order.asset);
@@ -1667,13 +1675,63 @@ export async function clientMockEngine(url, method = 'GET', body = null) {
     };
   }
 
-  // 6. Trade Stop
+  // 6. Trade Stop / Reject trade order
   if (url.startsWith('/api/trade/stop') && method === 'POST') {
+    const isSystem = body && body.reason === 'system_error';
+    const pending = _standaloneState.activeTradeOrder;
+    if (pending) {
+      const now = new Date();
+      const canceled = {
+        ...pending,
+        status: isSystem ? 'REJECTED_SYSTEM' : 'REJECTED_USER',
+        rawState: isSystem ? 'rejected_system' : 'rejected_user',
+        rejectedBy: isSystem ? 'SYSTEM' : 'USER',
+        statusLabel: isSystem ? 'Transakcja odrzucona przez System' : 'Transakcja odrzucona przez użytkownika',
+        systemError: isSystem ? {
+          code: body?.errorCode || 'ERR_OKX_BALANCE_51000',
+          type: body?.errorType || 'Walidacja salda / API giełdy OKX Europe',
+          message: body?.errorMessage || 'Transakcja nie doszła do skutku z powodów systemowych.'
+        } : null,
+        date: now.toISOString().slice(0, 10),
+        time: now.toTimeString().slice(0, 8),
+        timestamp: now.getTime()
+      };
+      _standaloneState.portfolio.orders = [canceled, ...(_standaloneState.portfolio.orders || [])];
+      _standaloneState.portfolio.sessionOrders = [canceled, ...(_standaloneState.portfolio.sessionOrders || [])];
+    }
     _standaloneState.activeTradeOrder = null;
     _standaloneState.config.tradingStatus = 'idle';
-    _standaloneState.config.tradingStatusLabel = 'Gotowy — brak oczekującego zlecenia';
+    _standaloneState.config.tradingStatusLabel = isSystem
+      ? 'Transakcja odrzucona przez System'
+      : 'Transakcja odrzucona przez użytkownika';
     saveStandaloneState();
-    return { ok: true, message: 'Wycofano oczekujące zlecenie.', state: JSON.parse(JSON.stringify(_standaloneState)) };
+    return {
+      ok: true,
+      message: isSystem ? 'Transakcja odrzucona przez System.' : 'Transakcja odrzucona przez użytkownika.',
+      state: JSON.parse(JSON.stringify(_standaloneState))
+    };
+  }
+
+  // 6B. Complete strategy in progress
+  if (url.startsWith('/api/strategy/complete') && method === 'POST') {
+    const ordId = body?.orderId;
+    const target = (_standaloneState.portfolio.orders || []).find((o) => String(o.id) === String(ordId)) ||
+      (_standaloneState.portfolio.sessionOrders || []).find((o) => String(o.id) === String(ordId));
+    if (target) {
+      target.status = 'CLOSED';
+      target.rawState = 'filled';
+      target.statusLabel = 'Zrealizowana na OKX';
+      target.isStrategyInProgress = false;
+      const now = new Date();
+      target.date = now.toISOString().slice(0, 10);
+      target.time = now.toTimeString().slice(0, 8);
+      if (target.exchangeFeedback) {
+        target.exchangeFeedback.status = 'FILLED (Zrealizowana na OKX)';
+      }
+      saveStandaloneState();
+      return { ok: true, message: `Strategia ${ordId} została oznaczona jako Zrealizowana na OKX.`, state: JSON.parse(JSON.stringify(_standaloneState)) };
+    }
+    return { ok: false, error: 'Nie znaleziono podanej strategii.' };
   }
 
   // 7. Orders cancel

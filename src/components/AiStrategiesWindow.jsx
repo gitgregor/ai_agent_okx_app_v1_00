@@ -19,23 +19,266 @@ const QUICK_ASSETS = [
 ];
 
 function getStrategyTiming(ord) {
-  if (!ord) return { openDate: '', openTime: '', execDate: '', execTime: '', isFilled: false };
+  if (!ord) {
+    return {
+      openDate: '',
+      openTime: '',
+      execDate: '',
+      execTime: '',
+      isFilled: false,
+      isPendingApproval: false,
+      isInProgress: false,
+      isRejectedUser: false,
+      isRejectedSystem: false,
+      badgeText: '',
+      badgeColor: '',
+      badgeBg: '',
+      statusText: ''
+    };
+  }
+
   const openDate = ord.createdAtDate || ord.date || '';
   const openTime = ord.createdAtTime || ord.time || '';
-  const isFilled =
-    ord.status === 'CLOSED' ||
-    ord.status === 'FILLED' ||
-    ord.rawState === 'filled' ||
-    Boolean(ord.exchangeFeedback && ord.exchangeFeedback.status && ord.exchangeFeedback.status.includes('FILLED'));
   const execDate = ord.date || openDate;
   const execTime = ord.time || openTime;
+
+  const rawStatus = (ord.status || '').toUpperCase();
+  const label = (ord.statusLabel || '').toLowerCase();
+  const rejBy = (ord.rejectedBy || '').toUpperCase();
+
+  const isRejectedSystem =
+    rawStatus === 'REJECTED_SYSTEM' ||
+    rejBy === 'SYSTEM' ||
+    label.includes('odrzucona przez system') ||
+    Boolean(ord.systemError);
+
+  const isRejectedUser =
+    !isRejectedSystem &&
+    (rawStatus === 'REJECTED_USER' ||
+      rawStatus === 'CANCELED' ||
+      rejBy === 'USER' ||
+      label.includes('odrzucona przez użytkownika') ||
+      label.includes('anulowane przez stop handlu') ||
+      label.includes('anulowane'));
+
+  const isPendingApproval =
+    !isRejectedSystem &&
+    !isRejectedUser &&
+    (ord.isCurrentlyActive || rawStatus === 'WAITING_FOR_START' || rawStatus === 'PENDING_APPROVAL');
+
+  const isInProgress =
+    !isRejectedSystem &&
+    !isRejectedUser &&
+    !isPendingApproval &&
+    (rawStatus === 'IN_PROGRESS' ||
+      Boolean(ord.isStrategyInProgress) ||
+      (label.includes('w trakcie realizacji') && !label.includes('zrealizowana')));
+
+  const isFilled =
+    !isRejectedSystem &&
+    !isRejectedUser &&
+    !isPendingApproval &&
+    !isInProgress &&
+    (rawStatus === 'CLOSED' ||
+      rawStatus === 'FILLED' ||
+      ord.rawState === 'filled' ||
+      Boolean(ord.exchangeFeedback && ord.exchangeFeedback.status && ord.exchangeFeedback.status.includes('FILLED')) ||
+      label.includes('zrealizowan'));
+
+  let badgeText = '⏳ OCZEKUJE NA REALIZACJĘ';
+  let badgeColor = '#fbbf24';
+  let badgeBg = 'rgba(245, 158, 11, 0.2)';
+  let statusText = 'Oczekuje na realizację';
+
+  if (isRejectedUser) {
+    badgeText = '🚫 ODRZUCONA PRZEZ UŻYTKOWNIKA';
+    badgeColor = '#f87171';
+    badgeBg = 'rgba(239, 68, 68, 0.18)';
+    statusText = 'Transakcja odrzucona przez użytkownika';
+  } else if (isRejectedSystem) {
+    badgeText = '⚠️ ODRZUCONA PRZEZ SYSTEM';
+    badgeColor = '#f87171';
+    badgeBg = 'rgba(239, 68, 68, 0.25)';
+    statusText = 'Transakcja odrzucona przez System';
+  } else if (isInProgress) {
+    badgeText = '⚙️ W TRAKCIE REALIZACJI';
+    badgeColor = '#38bdf8';
+    badgeBg = 'rgba(56, 189, 248, 0.2)';
+    statusText = 'W trakcie realizacji (OKX)';
+  } else if (isFilled) {
+    badgeText = '✅ ZREALIZOWANA NA OKX';
+    badgeColor = '#34d399';
+    badgeBg = 'rgba(16, 185, 129, 0.2)';
+    statusText = `${execDate} ${execTime}`;
+  }
 
   return {
     openDate,
     openTime,
     execDate,
     execTime,
-    isFilled
+    isFilled,
+    isPendingApproval,
+    isInProgress,
+    isRejectedUser,
+    isRejectedSystem,
+    badgeText,
+    badgeColor,
+    badgeBg,
+    statusText
+  };
+}
+
+export function resolveStrategyBreakdown(ord, timing) {
+  if (!ord) return null;
+  const price = Number(ord.price) || 0;
+  const amount = Number(ord.amount) || 0;
+  const usdcValue = Number(ord.usdcValue) || price * amount;
+  const asset = ord.asset || 'BTC';
+  const name = ord.strategyName || '';
+
+  const isDca = name.toUpperCase().includes('DCA') || ord.strategyType === 'DCA';
+  const isGrid = name.toUpperCase().includes('GRID') || ord.strategyType === 'GRID';
+
+  const s1 = Number((price * 0.98).toFixed(price > 100 ? 2 : 4));
+  const s2 = Number((price * 0.955).toFixed(price > 100 ? 2 : 4));
+  const tp1 = Number((price * 1.035).toFixed(price > 100 ? 2 : 4));
+  const tp2 = Number((price * 1.075).toFixed(price > 100 ? 2 : 4));
+  const tp3 = Number((price * 1.12).toFixed(price > 100 ? 2 : 4));
+  const sl = Number((price * 0.968).toFixed(price > 100 ? 2 : 4));
+
+  // 1. Co już kupiono w strategii
+  const alreadyBought = [];
+  if (timing.isFilled || timing.isInProgress) {
+    if (isDca && timing.isInProgress) {
+      const t1Amt = Number((amount * 0.4).toFixed(6));
+      const t1Usdc = Number((usdcValue * 0.4).toFixed(2));
+      alreadyBought.push({
+        step: 'Transza 1 (40% — Wejście rynkowe Spot DCA)',
+        amount: t1Amt,
+        price,
+        usdcValue: t1Usdc,
+        feeUsdc: Number((t1Usdc * 0.001).toFixed(2)),
+        status: 'FILLED',
+        statusLabel: 'Zrealizowano na OKX',
+        date: timing.execDate || timing.openDate,
+        time: timing.execTime || timing.openTime
+      });
+    } else {
+      alreadyBought.push({
+        step: isGrid ? 'Pozycja bazowa wejścia siatki Spot Grid' : 'Pozycja zakupu Spot na OKX',
+        amount,
+        price,
+        usdcValue,
+        feeUsdc: Number(ord.feeUsdc || (usdcValue * 0.001).toFixed(2)),
+        status: 'FILLED',
+        statusLabel: 'Zrealizowano na OKX',
+        date: timing.execDate || timing.openDate,
+        time: timing.execTime || timing.openTime
+      });
+    }
+  }
+
+  // 2. Co czeka na kupno
+  const waitingToBuy = [];
+  if (!timing.isFilled && !timing.isRejectedUser && !timing.isRejectedSystem) {
+    if (isDca) {
+      const t2Amt = Number((amount * 0.35).toFixed(6));
+      const t2Usdc = Number((usdcValue * 0.35).toFixed(2));
+      const t3Amt = Number((amount * 0.25).toFixed(6));
+      const t3Usdc = Number((usdcValue * 0.25).toFixed(2));
+
+      waitingToBuy.push({
+        step: 'Transza 2 (35% kapitału — Wsparcie S1 -2.0%)',
+        price: s1,
+        amount: t2Amt,
+        usdcValue: t2Usdc,
+        condition: `Limit Buy w strefie popytu S1 (${s1} USDC)`
+      });
+      waitingToBuy.push({
+        step: 'Transza 3 (25% kapitału — Głębokie Wsparcie S2 -4.5%)',
+        price: s2,
+        amount: t3Amt,
+        usdcValue: t3Usdc,
+        condition: `Zlecenie obronne Limit Buy na wsparciu S2 (${s2} USDC)`
+      });
+    } else if (isGrid) {
+      const gridStep = Number(((price - s2) / 3).toFixed(price > 100 ? 2 : 4));
+      for (let i = 1; i <= 3; i++) {
+        const gPx = Number((price - i * gridStep).toFixed(price > 100 ? 2 : 4));
+        const gUsdc = Number((usdcValue * 0.15).toFixed(2));
+        const gAmt = Number((gUsdc / gPx).toFixed(6));
+        waitingToBuy.push({
+          step: `Siatka Kupna #${i} (Grid Level -${(i * 1.3).toFixed(1)}%)`,
+          price: gPx,
+          amount: gAmt,
+          usdcValue: gUsdc,
+          condition: `Oczekuje w arkuszu na poziomie ${gPx} USDC`
+        });
+      }
+    }
+  }
+
+  // 3. Co czeka na sprzedaż
+  const waitingToSell = [];
+  if (!timing.isRejectedUser && !timing.isRejectedSystem) {
+    if (isGrid) {
+      const gridStep = Number(((tp2 - price) / 3).toFixed(price > 100 ? 2 : 4));
+      for (let i = 1; i <= 3; i++) {
+        const sPx = Number((price + i * gridStep).toFixed(price > 100 ? 2 : 4));
+        const sAmt = Number(((amount * 0.3) / 3).toFixed(6));
+        const sUsdc = Number((sAmt * sPx).toFixed(2));
+        waitingToSell.push({
+          step: `Siatka Sprzedaży #${i} (Take Profit Grid +${(i * 1.5).toFixed(1)}%)`,
+          price: sPx,
+          amount: sAmt,
+          usdcValue: sUsdc,
+          condition: `Limit Sell na poziomie ${sPx} USDC (+0.75% zysku po Fee)`
+        });
+      }
+    } else {
+      const tpAmt1 = Number((amount * 0.33).toFixed(6));
+      const tpAmt2 = Number((amount * 0.33).toFixed(6));
+      const tpAmt3 = Number((amount - tpAmt1 - tpAmt2).toFixed(6));
+
+      waitingToSell.push({
+        step: 'Cel Zysku Take-Profit 1 (TP1 +3.5%)',
+        price: tp1,
+        amount: tpAmt1,
+        usdcValue: Number((tpAmt1 * tp1).toFixed(2)),
+        condition: `Limit Sell przy kursie ${tp1} USDC (+3.5% zysku)`
+      });
+      waitingToSell.push({
+        step: 'Cel Zysku Take-Profit 2 (TP2 +7.5%)',
+        price: tp2,
+        amount: tpAmt2,
+        usdcValue: Number((tpAmt2 * tp2).toFixed(2)),
+        condition: `Limit Sell przy kursie ${tp2} USDC (+7.5% zysku)`
+      });
+      waitingToSell.push({
+        step: 'Cel Zysku Take-Profit 3 (TP3 +12.0%)',
+        price: tp3,
+        amount: tpAmt3,
+        usdcValue: Number((tpAmt3 * tp3).toFixed(2)),
+        condition: `Limit Sell przy kursie ${tp3} USDC (+12.0% zysku)`
+      });
+      waitingToSell.push({
+        step: 'Poziom Obronny Stop-Loss (SL -3.2%)',
+        price: sl,
+        amount,
+        usdcValue: Number((amount * sl).toFixed(2)),
+        condition: `Stop-Market na poziomie ${sl} USDC (ochrona kapitału)`,
+        isStopLoss: true
+      });
+    }
+  }
+
+  return {
+    strategyName: name || `${asset} Strategia`,
+    strategyType: isDca ? 'DCA' : isGrid ? 'GRID' : 'TP_SL',
+    alreadyBought,
+    waitingToBuy,
+    waitingToSell
   };
 }
 
@@ -55,6 +298,7 @@ export function AiStrategiesWindow({
   onRunAiStrategyQuery,
   onConfirmOrder,
   onRejectOrder,
+  onCompleteStrategy,
   onToggleAiExecutedTx,
   onOpenAssetChart,
   onSetWindowMode,
@@ -150,14 +394,14 @@ export function AiStrategiesWindow({
   const candidateStrategies = [];
   const seenOrderIds = new Set();
 
-  // 1. Zlecenie w trakcie realizacji (activeTradeOrder)
+  // 1. Zlecenie oczekujące na realizację (activeTradeOrder)
   if (activeTradeOrder && activeTradeOrder.id) {
     seenOrderIds.add(String(activeTradeOrder.id));
     candidateStrategies.push({
       ...activeTradeOrder,
       isCurrentlyActive: true,
       status: activeTradeOrder.status || 'waiting_for_start',
-      statusLabel: 'W trakcie realizacji (Oczekuje na potwierdzenie)'
+      statusLabel: 'Oczekuje na realizację'
     });
   }
 
@@ -198,7 +442,7 @@ export function AiStrategiesWindow({
         feeAsset: fb.feeAsset,
         totalUsdcWithFee: fb.totalUsdcWithFee,
         status: 'CLOSED',
-        statusLabel: 'Zamknięte (Zrealizowane na OKX)',
+        statusLabel: 'Zrealizowana na OKX',
         source: 'Agent AI MCP (okx/agent-trade-kit)',
         strategyName: fb.strategyName || `Strategia AI (${fb.instId})`,
         date: fb.date,
@@ -440,17 +684,29 @@ export function AiStrategiesWindow({
               candidateStrategies.map((ord) => {
                 const timing = getStrategyTiming(ord);
                 const isBuy = ord.side === 'BUY';
-                const isPending = !timing.isFilled;
                 const isExpanded = expandedHistoryTxIds.has(ord.id);
                 const fb = ord.exchangeFeedback;
+                const stratBreakdown = resolveStrategyBreakdown(ord, timing);
 
                 return (
                   <div
                     key={ord.id}
                     className="history-strategy-card"
                     style={{
-                      background: isPending ? 'rgba(245, 158, 11, 0.08)' : 'rgba(17, 24, 39, 0.75)',
-                      border: isPending ? '1.5px solid rgba(245, 158, 11, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
+                      background: timing.isPendingApproval
+                        ? 'rgba(245, 158, 11, 0.08)'
+                        : timing.isInProgress
+                        ? 'rgba(56, 189, 248, 0.08)'
+                        : timing.isRejectedUser || timing.isRejectedSystem
+                        ? 'rgba(239, 68, 68, 0.06)'
+                        : 'rgba(17, 24, 39, 0.75)',
+                      border: timing.isPendingApproval
+                        ? '1.5px solid rgba(245, 158, 11, 0.5)'
+                        : timing.isInProgress
+                        ? '1.5px solid rgba(56, 189, 248, 0.5)'
+                        : timing.isRejectedUser || timing.isRejectedSystem
+                        ? '1.5px solid rgba(239, 68, 68, 0.35)'
+                        : '1px solid rgba(255, 255, 255, 0.1)',
                       borderRadius: 'var(--radius-md)',
                       padding: '12px 14px'
                     }}
@@ -472,17 +728,21 @@ export function AiStrategiesWindow({
                         <strong>{ord.amount} {ord.asset}</strong>
                         <span>@ {formatUnitPrice(ord.price)} USDC</span>
                         <strong style={{ color: 'var(--accent-okx)' }}>({formatUsdc(ord.usdcValue)})</strong>
+
+                        {/* TOAST / BADGE POWYŻEJ: ZAWSZE W 100% ZGODNY ZE STANEM REALIZACJI */}
                         <span
                           style={{
                             fontSize: '11px',
-                            padding: '2px 8px',
+                            padding: '2.5px 9px',
                             borderRadius: '999px',
-                            background: isPending ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                            color: isPending ? '#fbbf24' : '#34d399',
-                            fontWeight: 700
+                            background: timing.badgeBg,
+                            color: timing.badgeColor,
+                            fontWeight: 800,
+                            letterSpacing: '0.3px',
+                            border: `1px solid ${timing.badgeColor}40`
                           }}
                         >
-                          {isPending ? '⏳ W TRAKCIE REALIZACJI' : '✅ ZREALIZOWANA NA OKX'}
+                          {timing.badgeText}
                         </span>
                       </div>
 
@@ -507,7 +767,7 @@ export function AiStrategiesWindow({
                       </div>
                     </div>
 
-                    {/* DOKŁADNY CZAS OTWARCIA I REALIZACJI STRATEGII */}
+                    {/* DOKŁADNY CZAS OTWARCIA I STAN REALIZACJI STRATEGII */}
                     <div
                       className="history-strategy-timing-bar"
                       style={{
@@ -530,10 +790,16 @@ export function AiStrategiesWindow({
                       </div>
                       <div>
                         <span style={{ color: 'var(--text-secondary)' }}>
-                          {isPending ? '⏳ Stan realizacji: ' : '🏁 Data i czas zrealizowania: '}
+                          {timing.isFilled ? '🏁 Data i czas zrealizowania: ' : (
+                            timing.isRejectedUser ? '🚫 Stan realizacji: ' : (
+                              timing.isRejectedSystem ? '⚠️ Stan realizacji: ' : (
+                                timing.isInProgress ? '⚙️ Stan realizacji: ' : '⏳ Stan realizacji: '
+                              )
+                            )
+                          )}
                         </span>
-                        <strong style={{ color: isPending ? '#fbbf24' : '#34d399' }}>
-                          {isPending ? 'Oczekuje na realizację' : `${timing.execDate} ${timing.execTime}`}
+                        <strong style={{ color: timing.badgeColor }}>
+                          {timing.statusText}
                         </strong>
                       </div>
                       <div>
@@ -544,8 +810,52 @@ export function AiStrategiesWindow({
                       </div>
                     </div>
 
-                    {/* JEŚLI ZLECENIE W TRAKCIE REALIZACJI — POKAZUJEMY PRZYCISKI POTWIERDŹ ORAZ ODRZUĆ TRANSAKCJĘ */}
-                    {isPending && ord.isCurrentlyActive && (
+                    {/* OPIS BŁĘDU I PRZYCZYNY GDY TRANSAKCJA ODRZUCONA PRZEZ SYSTEM */}
+                    {timing.isRejectedSystem && (
+                      <div
+                        style={{
+                          marginTop: '8px',
+                          padding: '10px 14px',
+                          background: 'rgba(239, 68, 68, 0.12)',
+                          border: '1.5px solid rgba(239, 68, 68, 0.45)',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          color: '#fca5a5'
+                        }}
+                      >
+                        <div style={{ fontWeight: 800, color: '#f87171', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>⚠️ Transakcja odrzucona przez System:</span>
+                        </div>
+                        <div style={{ marginBottom: '2px' }}>
+                          <strong>• Dlaczego nie doszło do transakcji: </strong>
+                          <span>{ord.systemError?.message || ord.error || 'Transakcja nie doszła do skutku z powodów systemowych na giełdzie OKX (niewystarczające środki lub błąd API).'}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '4px', fontSize: '11.5px', color: '#fecaca' }}>
+                          <span><strong>Rodzaj błędu:</strong> {ord.systemError?.type || 'Walidacja salda / API giełdy OKX Europe'}</span>
+                          <span><strong>Kod błędu:</strong> <code>{ord.systemError?.code || 'ERR_OKX_BALANCE_51000'}</code></span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* INFORMACJA GDY TRANSAKCJA ODRZUCONA PRZEZ UŻYTKOWNIKA */}
+                    {timing.isRejectedUser && (
+                      <div
+                        style={{
+                          marginTop: '6px',
+                          padding: '7px 12px',
+                          background: 'rgba(239, 68, 68, 0.08)',
+                          border: '1px solid rgba(239, 68, 68, 0.25)',
+                          borderRadius: '6px',
+                          fontSize: '11.5px',
+                          color: '#f87171'
+                        }}
+                      >
+                        🚫 <strong>Transakcja odrzucona przez użytkownika</strong> — zlecenie zostało wycofane na żądanie użytkownika i nie zostało zrealizowane.
+                      </div>
+                    )}
+
+                    {/* PRZYCISKI POTWIERDŹ / ODRZUĆ DLA ZLECENIA OCZEKUJĄCEGO NA REALIZACJĘ */}
+                    {timing.isPendingApproval && ord.isCurrentlyActive && (
                       <InlineOrderConfirmCard
                         active={ord}
                         modeLabel="DEMO"
@@ -556,9 +866,189 @@ export function AiStrategiesWindow({
                       />
                     )}
 
-                    {isExpanded && fb && (
-                      <div style={{ marginTop: '10px' }}>
-                        <ExchangeFeedbackDetails fb={fb} />
+                    {/* AKCJA DLA STRATEGII W TRAKCIE REALIZACJI (np. DCA, Grid, TP/SL) */}
+                    {timing.isInProgress && onCompleteStrategy && (
+                      <div
+                        style={{
+                          marginTop: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '8px',
+                          padding: '8px 12px',
+                          background: 'rgba(56, 189, 248, 0.1)',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          borderRadius: '6px'
+                        }}
+                      >
+                        <span style={{ fontSize: '12px', color: '#38bdf8' }}>
+                          ⚙️ Strategia w trakcie realizacji na OKX — oczekuje na zlecenia TP / SL / kolejne transze.
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          style={{
+                            fontSize: '11.5px',
+                            padding: '5px 14px',
+                            background: '#10b981',
+                            borderColor: '#10b981',
+                            fontWeight: 700
+                          }}
+                          onClick={() => onCompleteStrategy(ord.id)}
+                        >
+                          🏁 Zrealizuj pełną strategię na OKX
+                        </button>
+                      </div>
+                    )}
+
+                    {/* PEŁNE SZCZEGÓŁY GIEŁDOWE (PO NACIŚNIĘCIU PRZYCISKU SZCZEGÓŁY GIEŁDOWE) */}
+                    {isExpanded && (
+                      <div
+                        className="history-expanded-details-container"
+                        style={{
+                          marginTop: '12px',
+                          padding: '12px',
+                          background: 'rgba(0, 0, 0, 0.45)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: 'var(--radius-md)'
+                        }}
+                      >
+                        {fb && <ExchangeFeedbackDetails fb={fb} />}
+
+                        {stratBreakdown && (
+                          <div style={{ marginTop: fb ? '14px' : '0' }}>
+                            <h5 style={{ color: 'var(--accent-okx)', marginBottom: '8px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>📊 Szczegóły Giełdowe Strategii:</span>
+                              <strong>{stratBreakdown.strategyName}</strong>
+                            </h5>
+
+                            {/* 1. CO JUŻ KUPIONO W STRATEGII */}
+                            <div style={{ marginBottom: '12px', background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '6px', padding: '10px' }}>
+                              <div style={{ fontWeight: 700, color: '#34d399', marginBottom: '6px', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>🛒 Co już kupiono w strategii:</span>
+                              </div>
+                              {stratBreakdown.alreadyBought.length === 0 ? (
+                                <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                                  {timing.isRejectedUser || timing.isRejectedSystem
+                                    ? 'Brak zrealizowanych zakupów — transakcja została odrzucona przed realizacją na giełdzie.'
+                                    : 'Oczekuje na realizację pierwszego zakupu.'}
+                                </div>
+                              ) : (
+                                <table className="data-table compact-strat-table" style={{ width: '100%', fontSize: '11.5px' }}>
+                                  <thead>
+                                    <tr>
+                                      <th>Pozycja / Transza</th>
+                                      <th>Ilość {ord.asset}</th>
+                                      <th>Kurs zakupu</th>
+                                      <th>Wartość USDC</th>
+                                      <th>Opłata Fee (0.10%)</th>
+                                      <th>Status giełdowy</th>
+                                      <th>Data i godzina</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {stratBreakdown.alreadyBought.map((b, idx) => (
+                                      <tr key={idx}>
+                                        <td><strong>{b.step}</strong></td>
+                                        <td><strong>{formatQty(b.amount)} {ord.asset}</strong></td>
+                                        <td>{formatUnitPrice(b.price)} USDC</td>
+                                        <td>{formatUsdc(b.usdcValue)}</td>
+                                        <td>{formatUsdc(b.feeUsdc)}</td>
+                                        <td><span style={{ color: '#34d399', fontWeight: 700 }}>✅ {b.statusLabel}</span></td>
+                                        <td>{b.date} {b.time}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+
+                            {/* 2. CO CZEKA NA KUPNO W STRATEGII */}
+                            <div style={{ marginBottom: '12px', background: 'rgba(56, 189, 248, 0.06)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '6px', padding: '10px' }}>
+                              <div style={{ fontWeight: 700, color: '#38bdf8', marginBottom: '6px', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>⏳ Co czeka na kupno (Oczekujące transze / Siatka Grid Buy):</span>
+                              </div>
+                              {stratBreakdown.waitingToBuy.length === 0 ? (
+                                <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                                  {timing.isFilled
+                                    ? 'Wszystkie zaplanowane transze kupna zostały w 100% zrealizowane na OKX.'
+                                    : timing.isRejectedUser || timing.isRejectedSystem
+                                    ? 'Transakcja anulowana — brak oczekujących zleceń kupna.'
+                                    : 'Brak oczekujących transz dokupienia (100% alokowane w zlecenie wejścia).'}
+                                </div>
+                              ) : (
+                                <table className="data-table compact-strat-table" style={{ width: '100%', fontSize: '11.5px' }}>
+                                  <thead>
+                                    <tr>
+                                      <th>Transza / Poziom siatki</th>
+                                      <th>Cena docelowa (USDC)</th>
+                                      <th>Planowana ilość</th>
+                                      <th>Kwota alokacji</th>
+                                      <th>Warunek aktywacji na OKX</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {stratBreakdown.waitingToBuy.map((w, idx) => (
+                                      <tr key={idx}>
+                                        <td><strong>{w.step}</strong></td>
+                                        <td style={{ color: '#38bdf8' }}><strong>{formatUnitPrice(w.price)} USDC</strong></td>
+                                        <td>{formatQty(w.amount)} {ord.asset}</td>
+                                        <td>{formatUsdc(w.usdcValue)}</td>
+                                        <td className="small-muted">{w.condition}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+
+                            {/* 3. CO CZEKA NA SPRZEDAŻ W STRATEGII (TAKE PROFIT & STOP LOSS) */}
+                            <div style={{ background: 'rgba(168, 85, 247, 0.06)', border: '1px solid rgba(168, 85, 247, 0.25)', borderRadius: '6px', padding: '10px' }}>
+                              <div style={{ fontWeight: 700, color: '#c084fc', marginBottom: '6px', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>🎯 Co czeka na sprzedaż (Zlecenia wyjścia Take-Profit / Siatka Sell &amp; Stop-Loss):</span>
+                              </div>
+                              {stratBreakdown.waitingToSell.length === 0 ? (
+                                <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                                  {timing.isRejectedUser || timing.isRejectedSystem
+                                    ? 'Transakcja została odrzucona — brak aktywnych zleceń sprzedaży.'
+                                    : 'Brak aktywnych poziomów wyjścia.'}
+                                </div>
+                              ) : (
+                                <table className="data-table compact-strat-table" style={{ width: '100%', fontSize: '11.5px' }}>
+                                  <thead>
+                                    <tr>
+                                      <th>Poziom zlecenia</th>
+                                      <th>Cena docelowa (USDC)</th>
+                                      <th>Ilość do sprzedaży</th>
+                                      <th>Wartość docelowa</th>
+                                      <th>Warunek realizacji zlecenia</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {stratBreakdown.waitingToSell.map((s, idx) => (
+                                      <tr key={idx}>
+                                        <td>
+                                          <strong style={{ color: s.isStopLoss ? '#f87171' : '#34d399' }}>
+                                            {s.step}
+                                          </strong>
+                                        </td>
+                                        <td>
+                                          <strong style={{ color: s.isStopLoss ? '#f87171' : '#34d399' }}>
+                                            {formatUnitPrice(s.price)} USDC
+                                          </strong>
+                                        </td>
+                                        <td>{formatQty(s.amount)} {ord.asset}</td>
+                                        <td>{formatUsdc(s.usdcValue)}</td>
+                                        <td className="small-muted">{s.condition}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

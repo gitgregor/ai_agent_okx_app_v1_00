@@ -1,13 +1,12 @@
 {
-  "updatedAt": 1793856093528,
-  "homePublicIp": "81.99.228.78",
-  "primaryTunnelUrl": "https://strategic-indicator-springfield-bidding.trycloudflare.com",
-  "cloudflareTunnelUrl": "https://strategic-indicator-springfield-bidding.trycloudflare.com",
-  "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw-3.loca.lt",
+  "updatedAt": 1793859211192,
+  "homePublicIp": "Wykrywanie IP...",
+  "primaryTunnelUrl": "https://okx-eea-gregor-home-gw.loca.lt",
+  "cloudflareTunnelUrl": null,
+  "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw.loca.lt",
   "tunnels": [
-    "https://strategic-indicator-springfield-bidding.trycloudflare.com",
-    "https://okx-eea-gregor-home-gw-3.loca.lt",
     "https://okx-eea-gregor-home-gw.loca.lt",
-    "https://okx-eea-gregor-home-gw-2.loca.lt"
+    "https://okx-eea-gregor-home-gw-2.loca.lt",
+    "https://okx-eea-gregor-home-gw-3.loca.lt"
   ]
 }

@@ -177,9 +177,17 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, getGatewayRegistryPayload());
     }
 
-    // 7. Stop trading button
+    // 7. Stop trading button / Reject trade order
     if (pathname === '/api/trade/stop' && req.method === 'POST') {
-      const result = engine.stopTrading();
+      const body = await readJsonBody(req);
+      const result = engine.stopTrading(body);
+      return sendJson(res, 200, result);
+    }
+
+    // 7B. Complete strategy in progress
+    if (pathname === '/api/strategy/complete' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = engine.completeStrategy(body.orderId);
       return sendJson(res, 200, result);
     }
 

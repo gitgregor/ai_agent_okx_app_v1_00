@@ -812,7 +812,18 @@ export function App() {
         orderId: pendingOrder.id
       });
       if (!res.ok) {
-        showToast(`⚠️ Błąd: ${res.error}`);
+        const errCode = res.errorCode || 'ERR_OKX_BALANCE_51000';
+        const errType = res.errorType || 'Walidacja giełdowa OKX Europe';
+        const errMsg = res.error || 'Nie doszło do transakcji z przyczyn systemowych.';
+        await apiRequest('/api/trade/stop', 'POST', {
+          reason: 'system_error',
+          errorCode: errCode,
+          errorType: errType,
+          errorMessage: errMsg
+        });
+        showToast(`⚠️ Transakcja odrzucona przez System: ${errMsg} (Kod: ${errCode})`);
+        const syncRes = await apiRequest('/api/state', 'GET');
+        if (syncRes && syncRes.state) setAppState(syncRes.state);
         return;
       }
       const execOrd = res.executedOrder || pendingOrder;
@@ -858,7 +869,10 @@ export function App() {
     const ordId = appState.activeTradeOrder.id;
     setAiStrategyInput('');
     setCurrentAiStrategyAnalysis(null);
-    const res = await apiRequest('/api/trade/stop', 'POST');
+    const res = await apiRequest('/api/trade/stop', 'POST', {
+      reason: 'user_rejected',
+      orderId: ordId
+    });
     if (res && res.state) {
       setAppState(res.state);
     } else {
@@ -868,11 +882,48 @@ export function App() {
         config: {
           ...prev.config,
           tradingStatus: 'idle',
-          tradingStatusLabel: 'Gotowy — odrzucono transakcję'
+          tradingStatusLabel: 'Transakcja odrzucona przez użytkownika'
         }
       }));
     }
-    showToast(`🚫 Odrzucono transakcję #${ordId}. Zlecenie zostało wycofane.`);
+    showToast(`🚫 Transakcja odrzucona przez użytkownika: Wycofano zlecenie #${ordId}.`);
+  };
+
+  const handleCompleteStrategy = async (orderId) => {
+    try {
+      const res = await apiRequest('/api/strategy/complete', 'POST', { orderId });
+      if (res && res.ok) {
+        if (res.state) setAppState(res.state);
+        showToast(`✅ Strategia #${orderId} została oznaczona jako Zrealizowana na OKX.`);
+      } else {
+        setAppState((prev) => {
+          const updateList = (list) =>
+            (list || []).map((o) => {
+              if (String(o.id) === String(orderId)) {
+                return {
+                  ...o,
+                  status: 'CLOSED',
+                  rawState: 'filled',
+                  statusLabel: 'Zrealizowana na OKX',
+                  isStrategyInProgress: false
+                };
+              }
+              return o;
+            });
+          return {
+            ...prev,
+            portfolio: {
+              ...prev.portfolio,
+              orders: updateList(prev.portfolio?.orders),
+              sessionOrders: updateList(prev.portfolio?.sessionOrders)
+            }
+          };
+        });
+        showToast(`✅ Strategia #${orderId} została zrealizowana na OKX.`);
+      }
+    } catch (err) {
+      showToast(`⚠️ Błąd finalizacji strategii: ${err.message}`);
+    }
   };
 
   const handleSubmitAiChat = async (e) => {
@@ -1417,6 +1468,7 @@ export function App() {
               onRunAiStrategyQuery={runAiStrategyQuery}
               onConfirmOrder={handleConfirmOrder}
               onRejectOrder={handleRejectOrder}
+              onCompleteStrategy={handleCompleteStrategy}
               onToggleAiExecutedTx={handleToggleAiExecutedTx}
               onOpenAssetChart={(instId) =>
                 openAssetChart(instId, chartState.isOpen ? chartState.size : 'medium')
