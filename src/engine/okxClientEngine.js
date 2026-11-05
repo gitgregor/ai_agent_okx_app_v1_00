@@ -1861,7 +1861,7 @@ export async function clientMockEngine(url, method = 'GET', body = null) {
   }
 
   // 9B. AI Agent OKX Buy Strategy & Deep Market Analysis (/api/agent/strategy)
-  if (url.startsWith('/api/agent/strategy') && method === 'POST') {
+  if (url.startsWith('/api/agent/strategy') && !url.includes('/futures') && method === 'POST') {
     _standaloneState.config.aiStatus = 'active';
     const rawQuery = (body?.query || body?.message || 'BTC').trim();
     const lower = rawQuery.toLowerCase();

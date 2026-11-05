@@ -64,6 +64,7 @@ export function App() {
   const [currentAiStrategyAnalysis, setCurrentAiStrategyAnalysis] = useState(null);
   const [aiFuturesInput, setAiFuturesInput] = useState('');
   const [currentAiFuturesAnalysis, setCurrentAiFuturesAnalysis] = useState(null);
+  const [isGeneratingFutures, setIsGeneratingFutures] = useState(false);
   const [lastExchangeFeedback, setLastExchangeFeedback] = useState(null);
   const [executedSessionTransactions, setExecutedSessionTransactions] = useState([]);
   const [collapsedAiTxIds, setCollapsedAiTxIds] = useState(() => new Set());
@@ -1039,30 +1040,47 @@ export function App() {
       const q = (queryText || '').trim() || 'BTC-SWAP LONG 10x';
       setLastExchangeFeedback(null);
       setAiFuturesInput('');
+      setIsGeneratingFutures(true);
 
-      const res = await apiRequest('/api/agent/strategy/futures', 'POST', { query: q, options });
-      if (res.analysis) {
-        setCurrentAiFuturesAnalysis(res.analysis);
+      try {
+        const res = await apiRequest('/api/agent/strategy/futures', 'POST', { query: q, options });
+        if (res && res.analysis) {
+          setCurrentAiFuturesAnalysis(res.analysis);
+        }
+        if (res && res.reply) {
+          appendChatMessage('user', `[Strategia OKX ai: FUTURES] ${q}`);
+          appendChatMessage('assistant', res.reply, {
+            orderId: res.activeTradeOrder?.id,
+            isPendingTx: true
+          });
+        }
+        if (res && res.state) {
+          setAppState(res.state);
+        }
+        setTimeout(() => {
+          const box = document.getElementById('aiFuturesResultContainer');
+          if (box) {
+            box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+          const winDom = document.getElementById('win-ai-strategies-futures');
+          if (winDom) {
+            const bodyEl = winDom.querySelector('.window-body') || winDom;
+            if (box && bodyEl) {
+              const targetY = Math.max(0, box.offsetTop - 30);
+              bodyEl.scrollTo({ top: targetY, behavior: 'smooth' });
+            }
+          }
+        }, 80);
+        showToast(
+          `⚡ Wygenerowano analizę i strategię futures OKX AI dla: ${
+            res?.analysis?.instId || q
+          }`
+        );
+      } catch (err) {
+        showToast(`⚠️ Błąd generowania strategii futures: ${err.message}`);
+      } finally {
+        setIsGeneratingFutures(false);
       }
-      if (res.reply) {
-        appendChatMessage('user', `[Strategia OKX ai: FUTURES] ${q}`);
-        appendChatMessage('assistant', res.reply, {
-          orderId: res.activeTradeOrder?.id,
-          isPendingTx: true
-        });
-      }
-      if (res.state) {
-        setAppState(res.state);
-      }
-      setTimeout(() => {
-        const box = document.getElementById('aiFuturesResultContainer');
-        if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 50);
-      showToast(
-        `⚡ Wygenerowano analizę i strategię futures OKX AI dla: ${
-          res.analysis?.instId || q
-        }`
-      );
     },
     [appendChatMessage, showToast]
   );
@@ -1575,6 +1593,7 @@ export function App() {
               isSoloGridWindow={soloWindowId === 'win-ai-strategies-futures'}
               aiFuturesInput={aiFuturesInput}
               currentAiFuturesAnalysis={currentAiFuturesAnalysis}
+              isGenerating={isGeneratingFutures}
               activeTradeOrder={appState?.activeTradeOrder}
               lastExchangeFeedback={lastExchangeFeedback}
               collapsedAiTxIds={collapsedAiTxIds}

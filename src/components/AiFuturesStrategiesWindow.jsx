@@ -233,6 +233,7 @@ export function AiFuturesStrategiesWindow({
   isSoloGridWindow,
   aiFuturesInput,
   currentAiFuturesAnalysis,
+  isGenerating,
   activeTradeOrder,
   lastExchangeFeedback,
   collapsedAiTxIds,
@@ -465,6 +466,21 @@ export function AiFuturesStrategiesWindow({
         marginUsdc: Number(customMarginUsdc) || 500
       });
     }
+  };
+
+  const handleFormSubmit = (e) => {
+    if (e) e.preventDefault();
+    const dirTxt = selectedDirection === 'AUTO' ? '' : selectedDirection === 'SHORT' ? ' SHORT' : ' LONG';
+    const q = (aiFuturesInput || '').trim() || `BTC-USDC-SWAP${dirTxt} ${selectedLeverage}x za ${customMarginUsdc}$`;
+    if (onRunAiFuturesStrategyQuery) {
+      onRunAiFuturesStrategyQuery(q, {
+        direction: selectedDirection === 'AUTO' ? undefined : selectedDirection,
+        leverage: selectedLeverage,
+        marginMode: selectedMarginMode,
+        marginUsdc: Number(customMarginUsdc) || 500
+      });
+    }
+    if (onSetAiFuturesInput) onSetAiFuturesInput('');
   };
 
   const a = activeSessionAnalysis;
@@ -836,15 +852,20 @@ export function AiFuturesStrategiesWindow({
                   cursor: 'pointer'
                 }}
                 onClick={() => {
+                  const isShort = ex.prompt.includes('SHORT') || ex.title.includes('SHORT') || ex.title.includes('Hedging');
+                  const dir = isShort ? 'SHORT' : 'LONG';
+                  const lev = ex.prompt.includes('10x') ? 10 : ex.prompt.includes('5x') ? 5 : ex.prompt.includes('3x') ? 3 : 2;
+                  setSelectedDirection(dir);
+                  setSelectedLeverage(lev);
+                  setShowExamples(false);
                   if (onRunAiFuturesStrategyQuery) {
                     onRunAiFuturesStrategyQuery(ex.prompt, {
-                      direction: ex.prompt.includes('SHORT') ? 'SHORT' : 'LONG',
-                      leverage: ex.prompt.includes('10x') ? 10 : ex.prompt.includes('5x') ? 5 : ex.prompt.includes('3x') ? 3 : 2,
-                      marginMode: 'isolated',
+                      direction: dir,
+                      leverage: lev,
+                      marginMode: selectedMarginMode || 'isolated',
                       marginUsdc: Number(customMarginUsdc) || 500
                     });
                   }
-                  setShowExamples(false);
                 }}
               >
                 <strong style={{ color: 'var(--warn-amber)', display: 'block', marginBottom: '4px' }}>
@@ -1248,7 +1269,7 @@ export function AiFuturesStrategiesWindow({
       </div>
 
       {/* FORMULARZ PROMPTU / WYSZUKIWANIA STRATEGII FUTURES */}
-      <form onSubmit={onSubmitAiFuturesStrategy} style={{ marginBottom: '16px' }}>
+      <form onSubmit={handleFormSubmit} style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: 1 }}>
             <span
@@ -1290,11 +1311,39 @@ export function AiFuturesStrategiesWindow({
               background: 'linear-gradient(135deg, #0284c7, #2563eb)',
               whiteSpace: 'nowrap'
             }}
+            disabled={isGenerating}
           >
-            ⚡ Stwórz Strategię Futures OKX AI
+            {isGenerating ? '⏳ Generowanie...' : '⚡ Stwórz Strategię Futures OKX AI'}
           </button>
         </div>
       </form>
+
+      {/* WSKAŹNIK GENEROWANIA STRATEGII */}
+      {isGenerating && (
+        <div
+          style={{
+            padding: '16px 20px',
+            marginBottom: '16px',
+            background: 'rgba(2, 132, 199, 0.18)',
+            border: '1.5px solid rgba(56, 189, 248, 0.5)',
+            borderRadius: 'var(--radius-lg)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            color: '#38bdf8',
+            fontSize: '13px',
+            fontWeight: 700
+          }}
+        >
+          <span style={{ fontSize: '22px' }}>⚙️</span>
+          <div>
+            <div>Agent AI z OKX analizuje rynek futures, wskaźniki RSI/VWAP, poziomy likwidacji i generuje strategię...</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 400, marginTop: '2px' }}>
+              Trwa dobieranie dźwigni, bufora Stop-Loss i celów Take-Profit na OKX Europe (eea.okx.com)
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KARTA WYNIKU ANALIZY AGENTA AI FUTURES */}
       {a && (

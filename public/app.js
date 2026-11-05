@@ -16264,7 +16264,7 @@
       ].join("\n");
       return { ok: true, reply, activeTradeOrder: order, state: JSON.parse(JSON.stringify(_standaloneState)) };
     }
-    if (url.startsWith("/api/agent/strategy") && method === "POST") {
+    if (url.startsWith("/api/agent/strategy") && !url.includes("/futures") && method === "POST") {
       _standaloneState.config.aiStatus = "active";
       const rawQuery = (body?.query || body?.message || "BTC").trim();
       const lower = rawQuery.toLowerCase();
@@ -20692,6 +20692,7 @@
     isSoloGridWindow,
     aiFuturesInput,
     currentAiFuturesAnalysis,
+    isGenerating,
     activeTradeOrder,
     lastExchangeFeedback,
     collapsedAiTxIds,
@@ -20898,6 +20899,20 @@
           marginUsdc: Number(customMarginUsdc) || 500
         });
       }
+    };
+    const handleFormSubmit = (e) => {
+      if (e) e.preventDefault();
+      const dirTxt = selectedDirection === "AUTO" ? "" : selectedDirection === "SHORT" ? " SHORT" : " LONG";
+      const q = (aiFuturesInput || "").trim() || `BTC-USDC-SWAP${dirTxt} ${selectedLeverage}x za ${customMarginUsdc}$`;
+      if (onRunAiFuturesStrategyQuery) {
+        onRunAiFuturesStrategyQuery(q, {
+          direction: selectedDirection === "AUTO" ? void 0 : selectedDirection,
+          leverage: selectedLeverage,
+          marginMode: selectedMarginMode,
+          marginUsdc: Number(customMarginUsdc) || 500
+        });
+      }
+      if (onSetAiFuturesInput) onSetAiFuturesInput("");
     };
     const a = activeSessionAnalysis;
     return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
@@ -21310,15 +21325,20 @@
                       cursor: "pointer"
                     },
                     onClick: () => {
+                      const isShort = ex.prompt.includes("SHORT") || ex.title.includes("SHORT") || ex.title.includes("Hedging");
+                      const dir = isShort ? "SHORT" : "LONG";
+                      const lev = ex.prompt.includes("10x") ? 10 : ex.prompt.includes("5x") ? 5 : ex.prompt.includes("3x") ? 3 : 2;
+                      setSelectedDirection(dir);
+                      setSelectedLeverage(lev);
+                      setShowExamples(false);
                       if (onRunAiFuturesStrategyQuery) {
                         onRunAiFuturesStrategyQuery(ex.prompt, {
-                          direction: ex.prompt.includes("SHORT") ? "SHORT" : "LONG",
-                          leverage: ex.prompt.includes("10x") ? 10 : ex.prompt.includes("5x") ? 5 : ex.prompt.includes("3x") ? 3 : 2,
-                          marginMode: "isolated",
+                          direction: dir,
+                          leverage: lev,
+                          marginMode: selectedMarginMode || "isolated",
                           marginUsdc: Number(customMarginUsdc) || 500
                         });
                       }
-                      setShowExamples(false);
                     },
                     children: [
                       /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { style: { color: "var(--warn-amber)", display: "block", marginBottom: "4px" }, children: ex.title }),
@@ -21784,7 +21804,7 @@
               asset
             ))
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("form", { onSubmit: onSubmitAiFuturesStrategy, style: { marginBottom: "16px" }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", gap: "8px", alignItems: "center" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("form", { onSubmit: handleFormSubmit, style: { marginBottom: "16px" }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { display: "flex", gap: "8px", alignItems: "center" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { position: "relative", flex: 1 }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
                 "span",
@@ -21832,10 +21852,36 @@
                   background: "linear-gradient(135deg, #0284c7, #2563eb)",
                   whiteSpace: "nowrap"
                 },
-                children: "\u26A1 Stw\xF3rz Strategi\u0119 Futures OKX AI"
+                disabled: isGenerating,
+                children: isGenerating ? "\u23F3 Generowanie..." : "\u26A1 Stw\xF3rz Strategi\u0119 Futures OKX AI"
               }
             )
           ] }) }),
+          isGenerating && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "div",
+            {
+              style: {
+                padding: "16px 20px",
+                marginBottom: "16px",
+                background: "rgba(2, 132, 199, 0.18)",
+                border: "1.5px solid rgba(56, 189, 248, 0.5)",
+                borderRadius: "var(--radius-lg)",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                color: "#38bdf8",
+                fontSize: "13px",
+                fontWeight: 700
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { style: { fontSize: "22px" }, children: "\u2699\uFE0F" }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { children: "Agent AI z OKX analizuje rynek futures, wska\u017Aniki RSI/VWAP, poziomy likwidacji i generuje strategi\u0119..." }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { style: { fontSize: "11px", color: "var(--text-secondary)", fontWeight: 400, marginTop: "2px" }, children: "Trwa dobieranie d\u017Awigni, bufora Stop-Loss i cel\xF3w Take-Profit na OKX Europe (eea.okx.com)" })
+                ] })
+              ]
+            }
+          ),
           a && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
             "div",
             {
@@ -24713,6 +24759,7 @@
     const [currentAiStrategyAnalysis, setCurrentAiStrategyAnalysis] = (0, import_react15.useState)(null);
     const [aiFuturesInput, setAiFuturesInput] = (0, import_react15.useState)("");
     const [currentAiFuturesAnalysis, setCurrentAiFuturesAnalysis] = (0, import_react15.useState)(null);
+    const [isGeneratingFutures, setIsGeneratingFutures] = (0, import_react15.useState)(false);
     const [lastExchangeFeedback, setLastExchangeFeedback] = (0, import_react15.useState)(null);
     const [executedSessionTransactions, setExecutedSessionTransactions] = (0, import_react15.useState)([]);
     const [collapsedAiTxIds, setCollapsedAiTxIds] = (0, import_react15.useState)(() => /* @__PURE__ */ new Set());
@@ -25537,27 +25584,44 @@
         const q = (queryText || "").trim() || "BTC-SWAP LONG 10x";
         setLastExchangeFeedback(null);
         setAiFuturesInput("");
-        const res = await apiRequest("/api/agent/strategy/futures", "POST", { query: q, options });
-        if (res.analysis) {
-          setCurrentAiFuturesAnalysis(res.analysis);
+        setIsGeneratingFutures(true);
+        try {
+          const res = await apiRequest("/api/agent/strategy/futures", "POST", { query: q, options });
+          if (res && res.analysis) {
+            setCurrentAiFuturesAnalysis(res.analysis);
+          }
+          if (res && res.reply) {
+            appendChatMessage("user", `[Strategia OKX ai: FUTURES] ${q}`);
+            appendChatMessage("assistant", res.reply, {
+              orderId: res.activeTradeOrder?.id,
+              isPendingTx: true
+            });
+          }
+          if (res && res.state) {
+            setAppState(res.state);
+          }
+          setTimeout(() => {
+            const box = document.getElementById("aiFuturesResultContainer");
+            if (box) {
+              box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }
+            const winDom = document.getElementById("win-ai-strategies-futures");
+            if (winDom) {
+              const bodyEl = winDom.querySelector(".window-body") || winDom;
+              if (box && bodyEl) {
+                const targetY = Math.max(0, box.offsetTop - 30);
+                bodyEl.scrollTo({ top: targetY, behavior: "smooth" });
+              }
+            }
+          }, 80);
+          showToast(
+            `\u26A1 Wygenerowano analiz\u0119 i strategi\u0119 futures OKX AI dla: ${res?.analysis?.instId || q}`
+          );
+        } catch (err) {
+          showToast(`\u26A0\uFE0F B\u0142\u0105d generowania strategii futures: ${err.message}`);
+        } finally {
+          setIsGeneratingFutures(false);
         }
-        if (res.reply) {
-          appendChatMessage("user", `[Strategia OKX ai: FUTURES] ${q}`);
-          appendChatMessage("assistant", res.reply, {
-            orderId: res.activeTradeOrder?.id,
-            isPendingTx: true
-          });
-        }
-        if (res.state) {
-          setAppState(res.state);
-        }
-        setTimeout(() => {
-          const box = document.getElementById("aiFuturesResultContainer");
-          if (box) box.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }, 50);
-        showToast(
-          `\u26A1 Wygenerowano analiz\u0119 i strategi\u0119 futures OKX AI dla: ${res.analysis?.instId || q}`
-        );
       },
       [appendChatMessage, showToast]
     );
@@ -26003,6 +26067,7 @@
                 isSoloGridWindow: soloWindowId === "win-ai-strategies-futures",
                 aiFuturesInput,
                 currentAiFuturesAnalysis,
+                isGenerating: isGeneratingFutures,
                 activeTradeOrder: appState?.activeTradeOrder,
                 lastExchangeFeedback,
                 collapsedAiTxIds,
