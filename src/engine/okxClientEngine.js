@@ -312,6 +312,76 @@ export async function importDeviceSyncCode(rawInput) {
   }
 }
 
+export async function syncCloudSessionOrders() {
+  if (typeof window === 'undefined') return { ok: false, count: 0 };
+  const urls = [
+    `https://raw.githubusercontent.com/gitgregor/ai_agent_okx_app_v1_00/main/docs/session-orders.json?t=${Date.now()}`,
+    `./session-orders.json?t=${Date.now()}`
+  ];
+
+  for (const u of urls) {
+    try {
+      const res = await fetchWithTimeout(u, { method: 'GET', cache: 'no-store' }, 3500);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (!data) continue;
+
+      let importedCount = 0;
+      const allCloudOrders = [
+        ...(Array.isArray(data.demo) ? data.demo : []),
+        ...(Array.isArray(data.live) ? data.live : []),
+        ...(Array.isArray(data.orders) ? data.orders : [])
+      ];
+
+      for (const ord of allCloudOrders) {
+        if (!ord || !ord.id) continue;
+        const idStr = String(ord.id);
+        if (idStr.startsWith('OKX-DEMO-17924') || idStr.startsWith('OKX-DEMO-POS-') || idStr.startsWith('OKX-LIVE-POS-')) continue;
+        saveAiExecutedOrderToLocal(ord);
+        importedCount++;
+      }
+
+      // Merge into in-memory standalone state if running standalone
+      if (_standaloneState) {
+        if (Array.isArray(_standaloneState.portfolio?.orders)) {
+          const existingIds = new Set(_standaloneState.portfolio.orders.map((o) => String(o.id)));
+          for (const ord of allCloudOrders) {
+            if (ord?.id && !existingIds.has(String(ord.id))) {
+              existingIds.add(String(ord.id));
+              _standaloneState.portfolio.orders.unshift(ord);
+            }
+          }
+        }
+
+        const cloudTxList = Array.isArray(data.sessionSync?.executedSessionTransactions)
+          ? data.sessionSync.executedSessionTransactions
+          : [];
+        if (cloudTxList.length > 0) {
+          if (!_standaloneState.sessionSync) {
+            _standaloneState.sessionSync = { executedSessionTransactions: [], chatMessages: [] };
+          }
+          const existingTxIds = new Set(
+            (_standaloneState.sessionSync.executedSessionTransactions || []).map((t) => String(t.orderId || t.id))
+          );
+          for (const tx of cloudTxList) {
+            const txId = String(tx.orderId || tx.id);
+            if (txId && !existingTxIds.has(txId)) {
+              existingTxIds.add(txId);
+              _standaloneState.sessionSync.executedSessionTransactions.unshift(tx);
+            }
+          }
+        }
+        saveStandaloneState();
+      }
+
+      if (importedCount > 0) {
+        return { ok: true, count: importedCount };
+      }
+    } catch (e) {}
+  }
+  return { ok: false, count: 0 };
+}
+
 function detectInitialGatewayConfig() {
   if (typeof window === 'undefined') {
     return { isRemoteHost: false, activeBaseUrl: '', customGatewayUrl: '' };
@@ -447,6 +517,9 @@ export async function probeHomeGateway(force = false) {
 
   _lastGatewayProbeTs = now;
   _gatewayProbeInFlight = (async () => {
+    // Check cloud orders in background
+    syncCloudSessionOrders().catch(() => {});
+
     // 1. If running on local PC / LAN, check local relative origin first
     if (!_gwInit.isRemoteHost) {
       try {
@@ -2004,6 +2077,8 @@ export async function clientMockEngine(url, method = 'GET', body = null) {
     saveStandaloneState();
 
     const analysis = {
+      id: `SPOT-STRAT-${now.getTime()}`,
+      timestamp: now.getTime(),
       engine: '@okx_ai/okx-trade-mcp • okx/agent-trade-kit (eea.okx.com v5)',
       mode: (_standaloneState.config.apiMode || 'demo').toUpperCase(),
       query: rawQuery,
@@ -2481,8 +2556,43 @@ export async function apiRequest(url, method = 'GET', body = null) {
         _discoveredCloudflareUrl = targetState.config.remoteGateway.cloudflareTunnelUrl.replace(/\/+$/, '');
       }
 
-      // Sync any locally executed orders to the server so they are never lost across sessions/devices
+      // Sync server orders down to local storage and local orders up to server so both devices stay 100% in sync
       if (!url.startsWith('/api/session/sync-orders') && Array.isArray(targetState.portfolio?.orders)) {
+        for (const sOrd of targetState.portfolio.orders) {
+          if (sOrd && sOrd.id) {
+            const sId = String(sOrd.id);
+            if (!sId.startsWith('OKX-DEMO-17924') && !sId.startsWith('OKX-DEMO-POS-') && !sId.startsWith('OKX-LIVE-POS-')) {
+              saveAiExecutedOrderToLocal(sOrd);
+            }
+          }
+        }
+        if (Array.isArray(targetState.sessionSync?.executedSessionTransactions)) {
+          for (const tx of targetState.sessionSync.executedSessionTransactions) {
+            if (tx && (tx.orderId || tx.id)) {
+              const txId = String(tx.orderId || tx.id);
+              if (!txId.startsWith('OKX-DEMO-17924') && !txId.startsWith('OKX-DEMO-POS-')) {
+                saveAiExecutedOrderToLocal({
+                  id: txId,
+                  instId: tx.instId,
+                  asset: tx.asset,
+                  side: tx.side,
+                  orderType: tx.orderType || 'MARKET',
+                  amount: tx.amount,
+                  price: tx.price,
+                  usdcValue: tx.usdcValue,
+                  leverage: tx.leverage,
+                  status: 'CLOSED',
+                  source: tx.strategyName || 'Agent AI (Sesja)',
+                  date: tx.date,
+                  time: tx.time,
+                  timestamp: tx.timestamp,
+                  exchangeFeedback: tx
+                });
+              }
+            }
+          }
+        }
+
         const localOrders = loadSavedAiExecutedOrders();
         const serverOrderIds = new Set(targetState.portfolio.orders.map((o) => String(o.id)));
         const missingOnServer = localOrders.filter((o) => o && o.id && !serverOrderIds.has(String(o.id)));

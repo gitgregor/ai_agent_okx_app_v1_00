@@ -267,19 +267,30 @@ class OkxEeaTradingEngine {
   _saveSessionOrders() {
     try {
       this.sessionSync.updatedAt = Date.now();
-      fs.writeFileSync(
-        SESSION_ORDERS_FILE_PATH,
-        JSON.stringify(
-          {
-            demo: this.portfolios.demo.sessionOrders || [],
-            live: this.portfolios.live.sessionOrders || [],
-            sessionSync: this.sessionSync
-          },
-          null,
-          2
-        ),
-        'utf8'
-      );
+      const payload = {
+        updatedAt: Date.now(),
+        demo: this.portfolios.demo.sessionOrders || [],
+        live: this.portfolios.live.sessionOrders || [],
+        sessionSync: this.sessionSync
+      };
+      const jsonStr = JSON.stringify(payload, null, 2);
+      fs.writeFileSync(SESSION_ORDERS_FILE_PATH, jsonStr, 'utf8');
+
+      // Sync across docs/ and public/ so GitHub Pages and mobile phones auto-discover executed orders
+      const rootDir = path.join(__dirname, '..');
+      const targets = [
+        path.join(rootDir, 'public', 'session-orders.json'),
+        path.join(rootDir, 'docs', 'session-orders.json'),
+        path.join(rootDir, 'session-orders.json')
+      ];
+      for (const tPath of targets) {
+        try {
+          const dir = path.dirname(tPath);
+          if (fs.existsSync(dir)) {
+            fs.writeFileSync(tPath, jsonStr, 'utf8');
+          }
+        } catch (e) {}
+      }
     } catch (e) {}
   }
 
@@ -2551,6 +2562,8 @@ class OkxEeaTradingEngine {
     const now = new Date();
 
     const analysis = {
+      id: `SPOT-STRAT-${now.getTime()}`,
+      timestamp: now.getTime(),
       engine: '@okx_ai/okx-trade-mcp • okx/agent-trade-kit (eea.okx.com v5)',
       mode: (this.config.apiMode || 'demo').toUpperCase(),
       query: rawQuery,

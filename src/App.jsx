@@ -11,6 +11,7 @@ import {
   exportDeviceSyncCode,
   importDeviceSyncCode,
   probeHomeGateway,
+  syncCloudSessionOrders,
   DEFAULT_STANDALONE_MARKETS
 } from './engine/okxClientEngine';
 import { HeaderBar } from './components/HeaderBar';
@@ -599,6 +600,7 @@ export function App() {
     let mounted = true;
 
     async function initLoad() {
+      syncCloudSessionOrders().catch(() => {});
       let initialState = await apiRequest('/api/state');
       const savedLocal = getKeysFromLocalStorage();
       if (
@@ -756,14 +758,17 @@ export function App() {
   };
 
   const handleForceDeviceSync = async () => {
-    showToast('🔄 Łączenie z bramą laptopa i synchronizacja zleceń...');
+    showToast('🔄 Łączenie z bramą i synchronizacja historii zleceń...');
     try {
-      await probeHomeGateway(true);
+      await Promise.all([
+        syncCloudSessionOrders().catch(() => ({ ok: false })),
+        probeHomeGateway(true).catch(() => false)
+      ]);
       const res = await apiRequest('/api/state');
       if (res) setAppState(res);
-      showToast('✅ Zsynchronizowano transakcje i portfel z Bramą Domową laptopa!');
+      showToast('✅ Zsynchronizowano transakcje, historię Spot i Futures oraz portfel z Bramą Domową i chmurą!');
     } catch (e) {
-      showToast('⚠️ Brak bezpośredniego połączenia z bramą. Użyj przycisku [Kopiuj z tego urządzenia] i wklej na laptopie.');
+      showToast('⚠️ Brak bezpośredniego połączenia z bramą. Użyj przycisku [Kopiuj z tego urządzenia] i wklej na drugim urządzeniu.');
     }
   };
 

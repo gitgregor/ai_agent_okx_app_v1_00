@@ -53,7 +53,18 @@ async function build() {
   fs.writeFileSync(path.join(ROOT_DIR, 'index.html'), indexHtmlTemplate, 'utf8');
   fs.writeFileSync(path.join(DOCS_DIR, 'index.html'), indexHtmlTemplate, 'utf8');
 
-  const filesToSync = ['app.js', 'styles.css'];
+  // Ensure session-orders.json is synced from server database
+  const serverOrdersFile = path.join(ROOT_DIR, 'server', '.okx-session-orders.json');
+  if (fs.existsSync(serverOrdersFile)) {
+    try {
+      const ordersData = fs.readFileSync(serverOrdersFile, 'utf8');
+      fs.writeFileSync(path.join(PUBLIC_DIR, 'session-orders.json'), ordersData, 'utf8');
+      fs.writeFileSync(path.join(DOCS_DIR, 'session-orders.json'), ordersData, 'utf8');
+      fs.writeFileSync(path.join(ROOT_DIR, 'session-orders.json'), ordersData, 'utf8');
+    } catch (e) {}
+  }
+
+  const filesToSync = ['app.js', 'styles.css', 'gateway.json', 'session-orders.json'];
   for (const file of filesToSync) {
     const srcFile = path.join(PUBLIC_DIR, file);
     if (fs.existsSync(srcFile)) {

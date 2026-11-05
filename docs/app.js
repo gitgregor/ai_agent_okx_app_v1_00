@@ -14857,6 +14857,67 @@
       return { ok: true, count: orders.length, standaloneMerged: true };
     }
   }
+  async function syncCloudSessionOrders() {
+    if (typeof window === "undefined") return { ok: false, count: 0 };
+    const urls = [
+      `https://raw.githubusercontent.com/gitgregor/ai_agent_okx_app_v1_00/main/docs/session-orders.json?t=${Date.now()}`,
+      `./session-orders.json?t=${Date.now()}`
+    ];
+    for (const u of urls) {
+      try {
+        const res = await fetchWithTimeout(u, { method: "GET", cache: "no-store" }, 3500);
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (!data) continue;
+        let importedCount = 0;
+        const allCloudOrders = [
+          ...Array.isArray(data.demo) ? data.demo : [],
+          ...Array.isArray(data.live) ? data.live : [],
+          ...Array.isArray(data.orders) ? data.orders : []
+        ];
+        for (const ord of allCloudOrders) {
+          if (!ord || !ord.id) continue;
+          const idStr = String(ord.id);
+          if (idStr.startsWith("OKX-DEMO-17924") || idStr.startsWith("OKX-DEMO-POS-") || idStr.startsWith("OKX-LIVE-POS-")) continue;
+          saveAiExecutedOrderToLocal(ord);
+          importedCount++;
+        }
+        if (_standaloneState) {
+          if (Array.isArray(_standaloneState.portfolio?.orders)) {
+            const existingIds = new Set(_standaloneState.portfolio.orders.map((o) => String(o.id)));
+            for (const ord of allCloudOrders) {
+              if (ord?.id && !existingIds.has(String(ord.id))) {
+                existingIds.add(String(ord.id));
+                _standaloneState.portfolio.orders.unshift(ord);
+              }
+            }
+          }
+          const cloudTxList = Array.isArray(data.sessionSync?.executedSessionTransactions) ? data.sessionSync.executedSessionTransactions : [];
+          if (cloudTxList.length > 0) {
+            if (!_standaloneState.sessionSync) {
+              _standaloneState.sessionSync = { executedSessionTransactions: [], chatMessages: [] };
+            }
+            const existingTxIds = new Set(
+              (_standaloneState.sessionSync.executedSessionTransactions || []).map((t) => String(t.orderId || t.id))
+            );
+            for (const tx of cloudTxList) {
+              const txId = String(tx.orderId || tx.id);
+              if (txId && !existingTxIds.has(txId)) {
+                existingTxIds.add(txId);
+                _standaloneState.sessionSync.executedSessionTransactions.unshift(tx);
+              }
+            }
+          }
+          saveStandaloneState();
+        }
+        if (importedCount > 0) {
+          return { ok: true, count: importedCount };
+        }
+      } catch (e) {
+      }
+    }
+    return { ok: false, count: 0 };
+  }
   function detectInitialGatewayConfig() {
     if (typeof window === "undefined") {
       return { isRemoteHost: false, activeBaseUrl: "", customGatewayUrl: "" };
@@ -14982,6 +15043,8 @@
     if (_gatewayProbeInFlight) return _gatewayProbeInFlight;
     _lastGatewayProbeTs = now;
     _gatewayProbeInFlight = (async () => {
+      syncCloudSessionOrders().catch(() => {
+      });
       if (!_gwInit.isRemoteHost) {
         try {
           const res = await fetchWithTimeout(
@@ -16378,6 +16441,8 @@
       _standaloneState.config.tradingStatusLabel = `Gotowe do potwierdzenia (BUY ${amount} ${asset} @ ${livePrice} USDC)`;
       saveStandaloneState();
       const analysis = {
+        id: `SPOT-STRAT-${now.getTime()}`,
+        timestamp: now.getTime(),
         engine: "@okx_ai/okx-trade-mcp \u2022 okx/agent-trade-kit (eea.okx.com v5)",
         mode: (_standaloneState.config.apiMode || "demo").toUpperCase(),
         query: rawQuery,
@@ -16808,6 +16873,40 @@
           _discoveredCloudflareUrl = targetState.config.remoteGateway.cloudflareTunnelUrl.replace(/\/+$/, "");
         }
         if (!url.startsWith("/api/session/sync-orders") && Array.isArray(targetState.portfolio?.orders)) {
+          for (const sOrd of targetState.portfolio.orders) {
+            if (sOrd && sOrd.id) {
+              const sId = String(sOrd.id);
+              if (!sId.startsWith("OKX-DEMO-17924") && !sId.startsWith("OKX-DEMO-POS-") && !sId.startsWith("OKX-LIVE-POS-")) {
+                saveAiExecutedOrderToLocal(sOrd);
+              }
+            }
+          }
+          if (Array.isArray(targetState.sessionSync?.executedSessionTransactions)) {
+            for (const tx of targetState.sessionSync.executedSessionTransactions) {
+              if (tx && (tx.orderId || tx.id)) {
+                const txId = String(tx.orderId || tx.id);
+                if (!txId.startsWith("OKX-DEMO-17924") && !txId.startsWith("OKX-DEMO-POS-")) {
+                  saveAiExecutedOrderToLocal({
+                    id: txId,
+                    instId: tx.instId,
+                    asset: tx.asset,
+                    side: tx.side,
+                    orderType: tx.orderType || "MARKET",
+                    amount: tx.amount,
+                    price: tx.price,
+                    usdcValue: tx.usdcValue,
+                    leverage: tx.leverage,
+                    status: "CLOSED",
+                    source: tx.strategyName || "Agent AI (Sesja)",
+                    date: tx.date,
+                    time: tx.time,
+                    timestamp: tx.timestamp,
+                    exchangeFeedback: tx
+                  });
+                }
+              }
+            }
+          }
           const localOrders = loadSavedAiExecutedOrders();
           const serverOrderIds = new Set(targetState.portfolio.orders.map((o) => String(o.id)));
           const missingOnServer = localOrders.filter((o) => o && o.id && !serverOrderIds.has(String(o.id)));
@@ -19325,6 +19424,7 @@
     const [showInstruction, setShowInstruction] = (0, import_react7.useState)(false);
     const [showHistory, setShowHistory] = (0, import_react7.useState)(false);
     const [showExamples, setShowExamples] = (0, import_react7.useState)(false);
+    const [hasRequestedNewStrategy, setHasRequestedNewStrategy] = (0, import_react7.useState)(false);
     const [activeSessionAnalysis, setActiveSessionAnalysis] = (0, import_react7.useState)(null);
     const [isRecommendationOpen, setIsRecommendationOpen] = (0, import_react7.useState)(false);
     const [expandedHistoryTxIds, setExpandedHistoryTxIds] = (0, import_react7.useState)(/* @__PURE__ */ new Set());
@@ -19337,35 +19437,47 @@
       const wasClosed = prev === "docked-top" || prev === "docked-sidebar" || !prev;
       const isNowOpen = curr === "grid" || curr === "floating-small" || curr === "floating-medium" || curr === "fullscreen";
       if (wasClosed && isNowOpen) {
+        setHasRequestedNewStrategy(false);
         setActiveSessionAnalysis(null);
         setIsRecommendationOpen(false);
         setShowInstruction(false);
         setShowHistory(false);
         setShowExamples(false);
         if (onSetAiStrategyInput) onSetAiStrategyInput("");
+      } else if (curr === "docked-top" || curr === "docked-sidebar") {
+        setHasRequestedNewStrategy(false);
+        setActiveSessionAnalysis(null);
+        setIsRecommendationOpen(false);
       }
     }, [winMeta?.mode, onSetAiStrategyInput]);
     (0, import_react7.useEffect)(() => {
-      if (currentAiStrategyAnalysis?.timestamp && currentAiStrategyAnalysis.timestamp !== prevAnalysisTsRef.current) {
+      if (!hasRequestedNewStrategy) return;
+      if (currentAiStrategyAnalysis && currentAiStrategyAnalysis.timestamp && currentAiStrategyAnalysis.timestamp !== prevAnalysisTsRef.current) {
         prevAnalysisTsRef.current = currentAiStrategyAnalysis.timestamp;
         setActiveSessionAnalysis(currentAiStrategyAnalysis);
         setIsRecommendationOpen(true);
       }
-    }, [currentAiStrategyAnalysis]);
+    }, [currentAiStrategyAnalysis, hasRequestedNewStrategy]);
     const handleFormSubmit = (e) => {
       if (e) e.preventDefault();
+      setHasRequestedNewStrategy(true);
       if (onSubmitAiStrategy) onSubmitAiStrategy(e);
       if (onSetAiStrategyInput) onSetAiStrategyInput("");
     };
     const handleRunQuery = (queryText) => {
+      setHasRequestedNewStrategy(true);
       if (onRunAiStrategyQuery) onRunAiStrategyQuery(queryText);
       if (onSetAiStrategyInput) onSetAiStrategyInput("");
     };
     const handleConfirmOrderWrapped = () => {
+      setHasRequestedNewStrategy(false);
+      setActiveSessionAnalysis(null);
       if (onSetAiStrategyInput) onSetAiStrategyInput("");
       if (onConfirmOrder) onConfirmOrder();
     };
     const handleRejectOrderWrapped = () => {
+      setHasRequestedNewStrategy(false);
+      setActiveSessionAnalysis(null);
       if (onSetAiStrategyInput) onSetAiStrategyInput("");
       if (onRejectOrder) onRejectOrder();
     };
@@ -19377,9 +19489,14 @@
         return next;
       });
     };
+    const isFuturesStrategy = (ord) => {
+      if (!ord) return false;
+      const idStr = String(ord.id || ord.orderId || "");
+      return idStr.startsWith("OKX-FUT-") || ord.marketType === "FUTURES" || Boolean(ord.instId && ord.instId.includes("SWAP")) || Boolean(ord.source && ord.source.includes("Futures")) || Boolean(ord.strategyName && ord.strategyName.includes("Futures")) || Boolean(ord.leverage);
+    };
     const candidateStrategies = [];
     const seenOrderIds = /* @__PURE__ */ new Set();
-    if (activeTradeOrder && activeTradeOrder.id) {
+    if (activeTradeOrder && activeTradeOrder.id && !isFuturesStrategy(activeTradeOrder)) {
       seenOrderIds.add(String(activeTradeOrder.id));
       candidateStrategies.push({
         ...activeTradeOrder,
@@ -19390,7 +19507,7 @@
     }
     const allRawOrders = [...orders || []];
     for (const o of allRawOrders) {
-      if (!o || !o.id) continue;
+      if (!o || !o.id || isFuturesStrategy(o)) continue;
       const idStr = String(o.id);
       if (seenOrderIds.has(idStr)) continue;
       const isAiSource = idStr.startsWith("OKX-EEA-") || o.source && (o.source.includes("AI") || o.source.includes("Strategia") || o.source.includes("Agent")) || o.strategyName && (o.strategyName.includes("AI") || o.strategyName.includes("Strategia"));
@@ -19400,7 +19517,7 @@
       }
     }
     for (const fb of executedSessionTransactions || []) {
-      if (!fb) continue;
+      if (!fb || isFuturesStrategy(fb)) continue;
       const ordId = String(fb.orderId || fb.id || "");
       if (ordId && !seenOrderIds.has(ordId)) {
         seenOrderIds.add(ordId);
@@ -19429,6 +19546,17 @@
           exchangeFeedback: fb
         });
       }
+    }
+    try {
+      const savedLocalOrders = loadSavedAiExecutedOrders();
+      for (const so of savedLocalOrders || []) {
+        if (!so || !so.id || isFuturesStrategy(so)) continue;
+        const sId = String(so.id);
+        if (seenOrderIds.has(sId)) continue;
+        seenOrderIds.add(sId);
+        candidateStrategies.push(so);
+      }
+    } catch (e) {
     }
     candidateStrategies.sort((a2, b) => (b.timestamp || 0) - (a2.timestamp || 0));
     const extraTitlebarControls = /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
@@ -20050,7 +20178,7 @@
               ))
             ] })
           ] }),
-          activeTradeOrder && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { marginBottom: "14px" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+          hasRequestedNewStrategy && activeTradeOrder && !isFuturesStrategy(activeTradeOrder) && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { marginBottom: "14px" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
             InlineOrderConfirmCard,
             {
               active: activeTradeOrder,
@@ -20061,7 +20189,7 @@
               isConfirming: isConfirmingOrder
             }
           ) }),
-          a && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "ai-strat-recommendation-wrapper", children: [
+          hasRequestedNewStrategy && a && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "ai-strat-recommendation-wrapper", children: [
             /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
               "div",
               {
@@ -20351,6 +20479,37 @@
               ] })
             ] }) })
           ] }),
+          (!hasRequestedNewStrategy || !a && !activeTradeOrder) && !showHistory && !showInstruction && !showExamples && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+            "div",
+            {
+              className: "ai-strat-idle-card",
+              style: {
+                padding: "28px 20px",
+                textAlign: "center",
+                background: "linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(30, 41, 59, 0.3) 100%)",
+                border: "1px dashed rgba(56, 189, 248, 0.25)",
+                borderRadius: "12px",
+                marginTop: "12px",
+                marginBottom: "16px",
+                color: "var(--text-secondary, #94a3b8)"
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { fontSize: "32px", marginBottom: "8px" }, children: "\u{1F916}" }),
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { fontSize: "15px", fontWeight: 700, color: "#f8fafc", marginBottom: "6px" }, children: "Agent AI OKX Spot gotowy do stworzenia nowej strategii kupna" }),
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { style: { fontSize: "13px", maxWidth: "640px", margin: "0 auto", lineHeight: "1.5" }, children: [
+                  "Wpisz zapytanie w powy\u017Cszym polu (np. ",
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("em", { children: "BTC" }),
+                  ", ",
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("em", { children: "Kup ETH za 2500 USDC" }),
+                  ", ",
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("em", { children: "Spot DCA dla SOL" }),
+                  ") lub kliknij jeden z szybkich walor\xF3w powy\u017Cej, aby wygenerowa\u0107 \u015Bwie\u017C\u0105 strategi\u0119. Wszystkie wykonane i zrealizowane zlecenia znajdziesz pod przyciskiem ",
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: "\u{1F4DC} Historia strategii" }),
+                  "."
+                ] })
+              ]
+            }
+          ),
           showExamples && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "ai-strat-capabilities-grid", children: [
             /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "ai-strat-info-card", children: [
               /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("h4", { children: [
@@ -20724,7 +20883,36 @@
     const [calcLeverage, setCalcLeverage] = (0, import_react8.useState)(10);
     const [calcMargin, setCalcMargin] = (0, import_react8.useState)("500");
     const [calcDirection, setCalcDirection] = (0, import_react8.useState)("LONG");
-    const activeSessionAnalysis = currentAiFuturesAnalysis?.marketType === "FUTURES" ? currentAiFuturesAnalysis : null;
+    const [hasRequestedNewStrategy, setHasRequestedNewStrategy] = (0, import_react8.useState)(false);
+    const [activeSessionAnalysis, setActiveSessionAnalysis] = (0, import_react8.useState)(null);
+    const prevAnalysisTsRef = (0, import_react8.useRef)(currentAiFuturesAnalysis?.timestamp || 0);
+    const prevModeRef = (0, import_react8.useRef)(winMeta?.mode);
+    (0, import_react8.useEffect)(() => {
+      const prev = prevModeRef.current;
+      const curr = winMeta?.mode;
+      prevModeRef.current = curr;
+      const wasClosed = prev === "docked-top" || prev === "docked-sidebar" || !prev;
+      const isNowOpen = curr === "grid" || curr === "floating-small" || curr === "floating-medium" || curr === "fullscreen";
+      if (wasClosed && isNowOpen) {
+        setHasRequestedNewStrategy(false);
+        setActiveSessionAnalysis(null);
+        setShowInstruction(false);
+        setShowHistory(false);
+        setShowExamples(false);
+        setShowCalculator(false);
+        if (onSetAiFuturesInput) onSetAiFuturesInput("");
+      } else if (curr === "docked-top" || curr === "docked-sidebar") {
+        setHasRequestedNewStrategy(false);
+        setActiveSessionAnalysis(null);
+      }
+    }, [winMeta?.mode, onSetAiFuturesInput]);
+    (0, import_react8.useEffect)(() => {
+      if (!hasRequestedNewStrategy) return;
+      if (currentAiFuturesAnalysis && currentAiFuturesAnalysis.timestamp && currentAiFuturesAnalysis.timestamp !== prevAnalysisTsRef.current) {
+        prevAnalysisTsRef.current = currentAiFuturesAnalysis.timestamp;
+        setActiveSessionAnalysis(currentAiFuturesAnalysis);
+      }
+    }, [currentAiFuturesAnalysis, hasRequestedNewStrategy]);
     const isFuturesOrder = activeTradeOrder && (activeTradeOrder.instId?.includes("SWAP") || activeTradeOrder.source?.includes("Futures") || activeTradeOrder.strategyName?.includes("Futures") || Boolean(activeTradeOrder.leverage));
     const candidateStrategies = [];
     const seenOrderIds = /* @__PURE__ */ new Set();
@@ -20741,7 +20929,7 @@
       if (!o || !o.id) continue;
       const idStr = String(o.id);
       if (seenOrderIds.has(idStr)) continue;
-      const isFutures = idStr.startsWith("OKX-FUT-") || o.instId?.includes("SWAP") || o.source?.includes("Futures") || o.strategyName?.includes("Futures") || Boolean(o.leverage);
+      const isFutures = idStr.startsWith("OKX-FUT-") || o.marketType === "FUTURES" || Boolean(o.instId && o.instId.includes("SWAP")) || Boolean(o.source && o.source.includes("Futures")) || Boolean(o.strategyName && o.strategyName.includes("Futures")) || Boolean(o.leverage);
       if (isFutures) {
         seenOrderIds.add(idStr);
         candidateStrategies.push(o);
@@ -20750,7 +20938,7 @@
     for (const fb of executedSessionTransactions || []) {
       if (!fb) continue;
       const ordId = String(fb.orderId || fb.id || "");
-      const isFutures = ordId.startsWith("OKX-FUT-") || fb.instId?.includes("SWAP") || fb.strategyName?.includes("Futures") || Boolean(fb.leverage);
+      const isFutures = ordId.startsWith("OKX-FUT-") || fb.marketType === "FUTURES" || Boolean(fb.instId && fb.instId.includes("SWAP")) || Boolean(fb.strategyName && fb.strategyName.includes("Futures")) || Boolean(fb.leverage);
       if (isFutures && ordId && !seenOrderIds.has(ordId)) {
         seenOrderIds.add(ordId);
         candidateStrategies.push({
@@ -20777,6 +20965,20 @@
           exchangeFeedback: fb
         });
       }
+    }
+    try {
+      const savedLocalOrders = loadSavedAiExecutedOrders();
+      for (const so of savedLocalOrders || []) {
+        if (!so || !so.id) continue;
+        const sId = String(so.id);
+        if (seenOrderIds.has(sId)) continue;
+        const isFutures = sId.startsWith("OKX-FUT-") || so.marketType === "FUTURES" || Boolean(so.instId && so.instId.includes("SWAP")) || Boolean(so.source && so.source.includes("Futures")) || Boolean(so.strategyName && so.strategyName.includes("Futures")) || Boolean(so.leverage);
+        if (isFutures) {
+          seenOrderIds.add(sId);
+          candidateStrategies.push(so);
+        }
+      }
+    } catch (e) {
     }
     candidateStrategies.sort((a2, b) => (b.timestamp || 0) - (a2.timestamp || 0));
     const calcP = Number(calcEntryPrice) || 76e3;
@@ -20888,7 +21090,20 @@
         ]
       }
     );
+    const handleConfirmOrderWrapped = () => {
+      setHasRequestedNewStrategy(false);
+      setActiveSessionAnalysis(null);
+      if (onSetAiFuturesInput) onSetAiFuturesInput("");
+      if (onConfirmOrder) onConfirmOrder();
+    };
+    const handleRejectOrderWrapped = () => {
+      setHasRequestedNewStrategy(false);
+      setActiveSessionAnalysis(null);
+      if (onSetAiFuturesInput) onSetAiFuturesInput("");
+      if (onRejectOrder) onRejectOrder();
+    };
     const handleApplyQuickQuery = (asset) => {
+      setHasRequestedNewStrategy(true);
       const dirTxt = selectedDirection === "AUTO" ? "" : selectedDirection === "SHORT" ? " SHORT" : " LONG";
       const query = `${asset}-USDC-SWAP${dirTxt} ${selectedLeverage}x za ${customMarginUsdc}$`;
       if (onRunAiFuturesStrategyQuery) {
@@ -20902,6 +21117,7 @@
     };
     const handleFormSubmit = (e) => {
       if (e) e.preventDefault();
+      setHasRequestedNewStrategy(true);
       const dirTxt = selectedDirection === "AUTO" ? "" : selectedDirection === "SHORT" ? " SHORT" : " LONG";
       const q = (aiFuturesInput || "").trim() || `BTC-USDC-SWAP${dirTxt} ${selectedLeverage}x za ${customMarginUsdc}$`;
       if (onRunAiFuturesStrategyQuery) {
@@ -21330,6 +21546,7 @@
                       const lev = ex.prompt.includes("10x") ? 10 : ex.prompt.includes("5x") ? 5 : ex.prompt.includes("3x") ? 3 : 2;
                       setSelectedDirection(dir);
                       setSelectedLeverage(lev);
+                      setHasRequestedNewStrategy(true);
                       setShowExamples(false);
                       if (onRunAiFuturesStrategyQuery) {
                         onRunAiFuturesStrategyQuery(ex.prompt, {
@@ -21882,7 +22099,7 @@
               ]
             }
           ),
-          a && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+          hasRequestedNewStrategy && a && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
             "div",
             {
               id: "aiFuturesResultContainer",
@@ -22084,7 +22301,7 @@
                     ] })
                   ] })
                 ] }),
-                activeTradeOrder && isFuturesOrder && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+                hasRequestedNewStrategy && activeTradeOrder && isFuturesOrder && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
                   "div",
                   {
                     style: {
@@ -22130,7 +22347,7 @@
                               cursor: "pointer"
                             },
                             disabled: isConfirmingOrder,
-                            onClick: onConfirmOrder,
+                            onClick: handleConfirmOrderWrapped,
                             children: isConfirmingOrder ? "\u23F3 Otwieranie pozycji..." : "\u2705 Potwierd\u017A zlecenie Futures"
                           }
                         ),
@@ -22150,7 +22367,7 @@
                               cursor: "pointer"
                             },
                             disabled: isConfirmingOrder,
-                            onClick: onRejectOrder,
+                            onClick: handleRejectOrderWrapped,
                             children: "\u{1F6AB} Odrzu\u0107 transakcj\u0119"
                           }
                         )
@@ -22158,6 +22375,31 @@
                     ]
                   }
                 )
+              ]
+            }
+          ),
+          (!hasRequestedNewStrategy || !a && !activeTradeOrder) && !showHistory && !showInstruction && !showExamples && !showCalculator && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "div",
+            {
+              className: "ai-strat-idle-card",
+              style: {
+                padding: "28px 20px",
+                textAlign: "center",
+                background: "linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(30, 41, 59, 0.3) 100%)",
+                border: "1px dashed rgba(56, 189, 248, 0.25)",
+                borderRadius: "12px",
+                marginTop: "12px",
+                marginBottom: "16px",
+                color: "var(--text-secondary, #94a3b8)"
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { style: { fontSize: "32px", marginBottom: "8px" }, children: "\u26A1" }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { style: { fontSize: "15px", fontWeight: 700, color: "#f8fafc", marginBottom: "6px" }, children: "Agent AI OKX Futures gotowy do stworzenia nowej strategii kontrakt\xF3w SWAP" }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { style: { fontSize: "13px", maxWidth: "640px", margin: "0 auto", lineHeight: "1.5" }, children: [
+                  "Ustaw parametry w powy\u017Cszym panelu (d\u017Awignia 1x\u2013100x, kierunek LONG/SHORT, depozyt) i wpisz polecenie lub kliknij jeden z szybkich walor\xF3w, aby wygenerowa\u0107 now\u0105 strategi\u0119 futures. Wszystkie otwarte, trwaj\u0105ce i zrealizowane pozycje znajdziesz pod przyciskiem ",
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("strong", { children: "\u{1F4DC} Historia strategii" }),
+                  "."
+                ] })
               ]
             }
           )
@@ -25202,6 +25444,8 @@
     (0, import_react15.useEffect)(() => {
       let mounted = true;
       async function initLoad() {
+        syncCloudSessionOrders().catch(() => {
+        });
         let initialState = await apiRequest("/api/state");
         const savedLocal = getKeysFromLocalStorage();
         if (savedLocal.demo && savedLocal.demo.apiKey && !initialState?.config?.hasDemoKey) {
@@ -25330,14 +25574,17 @@
       }
     };
     const handleForceDeviceSync = async () => {
-      showToast("\u{1F504} \u0141\u0105czenie z bram\u0105 laptopa i synchronizacja zlece\u0144...");
+      showToast("\u{1F504} \u0141\u0105czenie z bram\u0105 i synchronizacja historii zlece\u0144...");
       try {
-        await probeHomeGateway(true);
+        await Promise.all([
+          syncCloudSessionOrders().catch(() => ({ ok: false })),
+          probeHomeGateway(true).catch(() => false)
+        ]);
         const res = await apiRequest("/api/state");
         if (res) setAppState(res);
-        showToast("\u2705 Zsynchronizowano transakcje i portfel z Bram\u0105 Domow\u0105 laptopa!");
+        showToast("\u2705 Zsynchronizowano transakcje, histori\u0119 Spot i Futures oraz portfel z Bram\u0105 Domow\u0105 i chmur\u0105!");
       } catch (e) {
-        showToast("\u26A0\uFE0F Brak bezpo\u015Bredniego po\u0142\u0105czenia z bram\u0105. U\u017Cyj przycisku [Kopiuj z tego urz\u0105dzenia] i wklej na laptopie.");
+        showToast("\u26A0\uFE0F Brak bezpo\u015Bredniego po\u0142\u0105czenia z bram\u0105. U\u017Cyj przycisku [Kopiuj z tego urz\u0105dzenia] i wklej na drugim urz\u0105dzeniu.");
       }
     };
     const handleDisconnectApiKeys = async () => {

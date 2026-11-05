@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { WindowContainer } from './WindowContainer';
 import { InlineOrderConfirmCard, ExchangeFeedbackDetails } from './ExchangeFeedbackBox';
-import { formatUsdc, formatUnitPrice, formatQty } from '../engine/okxClientEngine';
+import { formatUsdc, formatUnitPrice, formatQty, loadSavedAiExecutedOrders } from '../engine/okxClientEngine';
 
 const QUICK_ASSETS = [
   'BTC',
@@ -310,7 +310,8 @@ export function AiStrategiesWindow({
   const [showHistory, setShowHistory] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
 
-  // Strategia wygenerowana w BIEŻĄCYM otwarciu okna — domyślnie po otwarciu okna jest ZAMKNIĘTA/CZYSTA (null)
+  // Flaga, czy w bieżącym otwarciu okna użytkownik zażądał nowej strategii
+  const [hasRequestedNewStrategy, setHasRequestedNewStrategy] = useState(false);
   const [activeSessionAnalysis, setActiveSessionAnalysis] = useState(null);
   const [isRecommendationOpen, setIsRecommendationOpen] = useState(false);
 
@@ -338,44 +339,58 @@ export function AiStrategiesWindow({
 
     if (wasClosed && isNowOpen) {
       // Okno zostało ponownie otwarte — czyścimy widok ostatniej strategii z głównego ekranu oraz pole promptu
+      setHasRequestedNewStrategy(false);
       setActiveSessionAnalysis(null);
       setIsRecommendationOpen(false);
       setShowInstruction(false);
       setShowHistory(false);
       setShowExamples(false);
       if (onSetAiStrategyInput) onSetAiStrategyInput('');
+    } else if (curr === 'docked-top' || curr === 'docked-sidebar') {
+      // Okno zostało zamknięte
+      setHasRequestedNewStrategy(false);
+      setActiveSessionAnalysis(null);
+      setIsRecommendationOpen(false);
     }
   }, [winMeta?.mode, onSetAiStrategyInput]);
 
-  // TYLKO gdy użytkownik W TEJ CHWILI zada nowe zapytanie i powstanie NOWY timestamp — wtedy pokazujemy rekomendację
+  // TYLKO gdy użytkownik W TEJ CHWILI zada nowe zapytanie w bieżącym oknie — wtedy pokazujemy rekomendację
   useEffect(() => {
+    if (!hasRequestedNewStrategy) return;
     if (
-      currentAiStrategyAnalysis?.timestamp &&
+      currentAiStrategyAnalysis &&
+      currentAiStrategyAnalysis.timestamp &&
       currentAiStrategyAnalysis.timestamp !== prevAnalysisTsRef.current
     ) {
       prevAnalysisTsRef.current = currentAiStrategyAnalysis.timestamp;
       setActiveSessionAnalysis(currentAiStrategyAnalysis);
       setIsRecommendationOpen(true);
     }
-  }, [currentAiStrategyAnalysis]);
+  }, [currentAiStrategyAnalysis, hasRequestedNewStrategy]);
 
   const handleFormSubmit = (e) => {
     if (e) e.preventDefault();
+    setHasRequestedNewStrategy(true);
     if (onSubmitAiStrategy) onSubmitAiStrategy(e);
     if (onSetAiStrategyInput) onSetAiStrategyInput('');
   };
 
   const handleRunQuery = (queryText) => {
+    setHasRequestedNewStrategy(true);
     if (onRunAiStrategyQuery) onRunAiStrategyQuery(queryText);
     if (onSetAiStrategyInput) onSetAiStrategyInput('');
   };
 
   const handleConfirmOrderWrapped = () => {
+    setHasRequestedNewStrategy(false);
+    setActiveSessionAnalysis(null);
     if (onSetAiStrategyInput) onSetAiStrategyInput('');
     if (onConfirmOrder) onConfirmOrder();
   };
 
   const handleRejectOrderWrapped = () => {
+    setHasRequestedNewStrategy(false);
+    setActiveSessionAnalysis(null);
     if (onSetAiStrategyInput) onSetAiStrategyInput('');
     if (onRejectOrder) onRejectOrder();
   };
@@ -389,13 +404,27 @@ export function AiStrategiesWindow({
     });
   };
 
-  // Budujemy listę WSZYSTKICH strategii, które są W TRAKCIE REALIZACJI lub ZOSTAŁY ZREALIZOWANE:
+  // Pomocnik do wykluczania zleceń futures z historii Spot
+  const isFuturesStrategy = (ord) => {
+    if (!ord) return false;
+    const idStr = String(ord.id || ord.orderId || '');
+    return (
+      idStr.startsWith('OKX-FUT-') ||
+      ord.marketType === 'FUTURES' ||
+      Boolean(ord.instId && ord.instId.includes('SWAP')) ||
+      Boolean(ord.source && ord.source.includes('Futures')) ||
+      Boolean(ord.strategyName && ord.strategyName.includes('Futures')) ||
+      Boolean(ord.leverage)
+    );
+  };
+
+  // Budujemy listę WSZYSTKICH strategii SPOT, które są W TRAKCIE REALIZACJI lub ZOSTAŁY ZREALIZOWANE:
   // Tylko takie mają być pokazywane pod przyciskiem Historia z dokładnymi czasami otwarcia i realizacji!
   const candidateStrategies = [];
   const seenOrderIds = new Set();
 
   // 1. Zlecenie oczekujące na realizację (activeTradeOrder)
-  if (activeTradeOrder && activeTradeOrder.id) {
+  if (activeTradeOrder && activeTradeOrder.id && !isFuturesStrategy(activeTradeOrder)) {
     seenOrderIds.add(String(activeTradeOrder.id));
     candidateStrategies.push({
       ...activeTradeOrder,
@@ -408,7 +437,7 @@ export function AiStrategiesWindow({
   // 2. Strategie z bazy zleceń
   const allRawOrders = [...(orders || [])];
   for (const o of allRawOrders) {
-    if (!o || !o.id) continue;
+    if (!o || !o.id || isFuturesStrategy(o)) continue;
     const idStr = String(o.id);
     if (seenOrderIds.has(idStr)) continue;
     const isAiSource =
@@ -424,7 +453,7 @@ export function AiStrategiesWindow({
 
   // 3. Strategie z transakcji sesji
   for (const fb of executedSessionTransactions || []) {
-    if (!fb) continue;
+    if (!fb || isFuturesStrategy(fb)) continue;
     const ordId = String(fb.orderId || fb.id || '');
     if (ordId && !seenOrderIds.has(ordId)) {
       seenOrderIds.add(ordId);
@@ -454,6 +483,18 @@ export function AiStrategiesWindow({
       });
     }
   }
+
+  // 4. Trwała historia zleceń z pamięci podręcznej i synchronizacji między urządzeniami
+  try {
+    const savedLocalOrders = loadSavedAiExecutedOrders();
+    for (const so of savedLocalOrders || []) {
+      if (!so || !so.id || isFuturesStrategy(so)) continue;
+      const sId = String(so.id);
+      if (seenOrderIds.has(sId)) continue;
+      seenOrderIds.add(sId);
+      candidateStrategies.push(so);
+    }
+  } catch (e) {}
 
   // Sortujemy strategie chronologicznie od najnowszych
   candidateStrategies.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -1096,7 +1137,7 @@ export function AiStrategiesWindow({
       </div>
 
       {/* 4. AKTYWNE ZLECENIE OCZEKUJĄCE NA REALIZACJĘ W BIEŻĄCEJ SESJI (Z PRZYCISKIEM POTWIERDŹ ORAZ ODRZUĆ TRANSAKCJĘ) */}
-      {activeTradeOrder && (
+      {hasRequestedNewStrategy && activeTradeOrder && !isFuturesStrategy(activeTradeOrder) && (
         <div style={{ marginBottom: '14px' }}>
           <InlineOrderConfirmCard
             active={activeTradeOrder}
@@ -1110,7 +1151,7 @@ export function AiStrategiesWindow({
       )}
 
       {/* 5. WYNIK ŚWIEŻO WYGENEROWANEJ STRATEGII W BIEŻĄCEJ SESJI */}
-      {a && (
+      {hasRequestedNewStrategy && a && (
         <div className="ai-strat-recommendation-wrapper">
           <div
             className={`ai-strat-recommendation-bar ${isRecommendationOpen ? 'is-expanded' : 'is-collapsed'}`}
@@ -1335,6 +1376,32 @@ export function AiStrategiesWindow({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 5B. CZYSTY STAN OCZEKIWANIA NA NOWĄ STRATEGIĘ (Gdy okno zostało świeżo otwarte lub zresetowane) */}
+      {(!hasRequestedNewStrategy || (!a && !activeTradeOrder)) && !showHistory && !showInstruction && !showExamples && (
+        <div
+          className="ai-strat-idle-card"
+          style={{
+            padding: '28px 20px',
+            textAlign: 'center',
+            background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(30, 41, 59, 0.3) 100%)',
+            border: '1px dashed rgba(56, 189, 248, 0.25)',
+            borderRadius: '12px',
+            marginTop: '12px',
+            marginBottom: '16px',
+            color: 'var(--text-secondary, #94a3b8)'
+          }}
+        >
+          <div style={{ fontSize: '32px', marginBottom: '8px' }}>🤖</div>
+          <div style={{ fontSize: '15px', fontWeight: 700, color: '#f8fafc', marginBottom: '6px' }}>
+            Agent AI OKX Spot gotowy do stworzenia nowej strategii kupna
+          </div>
+          <div style={{ fontSize: '13px', maxWidth: '640px', margin: '0 auto', lineHeight: '1.5' }}>
+            Wpisz zapytanie w powyższym polu (np. <em>BTC</em>, <em>Kup ETH za 2500 USDC</em>, <em>Spot DCA dla SOL</em>) lub kliknij jeden z szybkich walorów powyżej, aby wygenerować świeżą strategię.
+            Wszystkie wykonane i zrealizowane zlecenia znajdziesz pod przyciskiem <strong>📜 Historia strategii</strong>.
+          </div>
         </div>
       )}
 

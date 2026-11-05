@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { WindowContainer } from './WindowContainer';
 import { InlineOrderConfirmCard, ExchangeFeedbackDetails } from './ExchangeFeedbackBox';
-import { formatUsdc, formatUnitPrice, formatQty } from '../engine/okxClientEngine';
+import { formatUsdc, formatUnitPrice, formatQty, loadSavedAiExecutedOrders } from '../engine/okxClientEngine';
 
 const QUICK_FUTURES_ASSETS = [
   'BTC',
@@ -270,10 +270,54 @@ export function AiFuturesStrategiesWindow({
   const [calcMargin, setCalcMargin] = useState('500');
   const [calcDirection, setCalcDirection] = useState('LONG');
 
-  const activeSessionAnalysis =
-    currentAiFuturesAnalysis?.marketType === 'FUTURES'
-      ? currentAiFuturesAnalysis
-      : null;
+  // Flaga, czy w bieżącym otwarciu okna zażądano nowej strategii futures
+  const [hasRequestedNewStrategy, setHasRequestedNewStrategy] = useState(false);
+  const [activeSessionAnalysis, setActiveSessionAnalysis] = useState(null);
+
+  // Zapamiętujemy timestamp ostatniej analizy z momentu startu komponentu —
+  // dzięki temu stara analiza z poprzedniej sesji NIE pojawi się automatycznie na ekranie po ponownym otwarciu!
+  const prevAnalysisTsRef = useRef(currentAiFuturesAnalysis?.timestamp || 0);
+
+  // Resetowanie po zamknięciu i ponownym otwarciu okna:
+  const prevModeRef = useRef(winMeta?.mode);
+  useEffect(() => {
+    const prev = prevModeRef.current;
+    const curr = winMeta?.mode;
+    prevModeRef.current = curr;
+
+    const wasClosed = prev === 'docked-top' || prev === 'docked-sidebar' || !prev;
+    const isNowOpen =
+      curr === 'grid' ||
+      curr === 'floating-small' ||
+      curr === 'floating-medium' ||
+      curr === 'fullscreen';
+
+    if (wasClosed && isNowOpen) {
+      setHasRequestedNewStrategy(false);
+      setActiveSessionAnalysis(null);
+      setShowInstruction(false);
+      setShowHistory(false);
+      setShowExamples(false);
+      setShowCalculator(false);
+      if (onSetAiFuturesInput) onSetAiFuturesInput('');
+    } else if (curr === 'docked-top' || curr === 'docked-sidebar') {
+      setHasRequestedNewStrategy(false);
+      setActiveSessionAnalysis(null);
+    }
+  }, [winMeta?.mode, onSetAiFuturesInput]);
+
+  // TYLKO gdy użytkownik W TEJ CHWILI zada nowe zapytanie w bieżącym oknie — wtedy pokazujemy analizę futures
+  useEffect(() => {
+    if (!hasRequestedNewStrategy) return;
+    if (
+      currentAiFuturesAnalysis &&
+      currentAiFuturesAnalysis.timestamp &&
+      currentAiFuturesAnalysis.timestamp !== prevAnalysisTsRef.current
+    ) {
+      prevAnalysisTsRef.current = currentAiFuturesAnalysis.timestamp;
+      setActiveSessionAnalysis(currentAiFuturesAnalysis);
+    }
+  }, [currentAiFuturesAnalysis, hasRequestedNewStrategy]);
 
   // Sprawdzamy czy aktywne zlecenie dotyczy futures
   const isFuturesOrder =
@@ -303,9 +347,10 @@ export function AiFuturesStrategiesWindow({
     if (seenOrderIds.has(idStr)) continue;
     const isFutures =
       idStr.startsWith('OKX-FUT-') ||
-      o.instId?.includes('SWAP') ||
-      o.source?.includes('Futures') ||
-      o.strategyName?.includes('Futures') ||
+      o.marketType === 'FUTURES' ||
+      Boolean(o.instId && o.instId.includes('SWAP')) ||
+      Boolean(o.source && o.source.includes('Futures')) ||
+      Boolean(o.strategyName && o.strategyName.includes('Futures')) ||
       Boolean(o.leverage);
 
     if (isFutures) {
@@ -319,8 +364,9 @@ export function AiFuturesStrategiesWindow({
     const ordId = String(fb.orderId || fb.id || '');
     const isFutures =
       ordId.startsWith('OKX-FUT-') ||
-      fb.instId?.includes('SWAP') ||
-      fb.strategyName?.includes('Futures') ||
+      fb.marketType === 'FUTURES' ||
+      Boolean(fb.instId && fb.instId.includes('SWAP')) ||
+      Boolean(fb.strategyName && fb.strategyName.includes('Futures')) ||
       Boolean(fb.leverage);
 
     if (isFutures && ordId && !seenOrderIds.has(ordId)) {
@@ -350,6 +396,27 @@ export function AiFuturesStrategiesWindow({
       });
     }
   }
+
+  // Trwała historia zleceń z pamięci podręcznej i synchronizacji między urządzeniami
+  try {
+    const savedLocalOrders = loadSavedAiExecutedOrders();
+    for (const so of savedLocalOrders || []) {
+      if (!so || !so.id) continue;
+      const sId = String(so.id);
+      if (seenOrderIds.has(sId)) continue;
+      const isFutures =
+        sId.startsWith('OKX-FUT-') ||
+        so.marketType === 'FUTURES' ||
+        Boolean(so.instId && so.instId.includes('SWAP')) ||
+        Boolean(so.source && so.source.includes('Futures')) ||
+        Boolean(so.strategyName && so.strategyName.includes('Futures')) ||
+        Boolean(so.leverage);
+      if (isFutures) {
+        seenOrderIds.add(sId);
+        candidateStrategies.push(so);
+      }
+    }
+  } catch (e) {}
 
   candidateStrategies.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
@@ -455,7 +522,22 @@ export function AiFuturesStrategiesWindow({
     </div>
   );
 
+  const handleConfirmOrderWrapped = () => {
+    setHasRequestedNewStrategy(false);
+    setActiveSessionAnalysis(null);
+    if (onSetAiFuturesInput) onSetAiFuturesInput('');
+    if (onConfirmOrder) onConfirmOrder();
+  };
+
+  const handleRejectOrderWrapped = () => {
+    setHasRequestedNewStrategy(false);
+    setActiveSessionAnalysis(null);
+    if (onSetAiFuturesInput) onSetAiFuturesInput('');
+    if (onRejectOrder) onRejectOrder();
+  };
+
   const handleApplyQuickQuery = (asset) => {
+    setHasRequestedNewStrategy(true);
     const dirTxt = selectedDirection === 'AUTO' ? '' : selectedDirection === 'SHORT' ? ' SHORT' : ' LONG';
     const query = `${asset}-USDC-SWAP${dirTxt} ${selectedLeverage}x za ${customMarginUsdc}$`;
     if (onRunAiFuturesStrategyQuery) {
@@ -470,6 +552,7 @@ export function AiFuturesStrategiesWindow({
 
   const handleFormSubmit = (e) => {
     if (e) e.preventDefault();
+    setHasRequestedNewStrategy(true);
     const dirTxt = selectedDirection === 'AUTO' ? '' : selectedDirection === 'SHORT' ? ' SHORT' : ' LONG';
     const q = (aiFuturesInput || '').trim() || `BTC-USDC-SWAP${dirTxt} ${selectedLeverage}x za ${customMarginUsdc}$`;
     if (onRunAiFuturesStrategyQuery) {
@@ -857,6 +940,7 @@ export function AiFuturesStrategiesWindow({
                   const lev = ex.prompt.includes('10x') ? 10 : ex.prompt.includes('5x') ? 5 : ex.prompt.includes('3x') ? 3 : 2;
                   setSelectedDirection(dir);
                   setSelectedLeverage(lev);
+                  setHasRequestedNewStrategy(true);
                   setShowExamples(false);
                   if (onRunAiFuturesStrategyQuery) {
                     onRunAiFuturesStrategyQuery(ex.prompt, {
@@ -1346,7 +1430,7 @@ export function AiFuturesStrategiesWindow({
       )}
 
       {/* KARTA WYNIKU ANALIZY AGENTA AI FUTURES */}
-      {a && (
+      {hasRequestedNewStrategy && a && (
         <div
           id="aiFuturesResultContainer"
           style={{
@@ -1505,7 +1589,7 @@ export function AiFuturesStrategiesWindow({
           </div>
 
           {/* AKCJE POTWIERDZENIA / ODRZUCENIA ZLECENIA FUTURES */}
-          {activeTradeOrder && isFuturesOrder && (
+          {hasRequestedNewStrategy && activeTradeOrder && isFuturesOrder && (
             <div
               style={{
                 marginTop: '16px',
@@ -1543,7 +1627,7 @@ export function AiFuturesStrategiesWindow({
                     cursor: 'pointer'
                   }}
                   disabled={isConfirmingOrder}
-                  onClick={onConfirmOrder}
+                  onClick={handleConfirmOrderWrapped}
                 >
                   {isConfirmingOrder ? '⏳ Otwieranie pozycji...' : '✅ Potwierdź zlecenie Futures'}
                 </button>
@@ -1561,13 +1645,39 @@ export function AiFuturesStrategiesWindow({
                     cursor: 'pointer'
                   }}
                   disabled={isConfirmingOrder}
-                  onClick={onRejectOrder}
+                  onClick={handleRejectOrderWrapped}
                 >
                   🚫 Odrzuć transakcję
                 </button>
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* CZYSTY STAN OCZEKIWANIA NA NOWĄ STRATEGIĘ FUTURES PO PONOWNYM OTWARCIU */}
+      {(!hasRequestedNewStrategy || (!a && !activeTradeOrder)) && !showHistory && !showInstruction && !showExamples && !showCalculator && (
+        <div
+          className="ai-strat-idle-card"
+          style={{
+            padding: '28px 20px',
+            textAlign: 'center',
+            background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(30, 41, 59, 0.3) 100%)',
+            border: '1px dashed rgba(56, 189, 248, 0.25)',
+            borderRadius: '12px',
+            marginTop: '12px',
+            marginBottom: '16px',
+            color: 'var(--text-secondary, #94a3b8)'
+          }}
+        >
+          <div style={{ fontSize: '32px', marginBottom: '8px' }}>⚡</div>
+          <div style={{ fontSize: '15px', fontWeight: 700, color: '#f8fafc', marginBottom: '6px' }}>
+            Agent AI OKX Futures gotowy do stworzenia nowej strategii kontraktów SWAP
+          </div>
+          <div style={{ fontSize: '13px', maxWidth: '640px', margin: '0 auto', lineHeight: '1.5' }}>
+            Ustaw parametry w powyższym panelu (dźwignia 1x–100x, kierunek LONG/SHORT, depozyt) i wpisz polecenie lub kliknij jeden z szybkich walorów, aby wygenerować nową strategię futures.
+            Wszystkie otwarte, trwające i zrealizowane pozycje znajdziesz pod przyciskiem <strong>📜 Historia strategii</strong>.
+          </div>
         </div>
       )}
     </WindowContainer>
