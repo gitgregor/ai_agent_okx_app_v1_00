@@ -1,13 +1,13 @@
 {
-  "updatedAt": 1793811267140,
+  "updatedAt": 1793856093528,
   "homePublicIp": "81.99.228.78",
-  "primaryTunnelUrl": "https://built-officially-base-scotia.trycloudflare.com",
-  "cloudflareTunnelUrl": "https://built-officially-base-scotia.trycloudflare.com",
-  "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw-2.loca.lt",
+  "primaryTunnelUrl": "https://strategic-indicator-springfield-bidding.trycloudflare.com",
+  "cloudflareTunnelUrl": "https://strategic-indicator-springfield-bidding.trycloudflare.com",
+  "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw-3.loca.lt",
   "tunnels": [
-    "https://built-officially-base-scotia.trycloudflare.com",
-    "https://okx-eea-gregor-home-gw-2.loca.lt",
+    "https://strategic-indicator-springfield-bidding.trycloudflare.com",
+    "https://okx-eea-gregor-home-gw-3.loca.lt",
     "https://okx-eea-gregor-home-gw.loca.lt",
-    "https://okx-eea-gregor-home-gw-3.loca.lt"
+    "https://okx-eea-gregor-home-gw-2.loca.lt"
   ]
 }
