@@ -1,13 +1,13 @@
 {
-  "updatedAt": 1793942757731,
+  "updatedAt": 1793944456637,
   "homePublicIp": "81.99.228.78",
-  "primaryTunnelUrl": "https://museums-issues-tribe-dog.trycloudflare.com",
-  "cloudflareTunnelUrl": "https://museums-issues-tribe-dog.trycloudflare.com",
-  "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw-2.loca.lt",
+  "primaryTunnelUrl": "https://panels-dom-hundred-enemies.trycloudflare.com",
+  "cloudflareTunnelUrl": "https://panels-dom-hundred-enemies.trycloudflare.com",
+  "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw.loca.lt",
   "tunnels": [
-    "https://museums-issues-tribe-dog.trycloudflare.com",
-    "https://okx-eea-gregor-home-gw-2.loca.lt",
+    "https://panels-dom-hundred-enemies.trycloudflare.com",
     "https://okx-eea-gregor-home-gw.loca.lt",
+    "https://okx-eea-gregor-home-gw-2.loca.lt",
     "https://okx-eea-gregor-home-gw-3.loca.lt"
   ]
 }
