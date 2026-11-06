@@ -1,11 +1,11 @@
 {
-  "updatedAt": 1793944457222,
+  "updatedAt": 1793983294403,
   "homePublicIp": "81.99.228.78",
-  "primaryTunnelUrl": "https://panels-dom-hundred-enemies.trycloudflare.com",
-  "cloudflareTunnelUrl": "https://panels-dom-hundred-enemies.trycloudflare.com",
+  "primaryTunnelUrl": "https://arrives-simultaneously-surveys-sign.trycloudflare.com",
+  "cloudflareTunnelUrl": "https://arrives-simultaneously-surveys-sign.trycloudflare.com",
   "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw.loca.lt",
   "tunnels": [
-    "https://panels-dom-hundred-enemies.trycloudflare.com",
+    "https://arrives-simultaneously-surveys-sign.trycloudflare.com",
     "https://okx-eea-gregor-home-gw.loca.lt",
     "https://okx-eea-gregor-home-gw-2.loca.lt",
     "https://okx-eea-gregor-home-gw-3.loca.lt"
