@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { WindowContainer } from './WindowContainer';
 import { InlineOrderConfirmCard, ExchangeFeedbackDetails } from './ExchangeFeedbackBox';
+import { SystemRejectionDetailsCard } from './SystemRejectionDetailsCard';
 import { formatUsdc, formatUnitPrice, formatQty, loadSavedAiExecutedOrders } from '../engine/okxClientEngine';
 
 const QUICK_FUTURES_ASSETS = [
@@ -168,6 +169,10 @@ export function resolveFuturesBreakdown(ord, timing) {
       ? '⚙️ Pozycja Aktywna w Trakcie Realizacji'
       : timing.isPendingApproval
       ? '⏳ Oczekuje na potwierdzenie zlecenia'
+      : timing.isRejectedSystem
+      ? '⚠️ Transakcja odrzucona przez System'
+      : timing.isRejectedUser
+      ? '🚫 Transakcja odrzucona przez użytkownika'
       : '🚫 Anulowane',
     direction,
     leverage,
@@ -1147,6 +1152,40 @@ export function AiFuturesStrategiesWindow({
                       </div>
                     </div>
 
+                    {/* OPIS BŁĘDU I PRZYCZYNY GDY TRANSAKCJA FUTURES ODRZUCONA PRZEZ SYSTEM */}
+                    {timing.isRejectedSystem && (
+                      <SystemRejectionDetailsCard ord={ord} />
+                    )}
+
+                    {/* INFORMACJA GDY TRANSAKCJA FUTURES ODRZUCONA PRZEZ UŻYTKOWNIKA */}
+                    {timing.isRejectedUser && (
+                      <div
+                        style={{
+                          marginTop: '6px',
+                          padding: '7px 12px',
+                          background: 'rgba(239, 68, 68, 0.08)',
+                          border: '1px solid rgba(239, 68, 68, 0.25)',
+                          borderRadius: '6px',
+                          fontSize: '11.5px',
+                          color: '#f87171'
+                        }}
+                      >
+                        🚫 <strong>Transakcja odrzucona przez użytkownika</strong> — zlecenie pozycji futures zostało wycofane na żądanie użytkownika i nie zostało zrealizowane.
+                      </div>
+                    )}
+
+                    {/* PRZYCISKI POTWIERDŹ / ODRZUĆ DLA ZLECENIA OCZEKUJĄCEGO NA REALIZACJĘ */}
+                    {timing.isPendingApproval && ord.isCurrentlyActive && (
+                      <InlineOrderConfirmCard
+                        active={ord}
+                        modeLabel="FUTURES"
+                        onConfirm={onConfirmOrder}
+                        onReject={onRejectOrder}
+                        isConfirming={isConfirmingOrder}
+                        style={{ marginTop: '8px' }}
+                      />
+                    )}
+
                     {/* Akordeon szczegółów futures */}
                     {isExpanded && breakdown && (
                       <div
@@ -1159,6 +1198,21 @@ export function AiFuturesStrategiesWindow({
                           fontSize: '12px'
                         }}
                       >
+                        {timing.isRejectedSystem && (
+                          <div
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              border: '1px solid rgba(239, 68, 68, 0.35)',
+                              borderRadius: '4px',
+                              padding: '8px 10px',
+                              marginBottom: '10px',
+                              color: '#fca5a5',
+                              fontSize: '11.5px'
+                            }}
+                          >
+                            ⚠️ <strong>Status giełdowy:</strong> Transakcja odrzucona przez System przed realizacją zlecenia na giełdzie OKX Futures. Poniższe poziomy TP/SL i likwidacji były zaplanowane w strategii AI, lecz zlecenie nie zostało otwarte z powodu braku środków lub błędu API giełdy.
+                          </div>
+                        )}
                         <h5 style={{ margin: '0 0 8px 0', color: 'var(--accent-blue)', fontSize: '12px' }}>
                           🛡️ Parametry Pozycji & Zabezpieczenia na OKX:
                         </h5>

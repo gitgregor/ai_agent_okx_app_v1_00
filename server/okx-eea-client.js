@@ -2147,7 +2147,11 @@ class OkxEeaTradingEngine {
         systemError: isSystem ? {
           code: errorCode,
           type: errorType,
-          message: errorMessage
+          message: errorMessage,
+          exchangeMsg: (params && params.exchangeMsg) || (errorMessage && errorMessage.match(/\(Status OKX API:\s*([^)]+)\)/i)?.[1]) || null,
+          currency: (params && params.currency) || (this.activeTradeOrder?.instId?.includes('SWAP') ? 'USDC' : (this.activeTradeOrder?.side === 'BUY' ? 'USDC' : this.activeTradeOrder?.asset)),
+          requiredAmount: params && params.requiredAmount,
+          availableAmount: params && params.availableAmount
         } : null,
         source: this.activeTradeOrder.source,
         strategyName: this.activeTradeOrder.strategyName,

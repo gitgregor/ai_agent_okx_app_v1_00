@@ -4,11 +4,33 @@ import { formatUsdc, formatUnitPrice, formatQty } from '../engine/okxClientEngin
 export function ExchangeFeedbackDetails({ fb }) {
   if (!fb) return null;
   const isBuy = fb.side === 'BUY';
+  const isRejected =
+    Boolean(fb.systemError) ||
+    Boolean(fb.status && (fb.status.includes('REJECTED') || fb.status.includes('odrzucona')));
+  const isRejectedSystem =
+    Boolean(fb.systemError) ||
+    Boolean(fb.status && (fb.status.includes('REJECTED_SYSTEM') || fb.status.includes('odrzucona przez System')));
+
   return (
     <div className="exchange-feedback-box">
       <div className="ef-header">
-        <span className="ef-badge-ok">
-          ✅ EXCHANGE FEEDBACK • OKX EUROPE (eea.okx.com) • sCode: {fb.code || '0'}
+        <span
+          className={isRejected ? 'ef-badge-rejected' : 'ef-badge-ok'}
+          style={
+            isRejected
+              ? {
+                  background: 'rgba(239, 68, 68, 0.2)',
+                  borderColor: '#ef4444',
+                  color: '#f87171'
+                }
+              : {}
+          }
+        >
+          {isRejectedSystem
+            ? `⚠️ TRANSAKCJA ODRZUCONA PRZEZ SYSTEM • OKX EUROPE • sCode: ${fb.code || 'ERR_SYSTEM'}`
+            : isRejected
+            ? `🚫 TRANSAKCJA ODRZUCONA PRZEZ UŻYTKOWNIKA • OKX EUROPE`
+            : `✅ EXCHANGE FEEDBACK • OKX EUROPE (eea.okx.com) • sCode: ${fb.code || '0'}`}
         </span>
         <span className="ef-timestamp">
           📅 {fb.date} ⏰ {fb.time}
@@ -21,6 +43,29 @@ export function ExchangeFeedbackDetails({ fb }) {
         <p>
           <strong>🏛️ Komunikat zwrotny z giełdy:</strong> {fb.exchangeMessage}
         </p>
+        {isRejectedSystem && fb.systemError && (
+          <div
+            style={{
+              marginTop: '8px',
+              padding: '8px 12px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '6px',
+              fontSize: '12px'
+            }}
+          >
+            <div style={{ color: '#f87171', fontWeight: 800, marginBottom: '2px' }}>
+              ⚠️ Dlaczego system odrzucił transakcję:
+            </div>
+            <div style={{ color: '#fca5a5' }}>
+              {fb.systemError.message || fb.systemError}
+            </div>
+            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '4px', fontSize: '11px', color: '#fecaca' }}>
+              {fb.systemError.type && <span><strong>Rodzaj błędu:</strong> {fb.systemError.type}</span>}
+              {fb.systemError.code && <span><strong>Kod błędu:</strong> <code>{fb.systemError.code}</code></span>}
+            </div>
+          </div>
+        )}
       </div>
       <div className="ef-grid">
         <div className="ef-cell">
@@ -31,7 +76,9 @@ export function ExchangeFeedbackDetails({ fb }) {
         </div>
         <div className="ef-cell">
           <span>Status Giełdowy:</span>
-          <strong style={{ color: 'var(--buy-green)' }}>{fb.status}</strong>
+          <strong style={{ color: isRejected ? '#f87171' : 'var(--buy-green)' }}>
+            {fb.status}
+          </strong>
         </div>
         <div className="ef-cell">
           <span>Para / Tryb:</span>

@@ -869,7 +869,11 @@ export function App() {
           reason: 'system_error',
           errorCode: errCode,
           errorType: errType,
-          errorMessage: errMsg
+          errorMessage: errMsg,
+          exchangeMsg: res.exchangeMsg,
+          currency: res.currency,
+          requiredAmount: res.requiredAmount,
+          availableAmount: res.availableAmount
         });
         showToast(`⚠️ Transakcja odrzucona przez System: ${errMsg} (Kod: ${errCode})`);
         const syncRes = await apiRequest('/api/state', 'GET');

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { WindowContainer } from './WindowContainer';
 import { InlineOrderConfirmCard, ExchangeFeedbackDetails } from './ExchangeFeedbackBox';
+import { SystemRejectionDetailsCard } from './SystemRejectionDetailsCard';
 import { formatUsdc, formatUnitPrice, formatQty, loadSavedAiExecutedOrders } from '../engine/okxClientEngine';
 
 const QUICK_ASSETS = [
@@ -910,29 +911,7 @@ export function AiStrategiesWindow({
 
                     {/* OPIS BŁĘDU I PRZYCZYNY GDY TRANSAKCJA ODRZUCONA PRZEZ SYSTEM */}
                     {timing.isRejectedSystem && (
-                      <div
-                        style={{
-                          marginTop: '8px',
-                          padding: '10px 14px',
-                          background: 'rgba(239, 68, 68, 0.12)',
-                          border: '1.5px solid rgba(239, 68, 68, 0.45)',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          color: '#fca5a5'
-                        }}
-                      >
-                        <div style={{ fontWeight: 800, color: '#f87171', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>⚠️ Transakcja odrzucona przez System:</span>
-                        </div>
-                        <div style={{ marginBottom: '2px' }}>
-                          <strong>• Dlaczego nie doszło do transakcji: </strong>
-                          <span>{ord.systemError?.message || ord.error || 'Transakcja nie doszła do skutku z powodów systemowych na giełdzie OKX (niewystarczające środki lub błąd API).'}</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '4px', fontSize: '11.5px', color: '#fecaca' }}>
-                          <span><strong>Rodzaj błędu:</strong> {ord.systemError?.type || 'Walidacja salda / API giełdy OKX Europe'}</span>
-                          <span><strong>Kod błędu:</strong> <code>{ord.systemError?.code || 'ERR_OKX_BALANCE_51000'}</code></span>
-                        </div>
-                      </div>
+                      <SystemRejectionDetailsCard ord={ord} />
                     )}
 
                     {/* INFORMACJA GDY TRANSAKCJA ODRZUCONA PRZEZ UŻYTKOWNIKA */}

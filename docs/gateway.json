@@ -1,14 +1,13 @@
 {
-  "updatedAt": 1793942742819,
+  "updatedAt": 1793942757731,
   "homePublicIp": "81.99.228.78",
   "primaryTunnelUrl": "https://museums-issues-tribe-dog.trycloudflare.com",
   "cloudflareTunnelUrl": "https://museums-issues-tribe-dog.trycloudflare.com",
-  "fallbackTunnelUrl": "https://tiny-dodo-85.loca.lt",
+  "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw-2.loca.lt",
   "tunnels": [
     "https://museums-issues-tribe-dog.trycloudflare.com",
-    "https://tiny-dodo-85.loca.lt",
-    "https://okx-eea-gregor-home-gw.loca.lt",
     "https://okx-eea-gregor-home-gw-2.loca.lt",
+    "https://okx-eea-gregor-home-gw.loca.lt",
     "https://okx-eea-gregor-home-gw-3.loca.lt"
   ]
 }

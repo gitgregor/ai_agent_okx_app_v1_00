@@ -1921,7 +1921,11 @@ export async function clientMockEngine(url, method = 'GET', body = null) {
         systemError: isSystem ? {
           code: body?.errorCode || 'ERR_OKX_BALANCE_51000',
           type: body?.errorType || 'Walidacja salda / API giełdy OKX Europe',
-          message: body?.errorMessage || 'Transakcja nie doszła do skutku z powodów systemowych.'
+          message: body?.errorMessage || 'Transakcja nie doszła do skutku z powodów systemowych.',
+          exchangeMsg: body?.exchangeMsg || (body?.errorMessage?.match(/\(Status OKX API:\s*([^)]+)\)/i)?.[1]) || null,
+          currency: body?.currency || (pending?.instId?.includes('SWAP') ? 'USDC' : (pending?.side === 'BUY' ? 'USDC' : pending?.asset)),
+          requiredAmount: body?.requiredAmount,
+          availableAmount: body?.availableAmount
         } : null,
         date: now.toISOString().slice(0, 10),
         time: now.toTimeString().slice(0, 8),
@@ -2856,11 +2860,40 @@ export function buildExchangeFeedbackForItem(item, apiMode = 'demo') {
   );
   const strat = item?.strategyName || item?.action || `Strategia Spot ${side} (${instId})`;
 
+  const isRejectedSystem =
+    Boolean(item?.systemError) ||
+    item?.status === 'REJECTED_SYSTEM' ||
+    item?.rejectedBy === 'SYSTEM' ||
+    Boolean(item?.statusLabel?.includes('odrzucona przez System'));
+
+  const isRejectedUser =
+    !isRejectedSystem &&
+    (item?.status === 'REJECTED_USER' ||
+      item?.rejectedBy === 'USER' ||
+      Boolean(item?.statusLabel?.includes('odrzucona przez użytkownika')));
+
+  let status = item?.status === 'OPEN' ? 'LIVE (Aktywne zlecenie na giełdzie OKX)' : 'FILLED (Zrealizowano na giełdzie OKX)';
+  let exchangeMessage = `Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #${id}: ${isBuy ? 'Kupiono' : 'Sprzedano'} ${formatQty(amount)} ${asset} po cenie ${formatUnitPrice(price)} (Przeliczenie na USDC: ${formatUsdc(usdcVal)}, Fee 0.10%: ${formatUsdc(feeUsdc)} / ${feeAsset} ${asset}, Rozliczenie całkowite: ${formatUsdc(totalUsdcWithFee)}).`;
+  let strategyMessage = `Założono strategię „${strat}” oraz uruchomiono proces ${isBuy ? 'KUPNA (BUY)' : 'SPRZEDAŻY (SELL)'} dla pary ${instId}.`;
+  let code = '0';
+
+  if (isRejectedSystem) {
+    status = 'REJECTED_SYSTEM (Transakcja odrzucona przez System)';
+    code = item?.systemError?.code || 'ERR_OKX_BALANCE_51000';
+    strategyMessage = `Założono strategię „${strat}”, lecz transakcja została odrzucona przez System przed realizacją na giełdzie.`;
+    exchangeMessage = item?.systemError?.message || item?.error || 'Transakcja odrzucona przez System z powodu braku środków lub błędu API giełdy OKX.';
+  } else if (isRejectedUser) {
+    status = 'REJECTED_USER (Transakcja odrzucona przez użytkownika)';
+    code = 'USER_REJECTED';
+    strategyMessage = `Zlecenie strategii „${strat}” zostało wycofane przez użytkownika.`;
+    exchangeMessage = 'Transakcja odrzucona przez użytkownika przed autoryzacją na giełdzie.';
+  }
+
   return {
     exchange: 'OKX Europe (eea.okx.com) — API v5',
     mode: (apiMode || 'demo').toUpperCase(),
-    code: '0',
-    status: item?.status === 'OPEN' ? 'LIVE (Aktywne zlecenie na giełdzie OKX)' : 'FILLED (Zrealizowano na giełdzie OKX)',
+    code,
+    status,
     orderId: id,
     date: item?.date || '—',
     time: item?.time || '—',
@@ -2877,8 +2910,9 @@ export function buildExchangeFeedbackForItem(item, apiMode = 'demo') {
     feeCcy: isBuy ? asset : 'USDC',
     totalUsdcWithFee,
     strategyName: strat,
-    strategyMessage: `Założono strategię „${strat}” oraz uruchomiono proces ${isBuy ? 'KUPNA (BUY)' : 'SPRZEDAŻY (SELL)'} dla pary ${instId}.`,
-    exchangeMessage: `Giełda OKX Europe (eea.okx.com) potwierdziła dokonanie transakcji #${id}: ${isBuy ? 'Kupiono' : 'Sprzedano'} ${formatQty(amount)} ${asset} po cenie ${formatUnitPrice(price)} (Przeliczenie na USDC: ${formatUsdc(usdcVal)}, Fee 0.10%: ${formatUsdc(feeUsdc)} / ${feeAsset} ${asset}, Rozliczenie całkowite: ${formatUsdc(totalUsdcWithFee)}).`
+    strategyMessage,
+    exchangeMessage,
+    systemError: item?.systemError || null
   };
 }
 
