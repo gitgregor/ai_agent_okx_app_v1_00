@@ -1796,14 +1796,31 @@ class OkxEeaTradingEngine {
     const order = this.activeTradeOrder;
     const mode = this.config.apiMode;
     const portfolio = this.portfolios[mode];
-    const asset = order.asset;
-    const market = this.markets[order.instId] || this.markets['BTC-USDC'];
+    const asset = order.asset || 'BTC';
     const isBuy = order.side === 'BUY';
+    const isFutures = Boolean(
+      order.instId?.includes('SWAP') ||
+      order.marketType === 'FUTURES' ||
+      order.leverage ||
+      order.source?.includes('Futures') ||
+      order.strategyName?.includes('Futures')
+    );
+    const leverage = Number(order.leverage) || 10;
 
-    // Real execution price from OKX live orderbook/ticker
-    const liveExecPrice = isBuy ? (market.askPx || market.price) : (market.bidPx || market.price);
-    const currentPrice = order.orderType === 'LIMIT' ? order.price : liveExecPrice;
-    const usdcValue = Number((order.amount * currentPrice).toFixed(2));
+    // Correct market lookup: check instId, then asset-USDC, then asset-USDT; fallback to order.price
+    const market = this.markets[order.instId] ||
+      this.markets[`${asset}-USDC`] ||
+      this.markets[`${asset}-USDT`] ||
+      { price: Number(order.price) || 1, askPx: Number(order.price) || 1, bidPx: Number(order.price) || 1 };
+
+    // Real execution price: If order already has a valid asset price, use it; otherwise get from asset market
+    const liveExecPrice = isBuy ? (market.askPx || market.price || order.price) : (market.bidPx || market.price || order.price);
+    const currentPrice = (order.orderType === 'LIMIT' || (Number(order.price) > 0 && Math.abs(liveExecPrice - order.price) / (order.price || 1) > 0.5))
+      ? Number(order.price)
+      : (liveExecPrice || Number(order.price) || 1);
+
+    const usdcValue = Number(order.usdcValue > 0 ? order.usdcValue : (order.amount * currentPrice).toFixed(2));
+    const requiredMargin = isFutures ? (Number(order.marginUsdc) || Number((usdcValue / leverage).toFixed(2))) : usdcValue;
 
     const keyObj = mode === 'live' ? this.config.liveApiKey : this.config.demoApiKey;
     let okxApiOrderId = null;
@@ -1816,7 +1833,7 @@ class OkxEeaTradingEngine {
       const usdcAvail = portfolio.holdings.USDC ? portfolio.holdings.USDC.amount : 0;
       const usdtAvail = portfolio.holdings.USDT ? portfolio.holdings.USDT.amount : 0;
       let targetInstId = order.instId;
-      if (isBuy && usdcAvail < usdcValue && usdtAvail >= usdcValue) {
+      if (isBuy && usdcAvail < requiredMargin && usdtAvail >= requiredMargin) {
         targetInstId = `${asset}-USDT`;
       }
 
@@ -1894,37 +1911,49 @@ class OkxEeaTradingEngine {
 
     if (!executedOnOkxServer) {
       // Validate local balance when not executed directly on OKX server (or if funds are in local demo wallet)
-      const spendCurrency = (portfolio.holdings.USDC.amount < usdcValue && portfolio.holdings.USDT?.amount >= usdcValue) ? 'USDT' : 'USDC';
+      const spendCurrency = (portfolio.holdings.USDC.amount < requiredMargin && portfolio.holdings.USDT?.amount >= requiredMargin) ? 'USDT' : 'USDC';
       if (isBuy) {
-        if ((portfolio.holdings[spendCurrency]?.amount || 0) < usdcValue) {
-          const errDetail = `Niewystarczające środki ${spendCurrency} w portfelu (${(portfolio.holdings[spendCurrency]?.amount || 0).toFixed(2)} ${spendCurrency} < ${usdcValue.toFixed(2)} USDC).${okxExecutionNote}`;
+        if ((portfolio.holdings[spendCurrency]?.amount || 0) < requiredMargin) {
+          const errDetail = isFutures
+            ? `Niewystarczające środki ${spendCurrency} na depozyt początkowy (Initial Margin) w portfelu (${(portfolio.holdings[spendCurrency]?.amount || 0).toFixed(2)} ${spendCurrency} < ${requiredMargin.toFixed(2)} ${spendCurrency}).${okxExecutionNote}`
+            : `Niewystarczające środki ${spendCurrency} w portfelu (${(portfolio.holdings[spendCurrency]?.amount || 0).toFixed(2)} ${spendCurrency} < ${usdcValue.toFixed(2)} USDC).${okxExecutionNote}`;
           this.stopTrading({
             reason: 'system_error',
             errorCode: 'ERR_OKX_BALANCE_51000',
-            errorType: 'Błąd salda rachunku OKX Europe',
-            errorMessage: errDetail
+            errorType: isFutures ? 'Błąd depozytu zabezpieczającego Futures na OKX Europe' : 'Błąd salda rachunku OKX Europe',
+            errorMessage: errDetail,
+            currency: spendCurrency,
+            requiredAmount: requiredMargin,
+            availableAmount: portfolio.holdings[spendCurrency]?.amount || 0
           });
           return {
             ok: false,
             isRejectedSystem: true,
             errorCode: 'ERR_OKX_BALANCE_51000',
-            errorType: 'Błąd salda rachunku OKX Europe',
+            errorType: isFutures ? 'Błąd depozytu zabezpieczającego Futures na OKX Europe' : 'Błąd salda rachunku OKX Europe',
             error: errDetail,
             state: this.getState()
           };
         }
-        const prevAmt = portfolio.holdings[asset].amount;
-        const prevCost = prevAmt * (portfolio.holdings[asset].avgBuyPrice || currentPrice);
-        const newAmt = Number((prevAmt + order.amount).toFixed(6));
-        portfolio.holdings[asset].amount = newAmt;
-        portfolio.holdings[asset].availAmount = newAmt;
-        portfolio.holdings[asset].avgBuyPrice = newAmt > 0 ? Number(((prevCost + usdcValue) / newAmt).toFixed(2)) : currentPrice;
-        portfolio.holdings[spendCurrency].amount = Number((portfolio.holdings[spendCurrency].amount - usdcValue).toFixed(2));
-        portfolio.holdings[spendCurrency].availAmount = portfolio.holdings[spendCurrency].amount;
+        if (isFutures) {
+          // For Futures, deduct only required margin from quote currency
+          portfolio.holdings[spendCurrency].amount = Number((portfolio.holdings[spendCurrency].amount - requiredMargin).toFixed(2));
+          portfolio.holdings[spendCurrency].availAmount = portfolio.holdings[spendCurrency].amount;
+        } else {
+          // For Spot, update crypto holdings and deduct full usdcValue
+          const prevAmt = portfolio.holdings[asset].amount;
+          const prevCost = prevAmt * (portfolio.holdings[asset].avgBuyPrice || currentPrice);
+          const newAmt = Number((prevAmt + order.amount).toFixed(6));
+          portfolio.holdings[asset].amount = newAmt;
+          portfolio.holdings[asset].availAmount = newAmt;
+          portfolio.holdings[asset].avgBuyPrice = newAmt > 0 ? Number(((prevCost + usdcValue) / newAmt).toFixed(2)) : currentPrice;
+          portfolio.holdings[spendCurrency].amount = Number((portfolio.holdings[spendCurrency].amount - usdcValue).toFixed(2));
+          portfolio.holdings[spendCurrency].availAmount = portfolio.holdings[spendCurrency].amount;
 
-        portfolio.ledger[asset].boughtAmount = Number((portfolio.ledger[asset].boughtAmount + order.amount).toFixed(6));
-        portfolio.ledger[asset].boughtUsdc = Number((portfolio.ledger[asset].boughtUsdc + usdcValue).toFixed(2));
-        portfolio.ledger[asset].buyCount += 1;
+          portfolio.ledger[asset].boughtAmount = Number((portfolio.ledger[asset].boughtAmount + order.amount).toFixed(6));
+          portfolio.ledger[asset].boughtUsdc = Number((portfolio.ledger[asset].boughtUsdc + usdcValue).toFixed(2));
+          portfolio.ledger[asset].buyCount += 1;
+        }
       } else {
         if (portfolio.holdings[asset].amount < order.amount) {
           const errDetail = `Niewystarczająca ilość ${asset} w portfelu (${portfolio.holdings[asset].amount} ${asset} < ${order.amount} ${asset}).${okxExecutionNote}`;

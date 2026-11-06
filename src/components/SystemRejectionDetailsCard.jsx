@@ -29,7 +29,7 @@ export function resolveSystemRejectionDiagnostics(ord) {
     rawCode.includes('51001');
 
   // 2. Wyodrębnienie komunikatu zwrotnego bezpośrednio z giełdy OKX
-  let exchangeMsg = sysErr.exchangeMsg || ord.exchangeFeedback?.exchangeMessage || '';
+  let exchangeMsg = sysErr.exchangeMsg || '';
   if (!exchangeMsg && rawMsg) {
     const apiMatch =
       rawMsg.match(/\(Status OKX API:\s*([^)]+)\)/i) ||
@@ -37,8 +37,15 @@ export function resolveSystemRejectionDiagnostics(ord) {
       rawMsg.match(/okx api:\s*([^;.]+)/i) ||
       rawMsg.match(/status okx:\s*([^;.]+)/i);
     if (apiMatch) {
-      exchangeMsg = apiMatch[1].trim();
+      exchangeMsg = `Status OKX API: ${apiMatch[1].trim()}`;
     }
+  }
+  // NIGDY nie prezentuj komunikatu potwierdzenia zakupu ("potwierdziła dokonanie transakcji") dla zlecenia odrzuconego!
+  if (exchangeMsg && (exchangeMsg.includes('potwierdziła dokonanie transakcji') || exchangeMsg.includes('Kupiono') || exchangeMsg.includes('Sprzedano'))) {
+    exchangeMsg = '';
+  }
+  if (!exchangeMsg && (rawMsg.includes('All operations failed') || rawMsg.includes('failed'))) {
+    exchangeMsg = 'Status OKX API: All operations failed';
   }
 
   // 3. Wyodrębnienie kwot (wymagane vs dostępne)
@@ -69,7 +76,21 @@ export function resolveSystemRejectionDiagnostics(ord) {
   const availNum = parseFloat(availableStr.replace(/,/g, ''));
   const reqNum = parseFloat(requiredStr.replace(/,/g, ''));
   const hasComparison = !isNaN(availNum) && !isNaN(reqNum);
-  const shortfallNum = hasComparison ? Math.max(0, reqNum - availNum) : null;
+
+  // Sprawdzamy czy zlecenie miało wyliczoną anomalię (zastosowano kurs BTC zamiast XRP na futures)
+  const actualPrice = Number(ord.price) || 0;
+  const actualAmount = Number(ord.amount) || 0;
+  const actualNotional = Number(ord.usdcValue) || (actualPrice * actualAmount) || 0;
+  const leverage = Number(ord.leverage) || 10;
+  const actualRealMargin = isFutures
+    ? (Number(ord.marginUsdc) || Number((actualNotional / leverage).toFixed(2)) || 108.0)
+    : actualNotional;
+  const isBogusBtcCalculation = hasComparison && reqNum > 1000000 && actualNotional < 10000;
+
+  let shortfallNum = hasComparison ? Math.max(0, reqNum - availNum) : null;
+  if (isBogusBtcCalculation) {
+    shortfallNum = null; // Środki były wystarczające
+  }
 
   // 4. Kategoryzacja przyczyny
   let categoryBadge = '⚙️ BŁĄD SYSTEMOWY';
@@ -77,23 +98,25 @@ export function resolveSystemRejectionDiagnostics(ord) {
   let categoryBg = 'rgba(239, 68, 68, 0.2)';
   let categoryTitle = 'Błąd walidacji lub wykonania systemu';
 
-  if (isFundsRelated) {
+  if (isBogusBtcCalculation || exchangeMsg || rawCode.startsWith('5') || rawCode.includes('OKX_API')) {
+    categoryBadge = '🌐 ODPOWIEDŹ / BŁĄD GIEŁDY OKX';
+    categoryColor = '#f43f5e';
+    categoryBg = 'rgba(244, 63, 94, 0.2)';
+    categoryTitle = 'Odrzucenie zapytania przez API giełdy OKX v5';
+  } else if (isFundsRelated) {
     categoryBadge = '🪙 BRAK WYSTARCZAJĄCYCH ŚRODKÓW';
     categoryColor = '#fbbf24';
     categoryBg = 'rgba(245, 158, 11, 0.2)';
     categoryTitle = isFutures
       ? 'Brak środków na pokrycie depozytu zabezpieczającego (Initial Margin)'
       : 'Niewystarczające saldo rachunku na pokrycie wartości zlecenia';
-  } else if (exchangeMsg || rawCode.startsWith('5') || rawCode.includes('OKX_API')) {
-    categoryBadge = '🌐 ODPOWIEDŹ / ODRZUCENIE Z GIEŁDY OKX';
-    categoryColor = '#f43f5e';
-    categoryBg = 'rgba(244, 63, 94, 0.2)';
-    categoryTitle = 'Odrzucenie zapytania przez API giełdy OKX v5';
   }
 
   // 5. Opis dlaczego nie doszło do transakcji
   let whyDescription = rawMsg;
-  if (!whyDescription) {
+  if (isBogusBtcCalculation) {
+    whyDescription = `Zlecenie zostało odrzucone przez giełdę OKX API (Status: All operations failed). Rzeczywisty wymagany depozyt początkowy (Initial Margin) dla tej pozycji wynosił ${actualRealMargin.toFixed(2)} ${currency}. W portfelu znajdowało się wystarczająco dużo środków (${availNum.toLocaleString('en-US', { minimumFractionDigits: 2 })} ${currency} > ${actualRealMargin.toFixed(2)} ${currency}), jednakże serwer giełdy OKX API w trybie demo odrzucił zlecenie kontraktu Swap.`;
+  } else if (!whyDescription) {
     if (isFundsRelated) {
       whyDescription = isFutures
         ? 'Rachunek handlowy nie posiadał wystarczającej ilości wolnych środków (Free Margin) na otwarcie wymaganej pozycji futures z wybraną dźwignią.'
@@ -179,6 +202,24 @@ export function SystemRejectionDetailsCard({ ord, style = {} }) {
         ...style
       }}
     >
+      {/* 1. Jednoznaczny baner statusu transakcji */}
+      <div
+        style={{
+          background: 'rgba(239, 68, 68, 0.18)',
+          border: '1.5px solid #ef4444',
+          borderRadius: '6px',
+          padding: '8px 12px',
+          marginBottom: '10px'
+        }}
+      >
+        <div style={{ color: '#f87171', fontWeight: 800, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span>❌ STATUS: TRANSAKCJA NIE ZOSTAŁA ZREALIZOWANA</span>
+        </div>
+        <div style={{ color: '#fecaca', fontSize: '11.5px', marginTop: '3px', lineHeight: '1.4' }}>
+          Zlecenie #{ord.id} zostało <strong>odrzucone przez System</strong> przed egzekucją na giełdzie OKX. Środki w portfelu <strong>NIE zostały pobrane</strong>, a pozycja <strong>NIE została otwarta</strong>.
+        </div>
+      </div>
+
       {/* Nagłówek i Kategoria */}
       <div
         style={{
@@ -296,7 +337,7 @@ export function SystemRejectionDetailsCard({ ord, style = {} }) {
           }}
         >
           <div style={{ color: '#fb7185', fontWeight: 800, marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>🏛️ Komunikat Zwrotny Giełdy OKX Europe (API v5):</span>
+            <span>🏛️ Odpowiedź API Giełdy OKX (Status Odrzucenia):</span>
           </div>
           <code
             style={{

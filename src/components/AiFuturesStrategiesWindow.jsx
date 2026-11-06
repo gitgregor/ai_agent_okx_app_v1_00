@@ -263,7 +263,17 @@ export function AiFuturesStrategiesWindow({
   const [showHistory, setShowHistory] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
-  const [expandedBreakdownId, setExpandedBreakdownId] = useState(null);
+  const [expandedBreakdownIds, setExpandedBreakdownIds] = useState(new Set());
+
+  const handleToggleBreakdown = (orderId) => {
+    setExpandedBreakdownIds((prev) => {
+      const next = new Set(prev);
+      const idStr = String(orderId);
+      if (next.has(idStr)) next.delete(idStr);
+      else next.add(idStr);
+      return next;
+    });
+  };
 
   // Futures Settings Control Panel State
   const [selectedDirection, setSelectedDirection] = useState('AUTO'); // 'AUTO' | 'LONG' | 'SHORT'
@@ -1066,7 +1076,7 @@ export function AiFuturesStrategiesWindow({
               {candidateStrategies.map((ord) => {
                 const timing = getStrategyTiming(ord);
                 const breakdown = resolveFuturesBreakdown(ord, timing);
-                const isExpanded = expandedBreakdownId === ord.id;
+                const isExpanded = expandedBreakdownIds.has(String(ord.id));
                 const posSide = (ord.posSide || (ord.strategyName?.includes('SHORT') ? 'short' : 'long')).toUpperCase();
                 const lev = ord.leverage || 10;
 
@@ -1104,7 +1114,7 @@ export function AiFuturesStrategiesWindow({
                           </span>
                         </div>
                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          Kurs: <strong>${formatUnitPrice(ord.price)}</strong> • Wielkość: <strong>{ord.amount} {ord.asset}</strong> • Ekspozycja: <strong>${formatUsdc(ord.usdcValue)}</strong>
+                          Kurs: <strong>{formatUnitPrice(ord.price)} USDC</strong> • Wielkość: <strong>{ord.amount} {ord.asset}</strong> • Ekspozycja: <strong>{formatUsdc(ord.usdcValue)}</strong>
                         </div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                           Utworzono: <strong>{timing.openDate} {timing.openTime}</strong>
@@ -1133,10 +1143,17 @@ export function AiFuturesStrategiesWindow({
                           <button
                             type="button"
                             className="btn btn-outline-sm"
-                            style={{ fontSize: '11px', padding: '3px 8px' }}
-                            onClick={() => setExpandedBreakdownId(isExpanded ? null : ord.id)}
+                            style={{
+                              fontSize: '11px',
+                              padding: '3px 8px',
+                              background: isExpanded ? 'rgba(168, 85, 247, 0.25)' : 'transparent',
+                              borderColor: isExpanded ? '#c084fc' : 'var(--border-color)',
+                              color: isExpanded ? '#c084fc' : 'var(--text-primary)',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => handleToggleBreakdown(ord.id)}
                           >
-                            📊 Szczegóły futures {isExpanded ? '▲' : '▼'}
+                            📊 Szczegóły futures {isExpanded ? '▲ Zwiń' : '▼ Rozwiń'}
                           </button>
                           {timing.isInProgress && onCompleteStrategy && (
                             <button
@@ -1192,9 +1209,9 @@ export function AiFuturesStrategiesWindow({
                         style={{
                           marginTop: '12px',
                           padding: '12px',
-                          background: 'rgba(15, 23, 42, 0.75)',
+                          background: 'rgba(15, 23, 42, 0.85)',
                           borderRadius: '6px',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(168, 85, 247, 0.35)',
                           fontSize: '12px'
                         }}
                       >
@@ -1204,23 +1221,29 @@ export function AiFuturesStrategiesWindow({
                               background: 'rgba(239, 68, 68, 0.15)',
                               border: '1px solid rgba(239, 68, 68, 0.35)',
                               borderRadius: '4px',
-                              padding: '8px 10px',
-                              marginBottom: '10px',
+                              padding: '10px 12px',
+                              marginBottom: '12px',
                               color: '#fca5a5',
-                              fontSize: '11.5px'
+                              fontSize: '12px',
+                              lineHeight: '1.45'
                             }}
                           >
-                            ⚠️ <strong>Status giełdowy:</strong> Transakcja odrzucona przez System przed realizacją zlecenia na giełdzie OKX Futures. Poniższe poziomy TP/SL i likwidacji były zaplanowane w strategii AI, lecz zlecenie nie zostało otwarte z powodu braku środków lub błędu API giełdy.
+                            <div style={{ fontWeight: 800, color: '#f87171', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>❌ Pozycja NIE została otwarta na giełdzie OKX Futures</span>
+                            </div>
+                            <div>
+                              Poniższe parametry (dźwignia {breakdown.openedPosition.leverage}x, likwidacja {formatUnitPrice(breakdown.openedPosition.liquidationPrice)} USDC, cele TP1/TP2/TP3 oraz Stop-Loss) reprezentują <strong>plan strategiczny AI</strong> przygotowany dla zlecenia #{ord.id}. Transakcja została odrzucona przez system/giełdę, w związku z czym depozyt zabezpieczający ({formatUsdc(breakdown.openedPosition.marginUsdc)}) <strong>nie został pobrany</strong> z Twojego salda.
+                            </div>
                           </div>
                         )}
                         <h5 style={{ margin: '0 0 8px 0', color: 'var(--accent-blue)', fontSize: '12px' }}>
                           🛡️ Parametry Pozycji & Zabezpieczenia na OKX:
                         </h5>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', marginBottom: '10px' }}>
-                          <div>Cena Likwidacji: <strong style={{ color: '#f87171' }}>${formatUsdc(breakdown.openedPosition.liquidationPrice)}</strong></div>
+                          <div>Cena Likwidacji: <strong style={{ color: '#f87171' }}>{formatUnitPrice(breakdown.openedPosition.liquidationPrice)} USDC</strong></div>
                           <div>Dystans do Likwidacji: <strong style={{ color: '#fbbf24' }}>{breakdown.openedPosition.liqDistancePct}%</strong></div>
-                          <div>Własny Margin: <strong>${formatUsdc(breakdown.openedPosition.marginUsdc)}</strong></div>
-                          <div>Prowizja Taker (0.05%): <strong>${formatUsdc(breakdown.openedPosition.feeUsdc)}</strong></div>
+                          <div>Własny Margin: <strong>{formatUsdc(breakdown.openedPosition.marginUsdc)}</strong></div>
+                          <div>Prowizja Taker (0.05%): <strong>{formatUsdc(breakdown.openedPosition.feeUsdc)}</strong></div>
                         </div>
 
                         <h5 style={{ margin: '8px 0 6px 0', color: '#34d399', fontSize: '12px' }}>
@@ -1229,13 +1252,13 @@ export function AiFuturesStrategiesWindow({
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px', marginBottom: '10px' }}>
                           {breakdown.takeProfits.map((tp, idx) => (
                             <div key={idx} style={{ background: 'rgba(0,0,0,0.2)', padding: '6px', borderRadius: '4px' }}>
-                              <strong>{tp.level}:</strong> ${formatUnitPrice(tp.targetPrice)} ({tp.roiPct} / {tp.profitUsdc})
+                              <strong>{tp.level}:</strong> {formatUnitPrice(tp.targetPrice)} USDC ({tp.roiPct} / {tp.profitUsdc})
                             </div>
                           ))}
                         </div>
 
                         <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '8px', borderRadius: '4px', borderLeft: '3px solid #ef4444' }}>
-                          <strong style={{ color: '#f87171' }}>🛑 Stop-Loss:</strong> ${formatUnitPrice(breakdown.stopLossPlan.price)} ({breakdown.stopLossPlan.roiPct} / {breakdown.stopLossPlan.lossUsdc})
+                          <strong style={{ color: '#f87171' }}>🛑 Stop-Loss:</strong> {formatUnitPrice(breakdown.stopLossPlan.price)} USDC ({breakdown.stopLossPlan.roiPct} / {breakdown.stopLossPlan.lossUsdc})
                           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '8px' }}>
                             ({breakdown.stopLossPlan.bufferToLiqPct})
                           </span>

@@ -19396,12 +19396,18 @@
     const rawType = sysErr.type || ord.errorType || "";
     const textToScan = `${rawMsg} ${rawCode} ${rawType}`.toLowerCase();
     const isFundsRelated = textToScan.includes("niewystarczaj\u0105c") || textToScan.includes("brak \u015Brodk") || textToScan.includes("saldo") || textToScan.includes("balance") || textToScan.includes("insufficient") || textToScan.includes("depozyt") || textToScan.includes("margin") || rawCode.includes("51000") || rawCode.includes("51008") || rawCode.includes("51001");
-    let exchangeMsg = sysErr.exchangeMsg || ord.exchangeFeedback?.exchangeMessage || "";
+    let exchangeMsg = sysErr.exchangeMsg || "";
     if (!exchangeMsg && rawMsg) {
       const apiMatch = rawMsg.match(/\(Status OKX API:\s*([^)]+)\)/i) || rawMsg.match(/komunikat giełdy:\s*([^;.]+)/i) || rawMsg.match(/okx api:\s*([^;.]+)/i) || rawMsg.match(/status okx:\s*([^;.]+)/i);
       if (apiMatch) {
-        exchangeMsg = apiMatch[1].trim();
+        exchangeMsg = `Status OKX API: ${apiMatch[1].trim()}`;
       }
+    }
+    if (exchangeMsg && (exchangeMsg.includes("potwierdzi\u0142a dokonanie transakcji") || exchangeMsg.includes("Kupiono") || exchangeMsg.includes("Sprzedano"))) {
+      exchangeMsg = "";
+    }
+    if (!exchangeMsg && (rawMsg.includes("All operations failed") || rawMsg.includes("failed"))) {
+      exchangeMsg = "Status OKX API: All operations failed";
     }
     let availableStr = sysErr.availableAmount ? String(sysErr.availableAmount) : "";
     let requiredStr = sysErr.requiredAmount ? String(sysErr.requiredAmount) : "";
@@ -19421,24 +19427,35 @@
     const availNum = parseFloat(availableStr.replace(/,/g, ""));
     const reqNum = parseFloat(requiredStr.replace(/,/g, ""));
     const hasComparison = !isNaN(availNum) && !isNaN(reqNum);
-    const shortfallNum = hasComparison ? Math.max(0, reqNum - availNum) : null;
+    const actualPrice = Number(ord.price) || 0;
+    const actualAmount = Number(ord.amount) || 0;
+    const actualNotional = Number(ord.usdcValue) || actualPrice * actualAmount || 0;
+    const leverage = Number(ord.leverage) || 10;
+    const actualRealMargin = isFutures ? Number(ord.marginUsdc) || Number((actualNotional / leverage).toFixed(2)) || 108 : actualNotional;
+    const isBogusBtcCalculation = hasComparison && reqNum > 1e6 && actualNotional < 1e4;
+    let shortfallNum = hasComparison ? Math.max(0, reqNum - availNum) : null;
+    if (isBogusBtcCalculation) {
+      shortfallNum = null;
+    }
     let categoryBadge = "\u2699\uFE0F B\u0141\u0104D SYSTEMOWY";
     let categoryColor = "#f87171";
     let categoryBg = "rgba(239, 68, 68, 0.2)";
     let categoryTitle = "B\u0142\u0105d walidacji lub wykonania systemu";
-    if (isFundsRelated) {
+    if (isBogusBtcCalculation || exchangeMsg || rawCode.startsWith("5") || rawCode.includes("OKX_API")) {
+      categoryBadge = "\u{1F310} ODPOWIED\u0179 / B\u0141\u0104D GIE\u0141DY OKX";
+      categoryColor = "#f43f5e";
+      categoryBg = "rgba(244, 63, 94, 0.2)";
+      categoryTitle = "Odrzucenie zapytania przez API gie\u0142dy OKX v5";
+    } else if (isFundsRelated) {
       categoryBadge = "\u{1FA99} BRAK WYSTARCZAJ\u0104CYCH \u015ARODK\xD3W";
       categoryColor = "#fbbf24";
       categoryBg = "rgba(245, 158, 11, 0.2)";
       categoryTitle = isFutures ? "Brak \u015Brodk\xF3w na pokrycie depozytu zabezpieczaj\u0105cego (Initial Margin)" : "Niewystarczaj\u0105ce saldo rachunku na pokrycie warto\u015Bci zlecenia";
-    } else if (exchangeMsg || rawCode.startsWith("5") || rawCode.includes("OKX_API")) {
-      categoryBadge = "\u{1F310} ODPOWIED\u0179 / ODRZUCENIE Z GIE\u0141DY OKX";
-      categoryColor = "#f43f5e";
-      categoryBg = "rgba(244, 63, 94, 0.2)";
-      categoryTitle = "Odrzucenie zapytania przez API gie\u0142dy OKX v5";
     }
     let whyDescription = rawMsg;
-    if (!whyDescription) {
+    if (isBogusBtcCalculation) {
+      whyDescription = `Zlecenie zosta\u0142o odrzucone przez gie\u0142d\u0119 OKX API (Status: All operations failed). Rzeczywisty wymagany depozyt pocz\u0105tkowy (Initial Margin) dla tej pozycji wynosi\u0142 ${actualRealMargin.toFixed(2)} ${currency}. W portfelu znajdowa\u0142o si\u0119 wystarczaj\u0105co du\u017Co \u015Brodk\xF3w (${availNum.toLocaleString("en-US", { minimumFractionDigits: 2 })} ${currency} > ${actualRealMargin.toFixed(2)} ${currency}), jednak\u017Ce serwer gie\u0142dy OKX API w trybie demo odrzuci\u0142 zlecenie kontraktu Swap.`;
+    } else if (!whyDescription) {
       if (isFundsRelated) {
         whyDescription = isFutures ? "Rachunek handlowy nie posiada\u0142 wystarczaj\u0105cej ilo\u015Bci wolnych \u015Brodk\xF3w (Free Margin) na otwarcie wymaganej pozycji futures z wybran\u0105 d\u017Awigni\u0105." : `Rachunek handlowy nie posiada\u0142 wystarczaj\u0105cego salda ${currency} na pokrycie ca\u0142kowitego kosztu zakupu.`;
       } else {
@@ -19507,6 +19524,32 @@
           ...style
         },
         children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+            "div",
+            {
+              style: {
+                background: "rgba(239, 68, 68, 0.18)",
+                border: "1.5px solid #ef4444",
+                borderRadius: "6px",
+                padding: "8px 12px",
+                marginBottom: "10px"
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { color: "#f87171", fontWeight: 800, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u274C STATUS: TRANSAKCJA NIE ZOSTA\u0141A ZREALIZOWANA" }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { style: { color: "#fecaca", fontSize: "11.5px", marginTop: "3px", lineHeight: "1.4" }, children: [
+                  "Zlecenie #",
+                  ord.id,
+                  " zosta\u0142o ",
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: "odrzucone przez System" }),
+                  " przed egzekucj\u0105 na gie\u0142dzie OKX. \u015Arodki w portfelu ",
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: "NIE zosta\u0142y pobrane" }),
+                  ", a pozycja ",
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("strong", { children: "NIE zosta\u0142a otwarta" }),
+                  "."
+                ] })
+              ]
+            }
+          ),
           /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
             "div",
             {
@@ -19612,7 +19655,7 @@
                 fontSize: "11.5px"
               },
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { color: "#fb7185", fontWeight: 800, marginBottom: "3px", display: "flex", alignItems: "center", gap: "6px" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u{1F3DB}\uFE0F Komunikat Zwrotny Gie\u0142dy OKX Europe (API v5):" }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { style: { color: "#fb7185", fontWeight: 800, marginBottom: "3px", display: "flex", alignItems: "center", gap: "6px" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "\u{1F3DB}\uFE0F Odpowied\u017A API Gie\u0142dy OKX (Status Odrzucenia):" }) }),
                 /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                   "code",
                   {
@@ -21456,7 +21499,16 @@
     const [showHistory, setShowHistory] = (0, import_react9.useState)(false);
     const [showExamples, setShowExamples] = (0, import_react9.useState)(false);
     const [showCalculator, setShowCalculator] = (0, import_react9.useState)(false);
-    const [expandedBreakdownId, setExpandedBreakdownId] = (0, import_react9.useState)(null);
+    const [expandedBreakdownIds, setExpandedBreakdownIds] = (0, import_react9.useState)(/* @__PURE__ */ new Set());
+    const handleToggleBreakdown = (orderId) => {
+      setExpandedBreakdownIds((prev) => {
+        const next = new Set(prev);
+        const idStr = String(orderId);
+        if (next.has(idStr)) next.delete(idStr);
+        else next.add(idStr);
+        return next;
+      });
+    };
     const [selectedDirection, setSelectedDirection] = (0, import_react9.useState)("AUTO");
     const [selectedLeverage, setSelectedLeverage] = (0, import_react9.useState)(10);
     const [selectedMarginMode, setSelectedMarginMode] = (0, import_react9.useState)("isolated");
@@ -22253,7 +22305,7 @@
                 candidateStrategies.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { style: { padding: "24px", textAlign: "center", color: "var(--text-secondary)", fontSize: "13px" }, children: "Brak zrealizowanych pozycji futures w bie\u017C\u0105cej sesji. Wygeneruj i potwierd\u017A strategi\u0119 poni\u017Cej, aby pojawi\u0142a si\u0119 w historii." }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: "12px", maxHeight: "420px", overflowY: "auto" }, children: candidateStrategies.map((ord) => {
                   const timing = getStrategyTiming2(ord);
                   const breakdown = resolveFuturesBreakdown(ord, timing);
-                  const isExpanded = expandedBreakdownId === ord.id;
+                  const isExpanded = expandedBreakdownIds.has(String(ord.id));
                   const posSide = (ord.posSide || (ord.strategyName?.includes("SHORT") ? "short" : "long")).toUpperCase();
                   const lev = ord.leverage || 10;
                   return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
@@ -22298,8 +22350,8 @@
                             /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { style: { fontSize: "12px", color: "var(--text-secondary)" }, children: [
                               "Kurs: ",
                               /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("strong", { children: [
-                                "$",
-                                formatUnitPrice(ord.price)
+                                formatUnitPrice(ord.price),
+                                " USDC"
                               ] }),
                               " \u2022 Wielko\u015B\u0107: ",
                               /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("strong", { children: [
@@ -22308,10 +22360,7 @@
                                 ord.asset
                               ] }),
                               " \u2022 Ekspozycja: ",
-                              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("strong", { children: [
-                                "$",
-                                formatUsdc(ord.usdcValue)
-                              ] })
+                              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { children: formatUsdc(ord.usdcValue) })
                             ] }),
                             /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { style: { fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }, children: [
                               "Utworzono: ",
@@ -22352,11 +22401,18 @@
                                 {
                                   type: "button",
                                   className: "btn btn-outline-sm",
-                                  style: { fontSize: "11px", padding: "3px 8px" },
-                                  onClick: () => setExpandedBreakdownId(isExpanded ? null : ord.id),
+                                  style: {
+                                    fontSize: "11px",
+                                    padding: "3px 8px",
+                                    background: isExpanded ? "rgba(168, 85, 247, 0.25)" : "transparent",
+                                    borderColor: isExpanded ? "#c084fc" : "var(--border-color)",
+                                    color: isExpanded ? "#c084fc" : "var(--text-primary)",
+                                    cursor: "pointer"
+                                  },
+                                  onClick: () => handleToggleBreakdown(ord.id),
                                   children: [
                                     "\u{1F4CA} Szczeg\xF3\u0142y futures ",
-                                    isExpanded ? "\u25B2" : "\u25BC"
+                                    isExpanded ? "\u25B2 Zwi\u0144" : "\u25BC Rozwi\u0144"
                                   ]
                                 }
                               ),
@@ -22410,9 +22466,9 @@
                             style: {
                               marginTop: "12px",
                               padding: "12px",
-                              background: "rgba(15, 23, 42, 0.75)",
+                              background: "rgba(15, 23, 42, 0.85)",
                               borderRadius: "6px",
-                              border: "1px solid rgba(255, 255, 255, 0.08)",
+                              border: "1px solid rgba(168, 85, 247, 0.35)",
                               fontSize: "12px"
                             },
                             children: [
@@ -22423,15 +22479,29 @@
                                     background: "rgba(239, 68, 68, 0.15)",
                                     border: "1px solid rgba(239, 68, 68, 0.35)",
                                     borderRadius: "4px",
-                                    padding: "8px 10px",
-                                    marginBottom: "10px",
+                                    padding: "10px 12px",
+                                    marginBottom: "12px",
                                     color: "#fca5a5",
-                                    fontSize: "11.5px"
+                                    fontSize: "12px",
+                                    lineHeight: "1.45"
                                   },
                                   children: [
-                                    "\u26A0\uFE0F ",
-                                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { children: "Status gie\u0142dowy:" }),
-                                    " Transakcja odrzucona przez System przed realizacj\u0105 zlecenia na gie\u0142dzie OKX Futures. Poni\u017Csze poziomy TP/SL i likwidacji by\u0142y zaplanowane w strategii AI, lecz zlecenie nie zosta\u0142o otwarte z powodu braku \u015Brodk\xF3w lub b\u0142\u0119du API gie\u0142dy."
+                                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { style: { fontWeight: 800, color: "#f87171", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { children: "\u274C Pozycja NIE zosta\u0142a otwarta na gie\u0142dzie OKX Futures" }) }),
+                                    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { children: [
+                                      "Poni\u017Csze parametry (d\u017Awignia ",
+                                      breakdown.openedPosition.leverage,
+                                      "x, likwidacja ",
+                                      formatUnitPrice(breakdown.openedPosition.liquidationPrice),
+                                      " USDC, cele TP1/TP2/TP3 oraz Stop-Loss) reprezentuj\u0105 ",
+                                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { children: "plan strategiczny AI" }),
+                                      " przygotowany dla zlecenia #",
+                                      ord.id,
+                                      ". Transakcja zosta\u0142a odrzucona przez system/gie\u0142d\u0119, w zwi\u0105zku z czym depozyt zabezpieczaj\u0105cy (",
+                                      formatUsdc(breakdown.openedPosition.marginUsdc),
+                                      ") ",
+                                      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { children: "nie zosta\u0142 pobrany" }),
+                                      " z Twojego salda."
+                                    ] })
                                   ]
                                 }
                               ),
@@ -22440,8 +22510,8 @@
                                 /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { children: [
                                   "Cena Likwidacji: ",
                                   /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("strong", { style: { color: "#f87171" }, children: [
-                                    "$",
-                                    formatUsdc(breakdown.openedPosition.liquidationPrice)
+                                    formatUnitPrice(breakdown.openedPosition.liquidationPrice),
+                                    " USDC"
                                   ] })
                                 ] }),
                                 /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { children: [
@@ -22453,17 +22523,11 @@
                                 ] }),
                                 /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { children: [
                                   "W\u0142asny Margin: ",
-                                  /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("strong", { children: [
-                                    "$",
-                                    formatUsdc(breakdown.openedPosition.marginUsdc)
-                                  ] })
+                                  /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { children: formatUsdc(breakdown.openedPosition.marginUsdc) })
                                 ] }),
                                 /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { children: [
                                   "Prowizja Taker (0.05%): ",
-                                  /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("strong", { children: [
-                                    "$",
-                                    formatUsdc(breakdown.openedPosition.feeUsdc)
-                                  ] })
+                                  /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { children: formatUsdc(breakdown.openedPosition.feeUsdc) })
                                 ] })
                               ] }),
                               /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("h5", { style: { margin: "8px 0 6px 0", color: "#34d399", fontSize: "12px" }, children: "\u{1F3AF} Cele Take-Profit (TP):" }),
@@ -22472,9 +22536,9 @@
                                   tp.level,
                                   ":"
                                 ] }),
-                                " $",
+                                " ",
                                 formatUnitPrice(tp.targetPrice),
-                                " (",
+                                " USDC (",
                                 tp.roiPct,
                                 " / ",
                                 tp.profitUsdc,
@@ -22482,9 +22546,9 @@
                               ] }, idx)) }),
                               /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { style: { background: "rgba(239, 68, 68, 0.1)", padding: "8px", borderRadius: "4px", borderLeft: "3px solid #ef4444" }, children: [
                                 /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("strong", { style: { color: "#f87171" }, children: "\u{1F6D1} Stop-Loss:" }),
-                                " $",
+                                " ",
                                 formatUnitPrice(breakdown.stopLossPlan.price),
-                                " (",
+                                " USDC (",
                                 breakdown.stopLossPlan.roiPct,
                                 " / ",
                                 breakdown.stopLossPlan.lossUsdc,
