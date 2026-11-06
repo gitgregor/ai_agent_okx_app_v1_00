@@ -1,13 +1,13 @@
 {
-  "updatedAt": 1793906399782,
+  "updatedAt": 1793940882287,
   "homePublicIp": "81.99.228.78",
-  "primaryTunnelUrl": "https://particularly-houses-opera-means.trycloudflare.com",
-  "cloudflareTunnelUrl": "https://particularly-houses-opera-means.trycloudflare.com",
-  "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw-3.loca.lt",
+  "primaryTunnelUrl": "https://sure-currency-contacts-turtle.trycloudflare.com",
+  "cloudflareTunnelUrl": "https://sure-currency-contacts-turtle.trycloudflare.com",
+  "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw.loca.lt",
   "tunnels": [
-    "https://particularly-houses-opera-means.trycloudflare.com",
-    "https://okx-eea-gregor-home-gw-3.loca.lt",
+    "https://sure-currency-contacts-turtle.trycloudflare.com",
     "https://okx-eea-gregor-home-gw.loca.lt",
-    "https://okx-eea-gregor-home-gw-2.loca.lt"
+    "https://okx-eea-gregor-home-gw-2.loca.lt",
+    "https://okx-eea-gregor-home-gw-3.loca.lt"
   ]
 }
