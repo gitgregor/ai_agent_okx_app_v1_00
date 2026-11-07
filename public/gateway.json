@@ -1,13 +1,13 @@
 {
-  "updatedAt": 1793983294403,
+  "updatedAt": 1794036022659,
   "homePublicIp": "81.99.228.78",
-  "primaryTunnelUrl": "https://arrives-simultaneously-surveys-sign.trycloudflare.com",
-  "cloudflareTunnelUrl": "https://arrives-simultaneously-surveys-sign.trycloudflare.com",
-  "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw.loca.lt",
+  "primaryTunnelUrl": "https://faces-spirits-valves-periodically.trycloudflare.com",
+  "cloudflareTunnelUrl": "https://faces-spirits-valves-periodically.trycloudflare.com",
+  "fallbackTunnelUrl": "https://okx-eea-gregor-home-gw-2.loca.lt",
   "tunnels": [
-    "https://arrives-simultaneously-surveys-sign.trycloudflare.com",
-    "https://okx-eea-gregor-home-gw.loca.lt",
+    "https://faces-spirits-valves-periodically.trycloudflare.com",
     "https://okx-eea-gregor-home-gw-2.loca.lt",
+    "https://okx-eea-gregor-home-gw.loca.lt",
     "https://okx-eea-gregor-home-gw-3.loca.lt"
   ]
 }
